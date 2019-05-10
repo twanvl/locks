@@ -13,12 +13,13 @@ $fa = 3;
 eps = 0.01;
 C = 0.1; // clearnace
 
-coreR = 11;
+coreR = 9;
 
-wafers = 13;
+wafers = 12;
 waferThickness = 2;
+waferThicknessLast = 4;
 waferStep = waferThickness+C;
-waferWidth = 12;
+waferWidth = 10;
 waferWidthExt = waferWidth+2;
 tabWidth = 9;
 tabSlope = 0.2;
@@ -28,9 +29,9 @@ faceThickness = 2;
 
 housingR = coreR+3;
 
-keyWidth = 8;
+keyWidth = 7;
 keyDelta = 2;
-keyHeight = 2;
+keyHeight = 1.8;
 
 toothSlope = 1;
 keyC = C; // vertical clearance in keyhole
@@ -38,12 +39,13 @@ keyCX = 0.2; // horizontal clearance in keyhole (not critical)
 keyHolePos = 1;
 
 connectorR=1.25;
-connectorPos=-5.5;
+connectorPos=-4.5;
 
 bidding = [3,1];
 step = 0.5;
 //minBid = -3; maxBid = 3;
-minBid = -2; maxBid = 4;
+//minBid = -2; maxBid = 4;
+minBid = -1; maxBid = 5;
 bids = maxBid-minBid+1;
 maxDelta = 3*step;
 
@@ -55,14 +57,14 @@ tabR = coreR + (bids-1)*step + tabCY;
 // Utilities
 //-----------------------------------------------------------------------------
 
-module linear_extrude_y(height,center=false) {
+module linear_extrude_y(height,center=false,convexity=4) {
   translate([0,center?0:h,0])
   rotate([90,0,0])
-  linear_extrude(height=height,center=center) children();
+  linear_extrude(height=height,center=center,convexity=convexity) children();
 }
-module linear_extrude_x(height,center=false) {
+module linear_extrude_x(height,center=false,convexity=4) {
   rotate([0,0,90])
-  linear_extrude_y(height=height,center=center) children();
+  linear_extrude_y(height=height,center=center,convexity=convexity) children();
 }
 
 module fillet(r) {
@@ -105,7 +107,7 @@ module key_profile(delta=0) {
   dy=delta;
   rotate([90,0,0])
   rotate([0,90])
-  linear_extrude(eps) {
+  linear_extrude(eps,convexity=5) {
     polygon([
       [-keyDelta/2-dx,-keyWidth/2-dy],
       [keyDelta/2,0],
@@ -135,6 +137,24 @@ module key_hole(delta=keyCX) {
       [1.5,-keyHeight/2-keyC-toothSlope*0],
       [1,  -keyHeight/2-keyC-toothSlope*0],
       [-l, -keyHeight/2-keyC-toothSlope*(1+l)],
+    ]);
+  }
+}
+function mul_vec(a,b) = [for (i=[0:len(a)-1]) a[i]*b[i]];
+function reverse(list) = [for (i=[0:len(list)-1]) list[len(list)-i-1]];
+function mul_vecs(a,list) = [for (x=list) mul_vec(a,x)];
+function palindrome(mul, list) = concat(list, mul_vecs(mul,reverse(list)));
+module sym_polygon(mul,list) {
+  polygon(palindrome(mul,list));
+}
+module last_key_hole(delta=keyCX) {
+  l = 10; r = 10;
+  rotate([0,-90,0])
+  extrude_key(delta=delta) {
+    sym_polygon([1,-1],[
+      [-l, keyHeight/2+keyC+toothSlope*l],
+      [0,  keyHeight/2+keyC+toothSlope*0],
+      [r,  keyHeight/2+keyC+toothSlope*0],
     ]);
   }
 }
@@ -168,7 +188,7 @@ module connector_slot(bid=3) {
 // Wafers
 //-----------------------------------------------------------------------------
 
-module wafer_profile(C=C) {
+module wafer_profile1(C=C) {
   rotate([90,0,0])
   linear_extrude(coreR*2+eps,center=true)
   polygon([
@@ -180,14 +200,50 @@ module wafer_profile(C=C) {
     [waferWidth/2,-waferThickness/2-C]
   ]);
 }
+module wafer_profile(C=C) {
+  offset = 0.6;
+  a = 0.6 + 2*C;
+  b = a + offset;
+  CX = C;
+  linear_extrude_y(coreR*2+eps,center=true,convexity=2)
+  polygon([
+    [-waferWidth/2-CX-offset,0],
+    [-waferWidth/2-CX-offset,a],
+    [-waferWidth/2-CX,b],
+    [-waferWidth/2-CX,waferThickness+C],
+    [waferWidth/2+CX,waferThickness+C],
+    [waferWidth/2+CX,b],
+    [waferWidth/2+CX+offset,a],
+    [waferWidth/2+CX+offset,0],
+  ]);
+}
+module last_wafer_profile(C=C) {
+  offset = 0.6;
+  thickness = waferThicknessLast;
+  a = 0.6 + 2*C;
+  w = thickness+C-a-offset;
+  CX = C;
+  linear_extrude_y(coreR*2+eps,center=true,convexity=2)
+  polygon([
+    [-waferWidth/2-CX-offset,0],
+    [-waferWidth/2-CX-offset,a],
+    [-waferWidth/2-CX+w,thickness+C],
+    [waferWidth/2+CX-w,thickness+C],
+    [waferWidth/2+CX+offset,a],
+    [waferWidth/2+CX+offset,0],
+  ]);
+}
+
 module wafer_profiles() {
   for (i = [0:wafers-1]) {
-    translate([0,0,i*waferStep+waferStep/2]) {
-      wafer_profile(C);
+    translate([0,0,i*waferStep]) {
+      wafer_profile(C+eps);
     }
   }
+  translate([0,0,wafers*waferStep]) {
+    last_wafer_profile(C+eps);
+  }
 }
-//!waferProfiles();
 module wafer_outer() {
   intersection() {
     wafer_profile(C=0);
@@ -210,45 +266,56 @@ module tab_profile(width=tabWidth,height=2*coreR) {
 
 module wafer(bid, minBid=minBid, maxBid=maxBid, slot=true, pin=true, tabs=true) {
   y = bid*step;
+  thickness = waferThickness;
   difference() {
     union() {
       // tabs
       if (tabs) intersection() {
-        linear_extrude(waferThickness,center=true) tab_profile();
-        cylinder(r=coreR,waferThickness,center=true);
+        linear_extrude(thickness) tab_profile();
+        cylinder(r=coreR,thickness);
       }
       // profile
       intersection() {
         wafer_profile(C=0);
         translate([0,y-maxBid*step,0])
-          cylinder(r=coreR,waferThickness,center=true);
+          cylinder(r=coreR,thickness);
         translate([0,y-minBid*step,0])
-          cylinder(r=coreR,waferThickness,center=true);
+          cylinder(r=coreR,thickness);
       }
     }
-    translate([0,y+keyHolePos,-waferThickness/2-eps/2])
+    translate([0,y+keyHolePos,-eps/2])
       key_hole();
     // connectorSlot
     if (slot) {
-      translate([0,y+connectorPos,-waferThickness/2-eps]) connector_slot(bid);
+      translate([0,y+connectorPos,-eps]) connector_slot(bid);
     }
   }
   // connector
   if (pin) {
-    translate([0,y+connectorPos,waferThickness/2]) connector_pin();
+    translate([0,y+connectorPos,waferThickness]) connector_pin();
   }
   //translate([2,y+connectorPos,waferThickness/2]) connector_slot(bid);
 }
 module first_wafer(bid) {
   wafer(0,minBid=-3,maxBid=3,slot=false,tabs=false);
 }
-module last_wafer(bid) {
+module last_wafer(bid=0) {
   //wafer(bid,pin=false);
-  wafer(0,minBid=0,maxBid=0,pin=false);
+  //wafer(0,minBid=0,maxBid=0,pin=false);  
+  thickness = 2*waferThickness;
+  y = 0;
+  difference() {
+    intersection() {
+      last_wafer_profile(C=0);
+      cylinder(r=coreR,thickness);
+    }
+    translate([0,y+keyHolePos,1-eps/2]) last_key_hole();
+    translate([0,y+connectorPos,-eps]) connector_slot(bid);
+  }
 }
 module wafers() {
   wafer(minBid);
-  translate([0,0,3]) wafer(minBid+3);
+  translate([0,0,3]) wafer(maxBid);
   //translate([0,0,2]) wafer(4);
   translate([20,0,0]) wafer(0);
   translate([40,0,0]) wafer(maxBid);
@@ -279,18 +346,42 @@ module face_plate() {
   }
 }
 module core() {
+  stackHeight = wafers * waferStep + waferThicknessLast;
   union() {
     face_plate();
     translate([0,0,faceThickness])
-    difference() {
-      linear_extrude(wafers * waferStep + C-2*eps + 2) {
-        circle(coreR);
+    intersection() {
+      difference() {
+        linear_extrude(stackHeight + 2) {
+          circle(coreR);
+        }
+        // space for wafers
+        translate([0,0,-eps])
+        wafer_profiles();
+        /*
+        // chamfer for wafer inner part
+        h = wafers * waferStep - waferStep/2 + C-2*eps;
+        cube([waferWidth + 0.5,2*coreR,2*h],center=true);
+        */
+        // chamfer for wafer slots
+        ww = waferWidth/2 + 0.6 + C;
+        y = sqrt(coreR*coreR-ww*ww); // where wafer slots end
+        h = wafers * waferStep + C-2*eps;
+        chamfer = 0.5;
+        translate([0,-y-chamfer,0])cube([waferWidthExt,2*chamfer,2*h],center=true);
+        translate([0,y+chamfer,0])cube([waferWidthExt,2*chamfer,2*h],center=true);
+        // top chamfer for printability
+        //h2 = wafers * waferStep -2*eps + 0.6;
+        h2 = stackHeight;
+        ww2 = waferWidth/2 + 0.6 + 0.6 - waferThicknessLast + C*2;
+        y2 = sqrt(coreR*coreR-ww2*ww2);
+        linear_extrude_x(2*coreR,true) {
+          polygon([[y2,h2],[y2+10,h2+10],[y2+10,h2]]);
+          polygon([[-y2,h2],[-y2-10,h2+10],[-y2-10,h2]]);
+        }
       }
-      // space for wafers
-      translate([0,0,C/2-eps])
-      wafer_profiles();
     }
-    translate([0,0,faceThickness + wafers * waferStep + C-2*eps + 2]) {
+    translate([0,0,faceThickness + stackHeight + 2]) {
       translate([0,0,0]) cylinder(r1=coreR-1,r2=coreR-1,h=1);
       translate([0,0,1]) cylinder(r1=coreR-1,r2=coreR,h=1);
       translate([0,0,2]) cylinder(r1=coreR,r2=coreR,h=2);
@@ -346,12 +437,11 @@ module housing(tabC1=0.4,tabC2=0.8) {
     }*/
   }
 }
-color("grey")
-translate([0,0,faceThickness-1])
-housing();
+
+//color("grey") translate([0,0,faceThickness-1]) housing();
 
 
-//core();
+core();
 //intersection() {core(); cube(2*32,true);}
 
 if (false) {
