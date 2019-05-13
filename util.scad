@@ -72,6 +72,48 @@ module sym_polygon(mul,list) {
 // a polygon that is symmetric in the y direction
 module sym_polygon_y(list) sym_polygon([1,-1],list);
 module sym_polygon_x(list) sym_polygon([-1,1],list);
+module sym_polygon_xy(list) {
+  polygon(concat(
+    list,
+    mul_vecs([1,-1],reverse(list)),
+    mul_vecs([-1,-1],list),
+    mul_vecs([-1,1],reverse(list))
+  ));
+}
+module sym_polygon_180(list) {
+  polygon(concat(list,mul_vecs([-1,-1],list)));
+}
+
+//-----------------------------------------------------------------------------
+// Halfspaces
+//-----------------------------------------------------------------------------
+
+lots = 1e4;
+module positive_x() { translate([lots,0,0]) cube(2*lots,true); }
+module positive_y() { translate([0,lots,0]) cube(2*lots,true); }
+module positive_z() { translate([0,0,lots]) cube(2*lots,true); }
+module negative_x() { translate([-lots,0,0]) cube(2*lots,true); }
+module negative_y() { translate([0,-lots,0]) cube(2*lots,true); }
+module negative_z() { translate([0,0,-lots]) cube(2*lots,true); }
+
+//-----------------------------------------------------------------------------
+// Other construction utilities
+//-----------------------------------------------------------------------------
+
+module translate_x(d) { translate([d,0,0]) children(); }
+module translate_y(d) { translate([0,d,0]) children(); }
+module translate_z(d) { translate([0,0,d]) children(); }
+
+module translates(ps) {
+  for (p=ps) translate(p) children();
+}
+
+//-----------------------------------------------------------------------------
+// Threads
+//-----------------------------------------------------------------------------
+
+module m3_thread(length,internal=false) metric_thread(diameter=3,pitch=0.5,length=length,internal=internal);
+module m4_thread(length,internal=false) metric_thread(diameter=4,pitch=0.7,length=length,internal=internal);
 
 //-----------------------------------------------------------------------------
 // Twisting
