@@ -22,11 +22,6 @@ echo(calculatedSpace);
 echo(pinR + space);
 fuse = 2;
 
-module mirrored(a) {
-  children();
-  mirror(a) children();
-}
-
 module tweezer() {
   linear_extrude(thickness,convexity=10) {
     difference() {
