@@ -1,4 +1,4 @@
 *.gcode
 *.stl
 test
-
+*/out
