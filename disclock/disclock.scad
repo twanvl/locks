@@ -41,9 +41,14 @@ shackleDiameter = 8;
 shackleSpacing = 4;
 shackleWidth = 2*coreR + shackleDiameter + 2*shackleSpacing;
 
+lugR=coreR-2;
+lugHeight=shackleDiameter+3;
+lugTravel=shackleDiameter/2+0.5;
+lugDepth=8;
+
 housingHeight = 2*coreR + 2*shackleSpacing;
 housingWidth = shackleWidth + shackleDiameter + 2*shackleSpacing;
-housingDepth = 50;
+housingDepth = corePos + coreHeight + 2 + lugDepth + 2 + 2*C;
 
 shackleLength = housingDepth + 5;
 
@@ -245,11 +250,6 @@ module disc_test() {
 // Core
 //-----------------------------------------------------------------------------
 
-lugR=coreR-2;
-lugHeight=shackleDiameter+3;
-lugTravel=shackleDiameter/2+0.5;
-lugDepth=8;
-
 module lug_hole(offset=0) {
   o = 4;
   intersection() {
@@ -402,8 +402,8 @@ intersection() {
     //color("pink") translate([0,0,0]) plug();
     color("pink") translate([60,0,0]) plug();
   }
-  //positive_y();
-  translate_z(10) positive_z();
+  positive_y();
+  //translate_z(10) positive_z();
 }
   rotate(-70) color("lightblue") translate([0,coreR+4.5]) cube([3,9,coreHeight*2],true);
 //translate([coreR-3,0,corePos-3.5/2-1.5]) rotate([0,90,0]) cylinder(d=4,h=6); 
