@@ -58,6 +58,19 @@ module chamfer_cube(x,y,z,r) {
   }
 }
 
+module minkowski_difference(size=1e12) {
+  difference() {
+    cube(size*[1.1,1.1,1.1], center=true);
+    minkowski(){
+      difference(){
+        cube(size*[1,1,1], center=true);
+        children(0);
+      }
+      children(1);
+    }
+  }
+}
+
 //-----------------------------------------------------------------------------
 // Primitives
 //-----------------------------------------------------------------------------
