@@ -5,7 +5,7 @@
 // Resolution defaults
 
 $fs = 0.1;
-$fa = 3;
+$fa = 1;
 
 eps = 1e-3;
 

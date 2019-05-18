@@ -12,6 +12,7 @@ include <../util.scad>
 eps = 0.01;
 C = 0.1; // clearance
 CX = 0.08; // clearance in x and y directions
+bridgeC = 1; // clearance for bridges
 
 coreR = 9;
 useCoreBack = false;
@@ -42,6 +43,7 @@ keyHolePos = 0;
 
 connectorR=1.25;
 connectorPos=-5;
+pinC = 2.5*C; // it is critical that there is enough clearance, better to have too much
 
 bitting = [3,1];
 //step = 0.5;
@@ -121,10 +123,10 @@ connectorPos=0;
 
 //module connector_halfpin(C=0) cylinder(r=3+C,h=1);
 //module connector_halfpin(C=0) cube([2+2*C,6+2*C,2],true);
-module connector_halfpin(C=0,dh=0) {
+module connector_halfpin(C=0,CX=0,dh=0) {
   a = 1.2;
   h = 1.2-dh;
-  linear_extrude_y(6+2*C,true) {
+  linear_extrude_y(6+2*CX,true) {
     //sym_polygon_x([[-a-C, 0], [-a-C+h,h]]);
     sym_polygon_x([[-a-C, 0], [-a+h,h+C]]);
   }
@@ -148,16 +150,16 @@ module connector_pin(C=0) {
 module connector_slot(bit=3) {
   a = -maxDelta*step;
   b = maxDelta*step;
-  pinC = 3*C;
+  CX = 0.05; // clearance in movement direction
   if (true) {
     group() {
       hull() {
-        translate([0,coreR+a,0]) connector_halfpin(pinC);
-        translate([0,coreR+b,0]) connector_halfpin(pinC);
+        translate([0,coreR+a,0]) connector_halfpin(pinC,CX=CX);
+        translate([0,coreR+b,0]) connector_halfpin(pinC,CX=CX);
       }
       hull() {
-        translate([0,-coreR+a,0]) connector_halfpin(pinC);
-        translate([0,-coreR+b,0]) connector_halfpin(pinC);
+        translate([0,-coreR+a,0]) connector_halfpin(pinC,CX=CX);
+        translate([0,-coreR+b,0]) connector_halfpin(pinC,CX=CX);
       }
     }
   } else {
@@ -189,33 +191,26 @@ module wafer_profile1(C=C) {
     [waferWidth/2,-waferThickness/2-C]
   ]);
 }
-module wafer_profile(C=C,CX=CX) {
+module wafer_profile(C=0,CX=0) {
   a = waferLip + 2*C;
   b = a + waferLip;
   linear_extrude_y(coreR*2+eps,center=true,convexity=2)
-  polygon([
+  sym_polygon_x([
     [-waferWidth/2-CX-waferLip,0],
     [-waferWidth/2-CX-waferLip,a],
     [-waferWidth/2-CX,b],
-    [-waferWidth/2-CX,waferThickness+C],
-    [waferWidth/2+CX,waferThickness+C],
-    [waferWidth/2+CX,b],
-    [waferWidth/2+CX+waferLip,a],
-    [waferWidth/2+CX+waferLip,0],
+    [-waferWidth/2-CX,waferThickness+C]
   ]);
 }
-module last_wafer_profile(C=C,CX=CX) {
+module last_wafer_profile(C=0,CX=0,bridgeC=0) {
   thickness = waferThicknessLast;
   a = waferLip + 2*C;
   w = thickness+C-a-waferLip;
   linear_extrude_y(coreR*2+eps,center=true,convexity=2)
-  polygon([
+  sym_polygon_x([
     [-waferWidth/2-CX-waferLip,0],
     [-waferWidth/2-CX-waferLip,a],
-    [-waferWidth/2-CX+w,thickness+C],
-    [waferWidth/2+CX-w,thickness+C],
-    [waferWidth/2+CX+waferLip,a],
-    [waferWidth/2+CX+waferLip,0],
+    [-waferWidth/2-CX+w+bridgeC,thickness+C+bridgeC]
   ]);
 }
 
@@ -226,7 +221,7 @@ module wafer_profiles(C=C,CX=CX) {
     }
   }
   translate([0,0,wafers*waferStep]) {
-    last_wafer_profile(C+eps,CX=CX);
+    last_wafer_profile(C+eps,CX=CX,bridgeC=bridgeC);
   }
 }
 module wafer_outer() {
@@ -261,7 +256,7 @@ module wafer(bit, minBit=minBit, maxBit=maxBit, slot=true, pin=true, tabs=true) 
       }
       // profile
       intersection() {
-        wafer_profile(C=0,CX=0);
+        wafer_profile();
         translate([0,y-maxBit*step,0]) cylinder(r=coreR,thickness);
         translate([0,y-minBit*step,0]) cylinder(r=coreR,thickness);
       }
@@ -299,7 +294,7 @@ module last_wafer(bit=0) {
   y = 0;
   difference() {
     intersection() {
-      last_wafer_profile(C=0);
+      last_wafer_profile();
       cylinder(r=coreR,thickness);
     }
     translate([0,y+keyHolePos,1-eps/2]) last_key_hole();
@@ -310,7 +305,7 @@ module wafers() {
   wafer(minBit);
   //translate([0,0,3]) wafer(minBit+3);
   //translate([0,0,3]) wafer(maxBit);
-  translate([0,0,2]) wafer(4);
+  //translate([0,0,2]) wafer(4);
   translate([20,0,0]) wafer(0);
   translate([40,0,0]) wafer(maxBit);
   translate([60,0,0]) first_wafer(0);
@@ -321,8 +316,8 @@ module waferTest() {
   intersection() {
     group() {
       wafer(minBit);
-      //color("lightgreen") translate([0,0,2+C]) wafer(minBit+3);
-      color("lightgreen") translate([0,-0*step,2+C]) wafer(minBit+3);
+      color("lightgreen") translate([0,-6*step,2+C]) wafer(minBit+3);
+      //color("lightgreen") translate([0,-0*step,2+C]) wafer(minBit+3);
       color("pink") translate([0,-6*step,2*waferStep]) wafer(maxBit);
       color("lightyellow") translate([0,0*step,3*waferStep]) wafer(maxBit-3);
       color("lightyellow") translate([0,6*step,4*waferStep]) wafer(minBit);
@@ -332,7 +327,7 @@ module waferTest() {
   }
 }
 //!waferTest();
-!wafers();
+//!wafers();
 
 //-----------------------------------------------------------------------------
 // Core
@@ -382,12 +377,12 @@ module core(C=C,CX=C) {
         translate([0,y+chamfer,0])cube([2*coreR,2*chamfer,2*h],center=true);
         // top chamfer for printability
         //h2 = wafers * waferStep -2*eps + waferLip;
-        h2 = stackHeight;
-        ww2 = waferWidth/2 + waferLip + waferLip - waferThicknessLast + C*2;
+        h2 = stackHeight + bridgeC + C;
+        ww2 = waferWidth/2 + waferLip + waferLip - waferThicknessLast + C*2 - bridgeC;
         y2 = sqrt(coreR*coreR-ww2*ww2);
         linear_extrude_x(2*coreR,true) {
+          mirrored([1,0,0])
           polygon([[y2,h2],[y2+10,h2+10],[y2+10,h2]]);
-          polygon([[-y2,h2],[-y2-10,h2+10],[-y2-10,h2]]);
         }
       }
     }
@@ -467,10 +462,6 @@ translate([0,-step*0,faceThickness+waferThickness/2+C/2+waferStep*3]) color("gre
 translate([0,step*1,faceThickness+waferThickness/2+C/2+waferStep*4]) color("limegreen") wafer(minBit+5);
 }
 
-//-----------------------------------------------------------------------------
-// Export
-//-----------------------------------------------------------------------------
-
 module labled_core(CX,label) {
   lbl = label==undef ? str(CX) : label;
   core();
@@ -479,6 +470,34 @@ module labled_core(CX,label) {
     text(lbl,size=5,font="Ubuntu",halign="center",valign="center");
  }
  
+module housing_test(CX,label) {
+  housingHeight = 4;
+  housingR = coreR+2.5;
+  faceCountersink=1;
+  d = 5;
+  lbl = label==undef ? str(CX) : label;
+  difference() {
+    translate([0,d/2,housingHeight/2])
+    chamfer_cube(2*housingR,2*housingR+d,housingHeight,1);
+    // core
+    translate([0,0,-eps]) cylinder(r=coreR+CX,h=housingHeight+2*eps);
+    // face
+    translate([0,0,-eps]) cylinder(r=faceR+CX,h=faceCountersink+2*eps);
+    translate([0,0,housingHeight-faceCountersink]) cylinder(r=faceR+CX,h=faceCountersink+2*eps);
+    // label
+    translate([0,housingR+d/2-1.2,housingHeight-0.2]) linear_extrude(0.2+eps)
+      text(lbl,size=5,font="Ubuntu",halign="center",valign="center");
+  }
+  //translate([0,housingR+d/2-1.5,housingHeight]) linear_extrude(0.2)
+  //  text(lbl,size=5,font="Ubuntu",halign="center",valign="center");
+}
+//!housing_test(0);
+!housing_test(0.1125);
+ 
+//-----------------------------------------------------------------------------
+// Export
+//-----------------------------------------------------------------------------
+
 module export_wafer0() { wafer(minBit+0); }
 module export_wafer1() { wafer(minBit+1); }
 module export_wafer2() { wafer(minBit+2); }
@@ -492,4 +511,8 @@ module export_core() { core(); }
 module export_coretest_wide() { labled_core(CX=C);  }
 module export_coretest_narrow() { labled_core(CX=C/2);  }
 module export_housing() { housing(); }
+module export_housingtest_zero() { housing_test(0); }
+module export_housingtest_narrow() { housing_test(0.05); }
+module export_housingtest_wide() { housing_test(0.1); }
+module export_housingtest_wider() { housing_test(0.125); }
 module export_core_small() { core(); }
