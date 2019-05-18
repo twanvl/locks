@@ -13,8 +13,10 @@ eps = 0.01;
 C = 0.1; // clearnace
 
 coreR = 9;
+useCoreBack = false;
 
-wafers = 12;
+//wafers = 12;
+wafers = 3;
 waferThickness = 2;
 waferThicknessLast = 4;
 waferStep = waferThickness+C;
@@ -183,11 +185,10 @@ module wafer_profile1(C=C) {
     [waferWidth/2,-waferThickness/2-C]
   ]);
 }
-module wafer_profile(C=C) {
+module wafer_profile(C=C,CX=C) {
   offset = 0.6;
   a = 0.6 + 2*C;
   b = a + offset;
-  CX = C;
   linear_extrude_y(coreR*2+eps,center=true,convexity=2)
   polygon([
     [-waferWidth/2-CX-offset,0],
@@ -200,12 +201,11 @@ module wafer_profile(C=C) {
     [waferWidth/2+CX+offset,0],
   ]);
 }
-module last_wafer_profile(C=C) {
+module last_wafer_profile(C=C,CX=C) {
   offset = 0.6;
   thickness = waferThicknessLast;
   a = 0.6 + 2*C;
   w = thickness+C-a-offset;
-  CX = C;
   linear_extrude_y(coreR*2+eps,center=true,convexity=2)
   polygon([
     [-waferWidth/2-CX-offset,0],
@@ -217,14 +217,14 @@ module last_wafer_profile(C=C) {
   ]);
 }
 
-module wafer_profiles() {
+module wafer_profiles(C=C,CX=C) {
   for (i = [0:wafers-1]) {
     translate([0,0,i*waferStep]) {
-      wafer_profile(C+eps);
+      wafer_profile(C+eps,CX=CX);
     }
   }
   translate([0,0,wafers*waferStep]) {
-    last_wafer_profile(C+eps);
+    last_wafer_profile(C+eps,CX=CX);
   }
 }
 module wafer_outer() {
@@ -330,7 +330,7 @@ module waferTest() {
   }
 }
 //!waferTest();
-!wafers();
+//!wafers();
 
 //-----------------------------------------------------------------------------
 // Core
@@ -353,7 +353,7 @@ module face_plate() {
     }
   }
 }
-module core() {
+module core(C=C,CX=C) {
   stackHeight = wafers * waferStep + waferThicknessLast;
   union() {
     face_plate();
@@ -365,14 +365,14 @@ module core() {
         }
         // space for wafers
         translate([0,0,-eps])
-        wafer_profiles();
+        wafer_profiles(C=C,CX=CX);
         /*
         // chamfer for wafer inner part
         h = wafers * waferStep - waferStep/2 + C-2*eps;
         cube([waferWidth + 0.5,2*coreR,2*h],center=true);
         */
         // chamfer for wafer slots
-        ww = waferWidth/2 + 0.6 + C;
+        ww = waferWidth/2 + 0.6 + CX;
         y = sqrt(coreR*coreR-ww*ww); // where wafer slots end
         h = wafers * waferStep + C-2*eps;
         chamfer = 0.5;
@@ -389,6 +389,7 @@ module core() {
         }
       }
     }
+    if (useCoreBack)
     translate([0,0,faceThickness + stackHeight + 2]) {
       translate([0,0,0]) cylinder(r1=coreR-1,r2=coreR-1,h=1);
       translate([0,0,1]) cylinder(r1=coreR-1,r2=coreR,h=1);
@@ -468,4 +469,25 @@ translate([0,step*1,faceThickness+waferThickness/2+C/2+waferStep*4]) color("lime
 // Export
 //-----------------------------------------------------------------------------
 
-module export_wafer0() { wafer(0); }
+module labled_core(CX,label) {
+  lbl = label==undef ? str(CX) : label;
+  core();
+  stackHeight = wafers * waferStep + waferThicknessLast;
+  translate([0,0,faceThickness + stackHeight + 2]) linear_extrude(0.2)
+    text(lbl,size=5,font="Ubuntu",halign="center",valign="center");
+ }
+ 
+module export_wafer0() { wafer(minBit+0); }
+module export_wafer1() { wafer(minBit+1); }
+module export_wafer2() { wafer(minBit+2); }
+module export_wafer3() { wafer(minBit+3); }
+module export_wafer4() { wafer(minBit+4); }
+module export_wafer5() { wafer(minBit+5); }
+module export_wafer6() { wafer(minBit+6); }
+module export_first_wafer() { first_wafer(); }
+module export_last_wafer() { last_wafer(); }
+module export_core() { core(); }
+module export_coretest_wide() { labled_core(CX=C);  }
+module export_coretest_narrow() { labled_core(CX=C/2);  }
+module export_housing() { housing(); }
+module export_core_small() { core(); }
