@@ -10,7 +10,8 @@ include <../util.scad>
 //-----------------------------------------------------------------------------
 
 eps = 0.01;
-C = 0.1; // clearnace
+C = 0.1; // clearance
+CX = 0.08; // clearance in x and y directions
 
 coreR = 9;
 useCoreBack = false;
@@ -21,7 +22,7 @@ waferThickness = 2;
 waferThicknessLast = 4;
 waferStep = waferThickness+C;
 waferWidth = 10;
-waferWidthExt = waferWidth+2;
+waferLip = 0.6;
 tabWidth = 9;
 tabSlope = 0.2;
 
@@ -120,11 +121,12 @@ connectorPos=0;
 
 //module connector_halfpin(C=0) cylinder(r=3+C,h=1);
 //module connector_halfpin(C=0) cube([2+2*C,6+2*C,2],true);
-module connector_halfpin(C=0) {
-  a = 1.5;
-  h = 1.2;
+module connector_halfpin(C=0,dh=0) {
+  a = 1.2;
+  h = 1.2-dh;
   linear_extrude_y(6+2*C,true) {
-    sym_polygon_x([[-a-C, 0], [-a-C+h,h]]);
+    //sym_polygon_x([[-a-C, 0], [-a-C+h,h]]);
+    sym_polygon_x([[-a-C, 0], [-a+h,h+C]]);
   }
 }
 
@@ -137,8 +139,8 @@ module connector_pin(C=0) {
     }
   } else {
     group() {
-      translate([0,coreR,0]) connector_halfpin();
-      translate([0,-coreR,0]) connector_halfpin();
+      translate([0,coreR,0]) connector_halfpin(dh=0.2);
+      translate([0,-coreR,0]) connector_halfpin(dh=0.2);
     }
   }
 }
@@ -146,15 +148,16 @@ module connector_pin(C=0) {
 module connector_slot(bit=3) {
   a = -maxDelta*step;
   b = maxDelta*step;
+  pinC = 3*C;
   if (true) {
     group() {
       hull() {
-        translate([0,coreR+a,0]) connector_halfpin(C);
-        translate([0,coreR+b,0]) connector_halfpin(C);
+        translate([0,coreR+a,0]) connector_halfpin(pinC);
+        translate([0,coreR+b,0]) connector_halfpin(pinC);
       }
       hull() {
-        translate([0,-coreR+a,0]) connector_halfpin(C);
-        translate([0,-coreR+b,0]) connector_halfpin(C);
+        translate([0,-coreR+a,0]) connector_halfpin(pinC);
+        translate([0,-coreR+b,0]) connector_halfpin(pinC);
       }
     }
   } else {
@@ -174,6 +177,7 @@ module connector_slot(bit=3) {
 //-----------------------------------------------------------------------------
 
 module wafer_profile1(C=C) {
+  waferWidthExt = waferWidth+2;
   rotate([90,0,0])
   linear_extrude(coreR*2+eps,center=true)
   polygon([
@@ -185,39 +189,37 @@ module wafer_profile1(C=C) {
     [waferWidth/2,-waferThickness/2-C]
   ]);
 }
-module wafer_profile(C=C,CX=C) {
-  offset = 0.6;
-  a = 0.6 + 2*C;
-  b = a + offset;
+module wafer_profile(C=C,CX=CX) {
+  a = waferLip + 2*C;
+  b = a + waferLip;
   linear_extrude_y(coreR*2+eps,center=true,convexity=2)
   polygon([
-    [-waferWidth/2-CX-offset,0],
-    [-waferWidth/2-CX-offset,a],
+    [-waferWidth/2-CX-waferLip,0],
+    [-waferWidth/2-CX-waferLip,a],
     [-waferWidth/2-CX,b],
     [-waferWidth/2-CX,waferThickness+C],
     [waferWidth/2+CX,waferThickness+C],
     [waferWidth/2+CX,b],
-    [waferWidth/2+CX+offset,a],
-    [waferWidth/2+CX+offset,0],
+    [waferWidth/2+CX+waferLip,a],
+    [waferWidth/2+CX+waferLip,0],
   ]);
 }
-module last_wafer_profile(C=C,CX=C) {
-  offset = 0.6;
+module last_wafer_profile(C=C,CX=CX) {
   thickness = waferThicknessLast;
-  a = 0.6 + 2*C;
-  w = thickness+C-a-offset;
+  a = waferLip + 2*C;
+  w = thickness+C-a-waferLip;
   linear_extrude_y(coreR*2+eps,center=true,convexity=2)
   polygon([
-    [-waferWidth/2-CX-offset,0],
-    [-waferWidth/2-CX-offset,a],
+    [-waferWidth/2-CX-waferLip,0],
+    [-waferWidth/2-CX-waferLip,a],
     [-waferWidth/2-CX+w,thickness+C],
     [waferWidth/2+CX-w,thickness+C],
-    [waferWidth/2+CX+offset,a],
-    [waferWidth/2+CX+offset,0],
+    [waferWidth/2+CX+waferLip,a],
+    [waferWidth/2+CX+waferLip,0],
   ]);
 }
 
-module wafer_profiles(C=C,CX=C) {
+module wafer_profiles(C=C,CX=CX) {
   for (i = [0:wafers-1]) {
     translate([0,0,i*waferStep]) {
       wafer_profile(C+eps,CX=CX);
@@ -259,7 +261,7 @@ module wafer(bit, minBit=minBit, maxBit=maxBit, slot=true, pin=true, tabs=true) 
       }
       // profile
       intersection() {
-        wafer_profile(C=0);
+        wafer_profile(C=0,CX=0);
         translate([0,y-maxBit*step,0]) cylinder(r=coreR,thickness);
         translate([0,y-minBit*step,0]) cylinder(r=coreR,thickness);
       }
@@ -308,7 +310,7 @@ module wafers() {
   wafer(minBit);
   //translate([0,0,3]) wafer(minBit+3);
   //translate([0,0,3]) wafer(maxBit);
-  //translate([0,0,2]) wafer(4);
+  translate([0,0,2]) wafer(4);
   translate([20,0,0]) wafer(0);
   translate([40,0,0]) wafer(maxBit);
   translate([60,0,0]) first_wafer(0);
@@ -330,7 +332,7 @@ module waferTest() {
   }
 }
 //!waferTest();
-//!wafers();
+!wafers();
 
 //-----------------------------------------------------------------------------
 // Core
@@ -372,16 +374,16 @@ module core(C=C,CX=C) {
         cube([waferWidth + 0.5,2*coreR,2*h],center=true);
         */
         // chamfer for wafer slots
-        ww = waferWidth/2 + 0.6 + CX;
+        ww = waferWidth/2 + waferLip + CX;
         y = sqrt(coreR*coreR-ww*ww); // where wafer slots end
         h = wafers * waferStep + C-2*eps;
         chamfer = 0.5;
-        translate([0,-y-chamfer,0])cube([waferWidthExt,2*chamfer,2*h],center=true);
-        translate([0,y+chamfer,0])cube([waferWidthExt,2*chamfer,2*h],center=true);
+        translate([0,-y-chamfer,0])cube([2*coreR,2*chamfer,2*h],center=true);
+        translate([0,y+chamfer,0])cube([2*coreR,2*chamfer,2*h],center=true);
         // top chamfer for printability
-        //h2 = wafers * waferStep -2*eps + 0.6;
+        //h2 = wafers * waferStep -2*eps + waferLip;
         h2 = stackHeight;
-        ww2 = waferWidth/2 + 0.6 + 0.6 - waferThicknessLast + C*2;
+        ww2 = waferWidth/2 + waferLip + waferLip - waferThicknessLast + C*2;
         y2 = sqrt(coreR*coreR-ww2*ww2);
         linear_extrude_x(2*coreR,true) {
           polygon([[y2,h2],[y2+10,h2+10],[y2+10,h2]]);
