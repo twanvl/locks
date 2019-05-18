@@ -40,20 +40,20 @@ keyHolePos = 0;
 connectorR=1.25;
 connectorPos=-5;
 
-bidding = [3,1];
+bitting = [3,1];
 //step = 0.5;
 step = 0.6;
-//minBid = -4; maxBid = 4;
-minBid = -3; maxBid = 3;
-//minBid = -2; maxBid = 4;
-//minBid = -1; maxBid = 5;
-//minBid = 0; maxBid = 6;
-bids = maxBid-minBid+1;
+//minBit = -4; maxBit = 4;
+minBit = -3; maxBit = 3;
+//minBit = -2; maxBit = 4;
+//minBit = -1; maxBit = 5;
+//minBit = 0; maxBit = 6;
+bits = maxBit-minBit+1;
 maxDelta = 3;
 
 tabC = 0.5; // Clearance on side of tabs
 tabCY = 2*C; // Clearance above tabs
-tabR = coreR + (bids-1)*step + tabCY;
+tabR = coreR + (bits-1)*step + tabCY;
 
 //-----------------------------------------------------------------------------
 // Keyway
@@ -141,7 +141,7 @@ module connector_pin(C=0) {
   }
 }
 
-module connector_slot(bid=3) {
+module connector_slot(bit=3) {
   a = -maxDelta*step;
   b = maxDelta*step;
   if (true) {
@@ -247,8 +247,8 @@ module tab_profile(width=tabWidth,height=2*coreR) {
 //!linear_extrude(waferThickness,true) tab_profile();
 //connectorR=2;connectorO=[0,0,-0.5];
 
-module wafer(bid, minBid=minBid, maxBid=maxBid, slot=true, pin=true, tabs=true) {
-  y = bid*step;
+module wafer(bit, minBit=minBit, maxBit=maxBit, slot=true, pin=true, tabs=true) {
+  y = bit*step;
   thickness = waferThickness;
   difference() {
     union() {
@@ -260,8 +260,8 @@ module wafer(bid, minBid=minBid, maxBid=maxBid, slot=true, pin=true, tabs=true) 
       // profile
       intersection() {
         wafer_profile(C=0);
-        translate([0,y-maxBid*step,0]) cylinder(r=coreR,thickness);
-        translate([0,y-minBid*step,0]) cylinder(r=coreR,thickness);
+        translate([0,y-maxBit*step,0]) cylinder(r=coreR,thickness);
+        translate([0,y-minBit*step,0]) cylinder(r=coreR,thickness);
       }
       // connector
       if (pin) {
@@ -271,8 +271,8 @@ module wafer(bid, minBid=minBid, maxBid=maxBid, slot=true, pin=true, tabs=true) 
             cylinder(r=coreR,thickness+2);
           } else {
             intersection() {
-              translate([0,y-maxBid*step,0]) cylinder(r=coreR,thickness+2);
-              translate([0,y-minBid*step,0]) cylinder(r=coreR,thickness+2);
+              translate([0,y-maxBit*step,0]) cylinder(r=coreR,thickness+2);
+              translate([0,y-minBit*step,0]) cylinder(r=coreR,thickness+2);
             }
           }
         }
@@ -282,17 +282,17 @@ module wafer(bid, minBid=minBid, maxBid=maxBid, slot=true, pin=true, tabs=true) 
       key_hole();
     // connectorSlot
     if (slot) {
-      translate([0,y+connectorPos,-eps]) connector_slot(bid);
+      translate([0,y+connectorPos,-eps]) connector_slot(bit);
     }
   }
-  //translate([2,y+connectorPos,waferThickness/2]) connector_slot(bid);
+  //translate([2,y+connectorPos,waferThickness/2]) connector_slot(bit);
 }
-module first_wafer(bid) {
-  wafer(0,minBid=max(minBid,bid-3),maxBid=min(maxBid,bid+3),slot=false,tabs=false);
+module first_wafer(bit) {
+  wafer(0,minBit=max(minBit,bit-3),maxBit=min(maxBit,bit+3),slot=false,tabs=false);
 }
-module last_wafer(bid=0) {
-  //wafer(bid,pin=false);
-  //wafer(0,minBid=0,maxBid=0,pin=false);  
+module last_wafer(bit=0) {
+  //wafer(bit,pin=false);
+  //wafer(0,minBit=0,maxBit=0,pin=false);  
   thickness = 2*waferThickness;
   y = 0;
   difference() {
@@ -301,29 +301,29 @@ module last_wafer(bid=0) {
       cylinder(r=coreR,thickness);
     }
     translate([0,y+keyHolePos,1-eps/2]) last_key_hole();
-    translate([0,y+connectorPos,-eps]) connector_slot(bid);
+    translate([0,y+connectorPos,-eps]) connector_slot(bit);
   }
 }
 module wafers() {
-  wafer(minBid);
-  //translate([0,0,3]) wafer(minBid+3);
-  //translate([0,0,3]) wafer(maxBid);
+  wafer(minBit);
+  //translate([0,0,3]) wafer(minBit+3);
+  //translate([0,0,3]) wafer(maxBit);
   //translate([0,0,2]) wafer(4);
   translate([20,0,0]) wafer(0);
-  translate([40,0,0]) wafer(maxBid);
+  translate([40,0,0]) wafer(maxBit);
   translate([60,0,0]) first_wafer(0);
   translate([80,0,0]) last_wafer(0);
-  translate([-20,0,0]) wafer(minBid+1);
+  translate([-20,0,0]) wafer(minBit+1);
 }
 module waferTest() {
   intersection() {
     group() {
-      wafer(minBid);
-      //color("lightgreen") translate([0,0,2+C]) wafer(minBid+3);
-      color("lightgreen") translate([0,-0*step,2+C]) wafer(minBid+3);
-      color("pink") translate([0,-6*step,2*waferStep]) wafer(maxBid);
-      color("lightyellow") translate([0,0*step,3*waferStep]) wafer(maxBid-3);
-      color("lightyellow") translate([0,6*step,4*waferStep]) wafer(minBid);
+      wafer(minBit);
+      //color("lightgreen") translate([0,0,2+C]) wafer(minBit+3);
+      color("lightgreen") translate([0,-0*step,2+C]) wafer(minBit+3);
+      color("pink") translate([0,-6*step,2*waferStep]) wafer(maxBit);
+      color("lightyellow") translate([0,0*step,3*waferStep]) wafer(maxBit-3);
+      color("lightyellow") translate([0,6*step,4*waferStep]) wafer(minBit);
     }
     //translate([50,0,0]) cube([100,100,100],center=true);
     translate([1,0,0]) cube([2,100,100],center=true);
@@ -457,11 +457,11 @@ core();
 //intersection() {core(); cube(2*32,true);}
 
 if (false) {
-translate([0,step*3,faceThickness+waferThickness/2+C/2]) color("red") wafer(minBid+3);
-translate([0,step*6,faceThickness+waferThickness/2+C/2+waferStep]) color("red") wafer(minBid+0);
-translate([0,-step*6,faceThickness+waferThickness/2+C/2+waferStep*2]) color("blue") wafer(minBid+6);
-translate([0,-step*0,faceThickness+waferThickness/2+C/2+waferStep*3]) color("green") wafer(minBid+6);
-translate([0,step*1,faceThickness+waferThickness/2+C/2+waferStep*4]) color("limegreen") wafer(minBid+5);
+translate([0,step*3,faceThickness+waferThickness/2+C/2]) color("red") wafer(minBit+3);
+translate([0,step*6,faceThickness+waferThickness/2+C/2+waferStep]) color("red") wafer(minBit+0);
+translate([0,-step*6,faceThickness+waferThickness/2+C/2+waferStep*2]) color("blue") wafer(minBit+6);
+translate([0,-step*0,faceThickness+waferThickness/2+C/2+waferStep*3]) color("green") wafer(minBit+6);
+translate([0,step*1,faceThickness+waferThickness/2+C/2+waferStep*4]) color("limegreen") wafer(minBit+5);
 }
 
 //-----------------------------------------------------------------------------
