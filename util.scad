@@ -101,13 +101,15 @@ module sym_polygon_180(list) {
 // Halfspaces
 //-----------------------------------------------------------------------------
 
-lots = 1e4;
+lots = 1e3;
 module positive_x() { translate([lots,0,0]) cube(2*lots,true); }
 module positive_y() { translate([0,lots,0]) cube(2*lots,true); }
 module positive_z() { translate([0,0,lots]) cube(2*lots,true); }
 module negative_x() { translate([-lots,0,0]) cube(2*lots,true); }
 module negative_y() { translate([0,-lots,0]) cube(2*lots,true); }
 module negative_z() { translate([0,0,-lots]) cube(2*lots,true); }
+module everything() { cube(2*lots,true); }
+module not() { difference() { group() {children();} everything(); }  }
 
 //-----------------------------------------------------------------------------
 // Other construction utilities
