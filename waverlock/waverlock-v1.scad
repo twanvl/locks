@@ -284,7 +284,7 @@ module wafer(bit, minBit=minBit, maxBit=maxBit, slot=true, pin=true, tabs=true) 
   }
   //translate([2,y+connectorPos,waferThickness/2]) connector_slot(bit);
 }
-module first_wafer(bit) {
+module first_wafer(bit=0) {
   wafer(0,minBit=max(minBit,bit-3),maxBit=min(maxBit,bit+3),slot=false,tabs=false);
 }
 module last_wafer(bit=0) {
@@ -308,8 +308,8 @@ module wafers() {
   //translate([0,0,2]) wafer(4);
   translate([20,0,0]) wafer(0);
   translate([40,0,0]) wafer(maxBit);
-  translate([60,0,0]) first_wafer(0);
-  translate([80,0,0]) last_wafer(0);
+  translate([60,0,0]) first_wafer();
+  translate([80,0,0]) last_wafer();
   translate([-20,0,0]) wafer(minBit+1);
 }
 module waferTest() {
@@ -327,7 +327,7 @@ module waferTest() {
   }
 }
 //!waferTest();
-//!wafers();
+!wafers();
 
 //-----------------------------------------------------------------------------
 // Core
