@@ -327,7 +327,7 @@ module waferTest() {
   }
 }
 //!waferTest();
-!wafers();
+//!wafers();
 
 //-----------------------------------------------------------------------------
 // Core
@@ -396,6 +396,103 @@ module core(C=C,CX=C) {
 };
 
 //-----------------------------------------------------------------------------
+// Retaining clip
+//-----------------------------------------------------------------------------
+
+clipR = coreR+2;
+clipW = 8;
+clipCoreR = coreR-2;
+clipH = 4;
+
+module retaining_clip_connector(clip=true) {
+  e = clip ? 0 : 0.1;
+  if (clip)
+  intersection() {
+    linear_extrude_y(2*clipR+2,true) {
+      //polygon([[0,0],[clipW/2,0],[clipW/2-clipH,clipH]]);
+      if (clip) {
+        polygon([[-1,0],[clipW/2,0],[clipW/2-2,2],[-1,2]]);
+      } else {
+        polygon([[0,0],[clipW/2,0],[clipW/2-2,2],[0,2]]);
+      }
+    }
+    cylinder(r=clipCoreR,h=clipH);
+    linear_extrude(clipH,convexity=10) {
+      pinR = 0.5;
+      pos = clipCoreR-3;
+      difference() {
+        union() {
+          translate([0,-clipR]) square([10,2*clipR]);
+          translate([0,pos]) circle(r=pinR);
+        }
+        translate([0,-pos]) circle(r=pinR+0.1);
+        slot = pos*1.0;
+        translate([0.8,0]) square([pinR,slot+pinR]);
+        translate([0,slot+pinR]) square([0.8+pinR,0.2]);
+      }
+    }
+  }
+  difference() {
+    union() {
+      intersection() {
+        linear_extrude_y(2*clipR+2,true) {
+          polygon([[0,0],[2+e,0],[0,2+e]]);
+          //polygon([[0,0],[1.8,0],[0,1.8]]);
+          //polygon([[0.2,0.2],[1.8,0.2],[0.2,1.8]]);
+        }
+        difference() {
+          cylinder(r=clipR-1+e,h=clipH);
+          cylinder(r=clipCoreR-eps,h=clipH);
+        }
+        //cylinder(r=clipR-1,h=clipH);
+      }
+      /*
+      intersection() {
+        linear_extrude_y(2*clipR+2,true) {
+          polygon([[0,0],[2,0],[0,2]]);
+        }
+        difference() {
+          cylinder(r=clipR,h=clipH);
+          cylinder(r=clipR-1,h=clipH);
+        }
+      }
+      */
+    }
+    /*
+    if (clip) {
+      #rotate([0,-45,0]) translate([-5,clipR-3,-0.3]) cube([10,10,0.6]);
+    }*/
+  }
+  s = clipH*0.4 + e/2;
+  translate([-(clipR+clipCoreR)/2,-eps,clipH/2])
+  rotate([-90]) cylinder(r1=s,r2=0,h=s,$fn=7);
+}
+module retaining_clip() {
+  difference() {
+    union() {
+      linear_extrude(clipH,convexity=10) {
+        difference() {
+          circle(clipR);
+          circle(clipCoreR);
+          translate([0,clipR+1]) square(2*clipR+2,true);
+        }
+        *intersection() {
+          translate([clipW/4,0]) square([clipW/2,2*clipR],true);
+          circle(clipR);
+        }
+      }
+      retaining_clip_connector(true);
+    }
+    rotate(180) retaining_clip_connector(false);
+  }
+}
+module retaining_clip_test() {
+  retaining_clip();
+  translate([0,0,0.0]) color("pink") rotate(180) retaining_clip();
+}
+//!retaining_clip_test();
+
+//-----------------------------------------------------------------------------
 // Housing
 //-----------------------------------------------------------------------------
 
@@ -451,7 +548,7 @@ module housing(tabC1=0.4,tabC2=0.8) {
 //color("grey") translate([0,0,faceThickness-1]) housing();
 
 
-core();
+//core();
 //intersection() {core(); cube(2*32,true);}
 
 if (false) {
@@ -464,11 +561,12 @@ translate([0,step*1,faceThickness+waferThickness/2+C/2+waferStep*4]) color("lime
 
 module labled_core(CX,label) {
   lbl = label==undef ? str(CX) : label;
-  core();
+  core(CX=CX);
   stackHeight = wafers * waferStep + waferThicknessLast;
   translate([0,0,faceThickness + stackHeight + 2]) linear_extrude(0.2)
     text(lbl,size=5,font="Ubuntu",halign="center",valign="center");
- }
+}
+labled_core(CX=CX);
  
 module housing_test(CX,label) {
   housingHeight = 4;
@@ -492,7 +590,6 @@ module housing_test(CX,label) {
   //  text(lbl,size=5,font="Ubuntu",halign="center",valign="center");
 }
 //!housing_test(0);
-!housing_test(0.1125);
  
 //-----------------------------------------------------------------------------
 // Export
@@ -505,6 +602,11 @@ module export_wafer3() { wafer(minBit+3); }
 module export_wafer4() { wafer(minBit+4); }
 module export_wafer5() { wafer(minBit+5); }
 module export_wafer6() { wafer(minBit+6); }
+module export_all_wafers() {
+  for (i=[minBit:maxBit]) {
+    translate(i*(waferWidth+8)) wafer(i);
+  }
+}
 module export_first_wafer() { first_wafer(); }
 module export_last_wafer() { last_wafer(); }
 module export_core() { core(); }
@@ -516,3 +618,4 @@ module export_housingtest_narrow() { housing_test(0.05); }
 module export_housingtest_wide() { housing_test(0.1); }
 module export_housingtest_wider() { housing_test(0.125); }
 module export_core_small() { core(); }
+module export_retaining_clip() { retaining_clip(); }
