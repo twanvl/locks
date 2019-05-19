@@ -24,8 +24,8 @@ waferThicknessLast = 4;
 waferStep = waferThickness+C;
 waferWidth = 10;
 waferLip = 0.6;
-tabWidth = 9;
-tabSlope = 0.2;
+tabWidth = 8;
+tabSlope = 0.3;
 
 faceR = coreR+1;
 faceThickness = 2;
