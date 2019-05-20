@@ -45,21 +45,23 @@ pinC = 2.5*C; // it is critical that there is enough clearance, better to have t
 
 bitting = [3,1];
 //step = 0.5;
-step = 0.6;
+step = 0.9;
 //minBit = -4; maxBit = 4;
 minBit = -3; maxBit = 3;
 //minBit = -2; maxBit = 4;
 //minBit = -1; maxBit = 5;
 //minBit = 0; maxBit = 6;
 bits = maxBit-minBit+1;
-maxDelta = 3;
+//maxDelta = 3*step;
+maxDelta = 1.8;
 
 tabC = 0.4; // Clearance on side of tabs
 tabCtwist = 2; // extra clearance on back wafers
 tabCY = 2*C; // Clearance above tabs
 tabR = coreR + (bits-1)*step + tabCY;
 
-waferSpace=5;
+echo (bits*step);
+waferSpace=bits*step + 0.5;
 housingRX = coreR+3;
 housingRY = housingRX + waferSpace;
 
@@ -151,8 +153,8 @@ module connector_pin(C=0) {
 }
 
 module connector_slot(bit=3) {
-  a = -maxDelta*step;
-  b = maxDelta*step;
+  a = -maxDelta;
+  b = maxDelta;
   CX = 0.05; // clearance in movement direction
   if (true) {
     group() {
@@ -597,8 +599,8 @@ module test() {
   $fn=20;
   intersection() {
     group() {
-      translate([0,0,1]) housing();
-      rotate(90) {
+      translate([0,0,1]) color("white") housing();
+      rotate(0) {
         translate([0,0,0]) color("pink") core();
         if (0) {
           translate([0,0,faceThickness+C/2]) color("lightgreen") first_wafer();
