@@ -12,7 +12,7 @@ include <../util.scad>
 eps = 0.01;
 C = 0.125; // clearance
 CX = 0.125; // clearance in x and y directions
-tightC = 0.8;
+tightC = 0.08;
 bridgeC = 0.5; // clearance for bridges
 
 coreR = 9;
@@ -29,6 +29,7 @@ tabSlope = 0.3;
 
 faceR = coreR+1;
 faceThickness = 2;
+faceCountersink = 1;
 
 keyWidth = 7;
 keyDelta = 2;
@@ -40,12 +41,13 @@ keyCX = 0.2; // horizontal clearance in keyhole (not critical)
 keyHolePos = 0;
 
 connectorR=1.25;
-connectorPos=-5;
-pinC = 2.5*C; // it is critical that there is enough clearance, better to have too much
+connectorPos=0;
+pinC = 0.2; // it is critical that there is enough clearance, better to have too much
+pinCX = 0.05; // clearance in movement direction
 
 bitting = [3,1];
 //step = 0.5;
-step = 0.9;
+step = 0.8;
 //minBit = -4; maxBit = 4;
 minBit = -3; maxBit = 3;
 //minBit = -2; maxBit = 4;
@@ -53,7 +55,7 @@ minBit = -3; maxBit = 3;
 //minBit = 0; maxBit = 6;
 bits = maxBit-minBit+1;
 //maxDelta = 3*step;
-maxDelta = 1.8;
+maxDelta = 1.6;
 
 tabC = 0.4; // Clearance on side of tabs
 tabCtwist = 2; // extra clearance on back wafers
@@ -62,8 +64,32 @@ tabR = coreR + (bits-1)*step + tabCY;
 
 echo (bits*step);
 waferSpace=bits*step + 0.5;
-housingRX = coreR+3;
-housingRY = housingRX + waferSpace;
+housingRX = coreR + 4;
+housingRY = coreR + 1.7 + waferSpace;
+echo ("housing",2*housingRX,2*housingRY);
+
+coreBack = 2;
+clipSep = 0.8;
+coreBackOverlap = 1;
+coreStackHeight = wafers * waferStep + waferThicknessLast + bridgeC - coreBackOverlap;
+
+housingChamfer = 1;
+coreHeight = faceCountersink + coreStackHeight;
+housingDepth = coreHeight + coreBack + clipSep;
+
+backDepth = 20;
+housingChamfer2 = housingChamfer*0.5;
+capEdge = 1.5;
+capDepth = 1.5;
+capClip = 1;
+capClipLength = 10;
+
+clipR = housingRX-capEdge-(C+tightC); // better a bit extra play here
+echo(2*clipR);
+clipW = 8;
+clipCoreR = coreR-2;
+clipCoreC = 0.05;
+clipH = 4.4;
 
 //-----------------------------------------------------------------------------
 // Keyway
@@ -121,10 +147,23 @@ module last_key_hole(delta=keyCX) {
 //!key_hole();
 
 //-----------------------------------------------------------------------------
-// Wafer connector pins
+// Key
 //-----------------------------------------------------------------------------
 
-connectorPos=0;
+bitting = [0,-3,0,3];
+
+module key() {
+  h = keyHeight;
+  x1_up = 0;
+  extrude_key() {
+    polygon([[0,-h/2],[10,-h/2],[10,h/2],[0,h/2]]);
+  }
+}
+!key();
+
+//-----------------------------------------------------------------------------
+// Wafer connector pins
+//-----------------------------------------------------------------------------
 
 //module connector_halfpin(C=0) cylinder(r=3+C,h=1);
 //module connector_halfpin(C=0) cube([2+2*C,6+2*C,2],true);
@@ -155,16 +194,15 @@ module connector_pin(C=0) {
 module connector_slot(bit=3) {
   a = -maxDelta;
   b = maxDelta;
-  CX = 0.05; // clearance in movement direction
   if (true) {
     group() {
       hull() {
-        translate([0,coreR+a,0]) connector_halfpin(pinC,CX=CX);
-        translate([0,coreR+b,0]) connector_halfpin(pinC,CX=CX);
+        translate([0,coreR+a,0]) connector_halfpin(pinC,CX=pinCX);
+        translate([0,coreR+b,0]) connector_halfpin(pinC,CX=pinCX);
       }
       hull() {
-        translate([0,-coreR+a,0]) connector_halfpin(pinC,CX=CX);
-        translate([0,-coreR+b,0]) connector_halfpin(pinC,CX=CX);
+        translate([0,-coreR+a,0]) connector_halfpin(pinC,CX=pinCX);
+        translate([0,-coreR+b,0]) connector_halfpin(pinC,CX=pinCX);
       }
     }
   } else {
@@ -295,12 +333,17 @@ module first_wafer(bit=0) {
 module last_wafer(bit=0) {
   //wafer(bit,pin=false);
   //wafer(0,minBit=0,maxBit=0,pin=false);  
-  thickness = 2*waferThickness;
+  thickness = waferThicknessLast;
   y = 0;
   difference() {
     intersection() {
       last_wafer_profile();
-      cylinder(r=coreR,thickness);
+      union() {
+        // note: we might run into the core back chamfer
+        ch = max(0,coreBackOverlap + C - bridgeC);
+        cylinder(r=coreR,h=thickness-ch);
+        translate_z(thickness-ch) cylinder(r1=coreR,r2=coreR-ch,h=ch);
+      }
     }
     translate([0,y+keyHolePos,1-eps/2]) last_key_hole();
     translate([0,y+connectorPos,-eps]) connector_slot(bit);
@@ -356,11 +399,6 @@ module face_plate() {
   }
 }
 
-coreBack = 2;
-clipSep = 0.8;
-coreBackOverlap = 1;
-coreStackHeight = wafers * waferStep + waferThicknessLast + bridgeC - coreBackOverlap;
-
 module core(C=C,CX=C) {
   union() {
     face_plate();
@@ -370,7 +408,7 @@ module core(C=C,CX=C) {
         union() {
           cylinder(r=coreR,h=coreStackHeight);
           translate_z(coreStackHeight) cylinder(r1=coreR,r2=coreR-coreBack,h=coreBack);
-          translate_z(coreStackHeight+coreBack) cylinder(r=clipCoreR,h=clipH+clipSep);
+          translate_z(coreStackHeight+coreBack) cylinder(r=clipCoreR,h=clipH+clipSep+C);
         }
         // slots for wafers
         translate([0,0,-eps])
@@ -406,11 +444,6 @@ module core(C=C,CX=C) {
 // Retaining clip
 //-----------------------------------------------------------------------------
 
-clipR = coreR+1.5;
-clipW = 8;
-clipCoreR = coreR-2;
-clipH = 4.5;
-
 module retaining_clip_profile(C=0,bridgeC=0) {
   h = 2 + bridgeC;
   sym_polygon_x([[clipW/2+C,0], [clipW/2+C,waferLip], [clipW/2+C-h,h+waferLip]]);
@@ -422,11 +455,11 @@ module retaining_clip_connector(clip=true) {
     linear_extrude_y(2*clipR+2,true) {
       retaining_clip_profile();
     }
-    cylinder(r=clipCoreR,h=clipH);
+    cylinder(r=clipCoreR+clipCoreC,h=clipH);
     // snap connector
     linear_extrude(clipH,convexity=10) {
       pinR = 0.5;
-      pos = clipCoreR-3;
+      pos = clipCoreR+clipCoreC-3;
       difference() {
         union() {
           translate([0,-clipR]) square([10,2*clipR]);
@@ -449,14 +482,14 @@ module retaining_clip_connector(clip=true) {
         }
         difference() {
           cylinder(r=clipR-1+e,h=clipH);
-          cylinder(r=clipCoreR-eps,h=clipH);
+          cylinder(r=clipCoreR+clipCoreC-eps,h=clipH);
         }
         //cylinder(r=clipR-1,h=clipH);
       }
     }
   }
   s = clipH*0.4 + e/2;
-  translate([-(clipR+clipCoreR)/2,-eps,clipH/2])
+  translate([-(clipR+clipCoreR+clipCoreC)/2,-eps,clipH/2])
   rotate([-90]) cylinder(r1=s,r2=0,h=s,$fn=7);
 }
 module retaining_clip_ring() {
@@ -482,7 +515,7 @@ module retaining_clip() {
     union() {
       difference() {
         retaining_clip_ring();
-        translate_z(-eps) cylinder(r=clipCoreR+tightC,h=clipH+2*eps);
+        translate_z(-eps) cylinder(r=clipCoreR+clipCoreC,h=clipH+2*eps);
         positive_y();
       }
       intersection() {
@@ -510,11 +543,6 @@ module housing_tabslot(tabC=0.5) {
     circle(tabR);
   }
 }
-
-housingChamfer = 1;
-faceCountersink=1;
-coreHeight = faceCountersink + coreStackHeight;
-housingDepth = coreHeight + coreBack + clipSep;
 
 module housing() {
   faceC=0.2; // extra space because of supports used
@@ -550,7 +578,7 @@ module housing() {
       housing_tabslot(tabC);
     }
     // ledge for cap
-    w = capEdge + C;
+    w = capEdge + tightC;
     translate_z(housingDepth-capDepth) difference() {
       positive_z();
       chamfer_cube(2*housingRX-2*w,2*housingRY-2*w,100,housingChamfer2+0.1+C);
@@ -558,13 +586,6 @@ module housing() {
   }
 }
 //!housing();
-
-backDepth = 20;
-housingChamfer2 = housingChamfer*0.5;
-capEdge = 1.5;
-capDepth = 1.5;
-capClip = 1;
-capClipLength = 10;
 
 module housing_back() {
   w = 1;
@@ -599,23 +620,23 @@ module test() {
   $fn=20;
   intersection() {
     group() {
-      translate([0,0,1]) color("white") housing();
+      *translate([0,0,1]) color("white") housing();
       rotate(0) {
         translate([0,0,0]) color("pink") core();
-        if (0) {
+        if (1) {
           translate([0,0,faceThickness+C/2]) color("lightgreen") first_wafer();
           translate([0,0,faceThickness+waferStep+C/2]) color("lightblue") wafer(0);
           translate([0,0,faceThickness+3*waferStep+C/2]) color("lightyellow") last_wafer();
         }
-        translate([0,0,faceThickness+coreStackHeight+coreBack+clipSep+tightC/2]) rotate(90) color("lightgreen") retaining_clip();
+        translate([0,0,faceThickness+coreStackHeight+coreBack+clipSep+C+tightC/2]) rotate(90) color("lightgreen") retaining_clip();
       }
-      translate([0,0,1+housingDepth-capDepth+tightC]) color("lightblue") housing_back();
+      *translate([0,0,1+housingDepth-capDepth+tightC]) color("lightblue") housing_back();
     }
     positive_y();
     //translate_y(3) negative_y();
   }
 }
-!test();
+//!test();
 !export_all_wafers();
 
 if (false) {
