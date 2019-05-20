@@ -10,13 +10,12 @@ include <../util.scad>
 //-----------------------------------------------------------------------------
 
 eps = 0.01;
-C = 0.1; // clearance
-CX = 0.08; // clearance in x and y directions
-tightC = 0.05;
-bridgeC = 1; // clearance for bridges
+C = 0.15; // clearance
+CX = 0.15; // clearance in x and y directions
+tightC = 0.1;
+bridgeC = 0.5; // clearance for bridges
 
 coreR = 9;
-useCoreBack = false;
 
 //wafers = 12;
 wafers = 3;
@@ -393,15 +392,9 @@ module core(C=C,CX=C) {
           }
         }
         // slot for retaining clip
-        translate_z(coreStackHeight+coreBack+clipSep)
+        translate_z(coreStackHeight+coreBack+clipSep+C)
           linear_extrude_x(2*coreR,true) retaining_clip_profile(C=tightC,bridgeC=bridgeC);
       }
-    }
-    if (useCoreBack)
-    translate([0,0,faceThickness + stackHeight + 2]) {
-      translate([0,0,0]) cylinder(r1=coreR-1,r2=coreR-1,h=1);
-      translate([0,0,1]) cylinder(r1=coreR-1,r2=coreR,h=1);
-      translate([0,0,2]) cylinder(r1=coreR,r2=coreR,h=2);
     }
   }
 };
@@ -467,7 +460,7 @@ module retaining_clip_connector(clip=true) {
 module retaining_clip_ring() {
   union() {
     //cylinder(r=clipR,h=clipH);
-    d = 0.9;
+    d = 1.1;
     lip = waferLip;
     a = (clipH-2*d-lip)/2;
     cylinder(r=clipR-d,h=clipH);
@@ -478,7 +471,7 @@ module retaining_clip_ring() {
         translate_z(clipH-a-d) cylinder(r1=clipR-d,r2=clipR,h=d);
         translate_z(clipH-a) cylinder(r=clipR,h=a);
       }
-      cube([2*clipR-2*d-2*d,100,100],true);
+      cube([2*clipR-3*d,100,100],true);
     }
   }
 }
@@ -487,7 +480,7 @@ module retaining_clip() {
     union() {
       difference() {
         retaining_clip_ring();
-        translate_z(-eps) cylinder(r=clipCoreR,h=clipH+2*eps);
+        translate_z(-eps) cylinder(r=clipCoreR+tightC,h=clipH+2*eps);
         positive_y();
       }
       intersection() {
@@ -555,10 +548,10 @@ module housing() {
       housing_tabslot(tabC);
     }
     // ledge for cap
-    w = capEdge + tightC;
+    w = capEdge + C;
     translate_z(housingDepth-capDepth) difference() {
       positive_z();
-      chamfer_cube(2*housingRX-2*w,2*housingRY-2*w,100,housingChamfer2);
+      chamfer_cube(2*housingRX-2*w,2*housingRY-2*w,100,housingChamfer2+0.1+C);
     }
   }
 }
@@ -566,7 +559,7 @@ module housing() {
 
 backDepth = 20;
 housingChamfer2 = housingChamfer*0.5;
-capEdge = 1.5-2*C;
+capEdge = 1.5;
 capDepth = 1.5;
 capClip = 1;
 capClipLength = 10;
@@ -612,7 +605,7 @@ module test() {
           translate([0,0,faceThickness+waferStep+C/2]) color("lightblue") wafer(0);
           translate([0,0,faceThickness+3*waferStep+C/2]) color("lightyellow") last_wafer();
         }
-        translate([0,0,faceThickness+coreStackHeight+coreBack+clipSep+C/2]) rotate(90) color("lightgreen") retaining_clip();
+        translate([0,0,faceThickness+coreStackHeight+coreBack+clipSep+tightC/2]) rotate(90) color("lightgreen") retaining_clip();
       }
       translate([0,0,1+housingDepth-capDepth+tightC]) color("lightblue") housing_back();
     }
@@ -621,6 +614,7 @@ module test() {
   }
 }
 !test();
+!export_all_wafers();
 
 if (false) {
 translate([0,step*3,faceThickness+waferThickness/2+C/2]) color("red") wafer(minBit+3);
@@ -634,10 +628,10 @@ module labled_core(CX,label) {
   lbl = label==undef ? str(CX) : label;
   core(CX=CX);
   stackHeight = wafers * waferStep + waferThicknessLast;
-  translate([0,0,faceThickness + stackHeight + 2]) linear_extrude(0.2)
+  translate([0,0,faceThickness + coreStackHeight + coreBack + clipSep + clipH]) linear_extrude(0.2)
     text(lbl,size=5,font="Ubuntu",halign="center",valign="center");
 }
-labled_core(CX=CX);
+!labled_core(CX=CX);
  
 module housing_test(CX,label) {
   housingHeight = 4;
@@ -675,7 +669,7 @@ module export_wafer5() { wafer(minBit+5); }
 module export_wafer6() { wafer(minBit+6); }
 module export_all_wafers() {
   for (i=[minBit:maxBit]) {
-    translate(i*(waferWidth+8)) wafer(i);
+    translate_x(i*(waferWidth+6)) wafer(i);
   }
 }
 module export_first_wafer() { first_wafer(); }
@@ -690,4 +684,4 @@ module export_housingtest_wide() { housing_test(0.1); }
 module export_housingtest_wider() { housing_test(0.125); }
 module export_core_small() { core(); }
 module export_retaining_clip() { retaining_clip(); }
-module export_cap() { rotate([180,0,0]) housing_cap(); }
+module export_cap() { rotate([180,0,0]) housing_back(); }
