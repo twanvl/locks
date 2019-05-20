@@ -10,9 +10,9 @@ include <../util.scad>
 //-----------------------------------------------------------------------------
 
 eps = 0.01;
-C = 0.15; // clearance
-CX = 0.15; // clearance in x and y directions
-tightC = 0.1;
+C = 0.125; // clearance
+CX = 0.125; // clearance in x and y directions
+tightC = 0.8;
 bridgeC = 0.5; // clearance for bridges
 
 coreR = 9;
@@ -677,7 +677,7 @@ module export_all_wafers() {
 module export_first_wafer() { first_wafer(); }
 module export_last_wafer() { last_wafer(); }
 module export_core() { core(); }
-module export_coretest_wide() { labled_core(CX=C);  }
+module export_coretest_wide() { labled_core(CX=C); }
 module export_coretest_narrow() { labled_core(CX=C/2);  }
 module export_housing() { housing(); }
 module export_housingtest_zero() { housing_test(0); }
