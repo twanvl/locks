@@ -9,6 +9,12 @@ include <../util.scad>
 // Model parameters
 //-----------------------------------------------------------------------------
 
+//bitting = [-2,-3,-1,1,3,3,2];
+bitting = [-2,-3,-1,-3,-1,1,3,3,2];
+//bitting = [-2,-3,-1,1,3,3,1,-1,-3,1];
+//bitting = [-2,-3,-2,-1,1,3,3,2,0,-2];
+echo("key bitting", bitting);
+
 eps = 0.01;
 C = 0.125; // clearance
 CX = 0.125; // clearance in x and y directions
@@ -18,7 +24,8 @@ bridgeC = 0.5; // clearance for bridges
 coreR = 9;
 
 //wafers = 12;
-wafers = 3;
+wafers = len(bitting);
+echo("nr wafers", wafers);
 waferThickness = 2;
 waferThicknessLast = 4;
 waferStep = waferThickness+C;
@@ -36,18 +43,20 @@ keyDelta = 2;
 keyHeight = 1.8;
 
 toothSlope = 1;
-keyC = C; // vertical clearance in keyhole
+keyC = C + 0.05; // vertical clearance in keyhole
 keyCX = 0.2; // horizontal clearance in keyhole (not critical)
 keyHolePos = 0;
 
 connectorR=1.25;
 connectorPos=0;
+connectorLen=6;
 pinC = 0.2; // it is critical that there is enough clearance, better to have too much
 pinCX = 0.05; // clearance in movement direction
 
-bitting = [3,1];
-//step = 0.5;
 step = 0.8;
+//step = 0.8;
+//step = 1.0;
+//minBit = -6; maxBit = 6;
 //minBit = -4; maxBit = 4;
 minBit = -3; maxBit = 3;
 //minBit = -2; maxBit = 4;
@@ -58,34 +67,32 @@ bits = maxBit-minBit+1;
 maxDelta = 1.6;
 
 tabC = 0.4; // Clearance on side of tabs
-tabCtwist = 2; // extra clearance on back wafers
+tabCtwist = 3; // extra clearance on back wafers
 tabCY = 2*C; // Clearance above tabs
 tabR = coreR + (bits-1)*step + tabCY;
-
-echo (bits*step);
-waferSpace=bits*step + 0.5;
-housingRX = coreR + 4;
-housingRY = coreR + 1.7 + waferSpace;
-echo ("housing",2*housingRX,2*housingRY);
 
 coreBack = 2;
 clipSep = 0.8;
 coreBackOverlap = 1;
 coreStackHeight = wafers * waferStep + waferThicknessLast + bridgeC - coreBackOverlap;
 
+echo ("bit difference",bits*step);
+waferSpace=bits*step + 0.5;
+housingRX = coreR + 4;
+housingRY = coreR + 1.7 + waferSpace;
 housingChamfer = 1;
 coreHeight = faceCountersink + coreStackHeight;
 housingDepth = coreHeight + coreBack + clipSep;
+echo ("housing",2*housingRX,2*housingRY,housingDepth);
 
-backDepth = 20;
-housingChamfer2 = housingChamfer*0.5;
-capEdge = 1.5;
-capDepth = 1.5;
+housingChamfer2 = housingChamfer*0.5; // chamfer inside cap
+capEdge = 1.6;
+capCountersink = 1.6;
+capDepth = capEdge+capCountersink+1+6;
 capClip = 1;
 capClipLength = 10;
 
 clipR = housingRX-capEdge-(C+tightC); // better a bit extra play here
-echo(2*clipR);
 clipW = 8;
 clipCoreR = coreR-2;
 clipCoreC = 0.05;
@@ -98,9 +105,8 @@ clipH = 4.4;
 module key_profile(delta=0) {
   dx=2*delta*keyDelta/keyWidth;
   dy=delta;
-  rotate([90,0,0])
-  rotate([0,90])
-  linear_extrude(eps,convexity=10) {
+  linear_extrude(eps,convexity=106) {
+    rotate(90)
     polygon([
       [-keyDelta/2-dx,-keyWidth/2-dy],
       [keyDelta/2,0],
@@ -113,34 +119,28 @@ module key_profile(delta=0) {
 }
 module extrude_key(delta=0) {
   minkowski() {
-    linear_extrude(eps) children();
+    linear_extrude_x(eps) children();
     key_profile(delta);
   }
 }
 module key_hole(delta=keyCX) {
   l=0;
-  rotate([0,-90,0])
   extrude_key(delta=delta) {
-    polygon([
-      [-l, keyHeight/2+keyC+toothSlope*(1+l)],
-      [1,  keyHeight/2+keyC+toothSlope*0],
-      [1.5,keyHeight/2+keyC+toothSlope*0],
-      [2,  keyHeight/2+keyC+toothSlope*0.5],
-      [2,  -keyHeight/2-keyC-toothSlope*0.5],
-      [1.5,-keyHeight/2-keyC-toothSlope*0],
-      [1,  -keyHeight/2-keyC-toothSlope*0],
-      [-l, -keyHeight/2-keyC-toothSlope*(1+l)],
+    sym_polygon_x([
+      [keyHeight/2+keyC+toothSlope*(1+l), -l],
+      [keyHeight/2+keyC+toothSlope*0,    1],
+      [keyHeight/2+keyC+toothSlope*0,    1.5],
+      [keyHeight/2+keyC+toothSlope*0.5,  2],
     ]);
   }
 }
 module last_key_hole(delta=keyCX) {
   l = 10; r = 10;
-  rotate([0,-90,0])
   extrude_key(delta=delta) {
-    sym_polygon_y([
-      [-l, keyHeight/2+keyC+toothSlope*l],
-      [0,  keyHeight/2+keyC+toothSlope*0],
-      [r,  keyHeight/2+keyC+toothSlope*0],
+    sym_polygon_x([
+      [keyHeight/2+keyC+toothSlope*l, -l],
+      [keyHeight/2+keyC+toothSlope*0, 0],
+      [keyHeight/2+keyC+toothSlope*0, r],
     ]);
   }
 }
@@ -150,16 +150,90 @@ module last_key_hole(delta=keyCX) {
 // Key
 //-----------------------------------------------------------------------------
 
-bitting = [0,-3,0,3];
-
+module key_shape() {
+  ebitting = concat([0],bitting,[0]);
+  n = len(ebitting);
+  point = 0.3;
+  flat = 0.2;
+  coflat = 0.1;
+  end = (n-1)*waferStep + waferThicknessLast - 0.5;
+  top = concat(
+    [[-keyHeight/2, 0]],
+    [for (i=[0:n-1]) for (j=[0,1])
+      [ebitting[i]*step - keyHeight/2, i*waferStep +
+        (j==0 ? ((i>0   && ebitting[i-1]<ebitting[i]) ? 1-flat : 1+coflat)
+              : ((i+1<n && ebitting[i+1]<ebitting[i]) ? 1.5+flat : 1.5-coflat))]
+    ],
+    [[-keyHeight/2, end - (keyHeight-point)/2]
+    ,[-point/2, end]]
+  );
+  bot = concat(
+    [[keyHeight/2, 0]],
+    [for (i=[0:n-1]) for (j=[0,1])
+      [ebitting[i]*step + keyHeight/2, i*waferStep +
+        (j==0 ? ((i>0   && ebitting[i-1]>ebitting[i]) ? 1-flat : 1+coflat)
+              : ((i+1<n && ebitting[i+1]>ebitting[i]) ? 1.5+flat : 1.5-coflat))]
+    ],
+    [[keyHeight/2, end - (keyHeight-point)/2]
+    ,[point/2, end]]
+  );
+  polygon(concat(top,reverse(bot)));
+}
 module key() {
-  h = keyHeight;
-  x1_up = 0;
-  extrude_key() {
-    polygon([[0,-h/2],[10,-h/2],[10,h/2],[0,h/2]]);
+  end = (len(bitting)+1)*waferStep + waferThicknessLast - 0.5;
+  chamfer = 0.7;
+  group() {
+    intersection() {
+      extrude_key() {
+        key_shape();
+      }
+      linear_extrude_y(lots,true) {
+        sym_polygon_x([[-keyWidth,-10], [-keyWidth,end-chamfer], [-keyWidth/2,end-chamfer], [-keyWidth/2+chamfer,end]]);
+      }
+    }
+    extrude_key() {
+      polygon([[-keyHeight/2,0],[keyHeight/2,0],[0,-4]]);
+      //translate([-keyHeight/2,-2]) square([keyHeight,2]);
+    }
+    linear_extrude_y(2,true) {
+      difference() {
+        translate([0,-16/2]) chamfer_rect(16,16,4);
+        translate([0,-16/2-4]) chamfer_rect(5,5,2.5);
+      }
+    }
   }
 }
-!key();
+//!key();
+
+module key_stack(color = "darkred", offset=0) {
+  translate_y(1) color(color) linear_extrude_x(1,true) key_shape();
+  //color(color) key();
+  n = len(bitting);
+  translate_z(offset+C)
+  intersection() {
+    group() {
+      first_wafer();
+      for (i=[0:n-1]) {
+        a = offset/waferStep;
+        p = (1-a)*bitting[i] + a*(i==n-1 ? 0 : bitting[i+1]);
+        translate([0,(p-bitting[i])*step,faceThickness + i*waferStep])
+        if (i==0) {
+          wafer(bitting[i]);
+        } else {
+          wafer(bitting[i]);
+        }
+      }
+      translate_z(faceThickness + n*waferStep) last_wafer();
+    }
+    negative_x();
+  }
+}
+module key_stacks() {
+  key_stack();
+  translate_y(coreR*2+8) key_stack(color="darkblue",offset=waferStep*0.5);
+}
+
+//!key_stacks();
 
 //-----------------------------------------------------------------------------
 // Wafer connector pins
@@ -170,7 +244,7 @@ module key() {
 module connector_halfpin(C=0,CX=0,dh=0) {
   a = 1.2;
   h = 1.2-dh;
-  linear_extrude_y(6+2*CX,true) {
+  linear_extrude_y(connectorLen+2*CX,true) {
     //sym_polygon_x([[-a-C, 0], [-a-C+h,h]]);
     sym_polygon_x([[-a-C, 0], [-a+h,h+C]]);
   }
@@ -270,7 +344,7 @@ module wafer_profiles(C=C,CX=CX) {
 module wafer_outer() {
   intersection() {
     wafer_profile(C=0);
-    cylinder(r=coreR,waferThickness,center=true);
+    cylinder(r=coreR,h=waferThickness,center=true);
   }
 }
 module tab_profile(width=tabWidth,height=2*coreR) {
@@ -295,24 +369,24 @@ module wafer(bit, minBit=minBit, maxBit=maxBit, slot=true, pin=true, tabs=true) 
       // tabs
       if (tabs) intersection() {
         linear_extrude(thickness) tab_profile();
-        cylinder(r=coreR,thickness);
+        cylinder(r=coreR,h=thickness);
       }
       // profile
       intersection() {
         wafer_profile();
-        translate([0,y-maxBit*step,0]) cylinder(r=coreR,thickness);
-        translate([0,y-minBit*step,0]) cylinder(r=coreR,thickness);
+        translate([0,y-maxBit*step,0]) cylinder(r=coreR,h=thickness);
+        translate([0,y-minBit*step,0]) cylinder(r=coreR,h=thickness);
       }
       // connector
       if (pin) {
         intersection() {
           translate([0,y+connectorPos,waferThickness]) connector_pin();
           if (tabs) {
-            cylinder(r=coreR,thickness+2);
+            cylinder(r=coreR,h=thickness+2);
           } else {
             intersection() {
-              translate([0,y-maxBit*step,0]) cylinder(r=coreR,thickness+2);
-              translate([0,y-minBit*step,0]) cylinder(r=coreR,thickness+2);
+              translate([0,y-maxBit*step,0]) cylinder(r=coreR,h=thickness+2);
+              translate([0,y-minBit*step,0]) cylinder(r=coreR,h=thickness+2);
             }
           }
         }
@@ -328,7 +402,7 @@ module wafer(bit, minBit=minBit, maxBit=maxBit, slot=true, pin=true, tabs=true) 
   //translate([2,y+connectorPos,waferThickness/2]) connector_slot(bit);
 }
 module first_wafer(bit=0) {
-  wafer(0,minBit=max(minBit,bit-3),maxBit=min(maxBit,bit+3),slot=false,tabs=false);
+  wafer(0,minBit=max(minBit,-maxDelta/step),maxBit=min(maxBit,maxDelta/step),slot=false,tabs=false);
 }
 module last_wafer(bit=0) {
   //wafer(bit,pin=false);
@@ -579,7 +653,7 @@ module housing() {
     }
     // ledge for cap
     w = capEdge + tightC;
-    translate_z(housingDepth-capDepth) difference() {
+    translate_z(housingDepth-capCountersink) difference() {
       positive_z();
       chamfer_cube(2*housingRX-2*w,2*housingRY-2*w,100,housingChamfer2+0.1+C);
     }
@@ -590,21 +664,34 @@ module housing() {
 module housing_back() {
   w = 1;
   intersection() {
-    translate_z(backDepth/2-10)
     difference() {
-      chamfer_cube(2*housingRX,2*housingRY,backDepth + 10,housingChamfer);
-      chamfer_cube(2*housingRX-2*capEdge,2*housingRY-2*capEdge,backDepth-2*capEdge + 10,housingChamfer2);
+      chamfer_cube(2*housingRX,2*housingRY,2*capDepth,housingChamfer);
+      chamfer_cube(2*housingRX-2*capEdge,2*housingRY-2*capEdge,2*(capDepth-capEdge),housingChamfer2);
     }
     positive_z();
   }
   lip = waferLip;
   mirrored([1,0,0])
-  translate([housingRX-capEdge,0,capDepth+clipH/2])
+  translate([housingRX-capEdge,0,capCountersink+clipH/2])
   linear_extrude_y(capClipLength,true) {
     polygon([[0,-capClip-lip/2],[-capClip,-lip/2],[-capClip,lip/2],[0,capClip+lip/2]]);
   }
+  translate([-5,0,capDepth-capEdge]) rotate([180]) rotate(90) linear_extrude(1)
+  text("waverlock",size=4.5,font="ubuntu",halign="center",valign="center");
+  translate([5,0,capDepth-capEdge]) rotate([180]) rotate(90) linear_extrude(1)
+  text("by twanvl",size=4.5,font="ubuntu",halign="center",valign="center");
 }
 //!housing_back();
+
+module exposed_housing() {
+  difference() {
+    housing();
+    w=8;h=8;
+    d = lots;
+    translate([-lots/2,-w/2,2.5]) cube([lots,w,d]);
+    translate([-h/2,-lots/2,2.5]) cube([h,lots,d]);
+  }
+}
 
 //-----------------------------------------------------------------------------
 // Tests
@@ -618,26 +705,34 @@ module housing_back() {
 
 module test() {
   $fn=20;
+  exposed=1;
+  showHousing=1;
+  showCore=0;
+  showWafers=1;
   intersection() {
     group() {
-      *translate([0,0,1]) color("white") housing();
+      if (showHousing) translate([0,0,1]) color("white")
+        if (exposed) exposed_housing(); else housing();
       rotate(0) {
-        translate([0,0,0]) color("pink") core();
-        if (1) {
+        if (showCore) {
+          translate([0,0,0]) color("pink") core();
+        }
+        if (showWafers) {
           translate([0,0,faceThickness+C/2]) color("lightgreen") first_wafer();
           translate([0,0,faceThickness+waferStep+C/2]) color("lightblue") wafer(0);
-          translate([0,0,faceThickness+3*waferStep+C/2]) color("lightyellow") last_wafer();
+          translate([0,0,faceThickness+wafers*waferStep+C/2]) color("lightyellow") last_wafer();
         }
         translate([0,0,faceThickness+coreStackHeight+coreBack+clipSep+C+tightC/2]) rotate(90) color("lightgreen") retaining_clip();
       }
-      *translate([0,0,1+housingDepth-capDepth+tightC]) color("lightblue") housing_back();
+      if (showHousing) translate([0,0,1+housingDepth-capCountersink+tightC]) color("lightblue") housing_back();
     }
     positive_y();
     //translate_y(3) negative_y();
   }
 }
 //!test();
-!export_all_wafers();
+//!export_needed_wafers();
+!export_everything();
 
 if (false) {
 translate([0,step*3,faceThickness+waferThickness/2+C/2]) color("red") wafer(minBit+3);
@@ -690,21 +785,47 @@ module export_wafer3() { wafer(minBit+3); }
 module export_wafer4() { wafer(minBit+4); }
 module export_wafer5() { wafer(minBit+5); }
 module export_wafer6() { wafer(minBit+6); }
-module export_all_wafers() {
-  for (i=[minBit:maxBit]) {
-    translate_x(i*(waferWidth+6)) wafer(i);
-  }
-}
 module export_first_wafer() { first_wafer(); }
 module export_last_wafer() { last_wafer(); }
+
+module export_all_wafers(copies = 2) {
+  for (j=[0:copies-1]) {
+    translate_y(j*(coreR*2+6))
+    for (i=[minBit:maxBit]) {
+      translate_x(i*(waferWidth+6)) wafer(i);
+    }
+  }
+  translate_x((minBit-1)*(waferWidth+6)) first_wafer();
+  translate_x((maxBit+1)*(waferWidth+6)) last_wafer();
+}
+module export_needed_wafers() {
+  for (i=[0:wafers]) {
+    translate_x(i*(waferWidth+6))
+    if (i==0) {
+      first_wafer();
+    } else if (i==wafers) {
+      last_wafer();
+    } else {
+      wafer(bitting[i]);
+    }
+  }
+}
+
 module export_core() { core(); }
-module export_coretest_wide() { labled_core(CX=C); }
-module export_coretest_narrow() { labled_core(CX=C/2);  }
 module export_housing() { housing(); }
-module export_housingtest_zero() { housing_test(0); }
-module export_housingtest_narrow() { housing_test(0.05); }
-module export_housingtest_wide() { housing_test(0.1); }
-module export_housingtest_wider() { housing_test(0.125); }
-module export_core_small() { core(); }
+module export_exposed_housing() { exposed_housing(); }
 module export_retaining_clip() { retaining_clip(); }
 module export_cap() { rotate([180,0,0]) housing_back(); }
+module export_key() { key(); }
+
+module export_everything() {
+  if (0) {
+    translate([-wafers/2*(waferWidth+6),coreR+housingRY+8]) export_needed_wafers();
+    translate([-2*housingRX-8,0]) export_core();
+    translate([0,0]) export_housing();
+    translate([2*housingRX+8,0,capDepth]) export_cap();
+    translate([2*(2*housingRX+8),coreR,0]) export_retaining_clip();
+    translate([-2*(2*housingRX+8),coreR,0]) export_retaining_clip();
+    translate([0,-2*housingRY,0]) export_key();
+  }
+}
