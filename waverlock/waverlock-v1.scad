@@ -102,26 +102,39 @@ clipH = 4.4;
 // Keyway
 //-----------------------------------------------------------------------------
 
-module key_profile(delta=0) {
+module key_profile(delta=0,chamfer=0) {
   dx=2*delta*keyDelta/keyWidth;
   dy=delta;
+  cy=chamfer*0.9;
+  cx=chamfer-2*cy*keyDelta/keyWidth;
+  cyt=chamfer*0.6;
+  cxt=2*cyt*keyDelta/keyWidth;
   linear_extrude(height=eps,convexity=106) {
     rotate(90)
     polygon([
       [-keyDelta/2-dx,-keyWidth/2-dy],
-      [keyDelta/2,0],
+      [-keyDelta/2-dx-cx,-keyWidth/2-dy+cy],
+      [keyDelta/2-chamfer,0],
+      [-keyDelta/2-dx-cx,keyWidth/2+dy-cy],
       [-keyDelta/2-dx,keyWidth/2+dy],
-      [-keyDelta/2-dx+eps,keyWidth/2+dy],
-      [keyDelta/2+eps,0],
-      [-keyDelta/2-dx+eps,-keyWidth/2-dy]
+      [-keyDelta/2-dx+eps+chamfer,keyWidth/2+dy],
+      [keyDelta/2+eps+chamfer-cxt,cyt],
+      [keyDelta/2+eps+chamfer-cxt,-cyt],
+      [-keyDelta/2-dx+eps+chamfer,-keyWidth/2-dy]
     ]);
   }
 }
-module extrude_key(delta=0) {
+module extrude_key(delta=0,chamfer=0) {
   minkowski() {
     linear_extrude_x(eps) children();
-    key_profile(delta);
+    key_profile(delta,chamfer);
   }
+}
+module key_profile_test() {
+  color("blue")translate_z(-5) extrude_key(delta=1) {square([7,5],true);}
+  extrude_key(chamfer=0) {square([7,5],true);}
+  color("red")translate_z(5) extrude_key(chamfer=1) {square(5,true);}
+  color("green")translate_z(10) extrude_key(chamfer=0) {square([5,5],true);}
 }
 module key_hole(delta=keyCX) {
   l=0;
@@ -150,7 +163,7 @@ module last_key_hole(delta=keyCX) {
 // Key
 //-----------------------------------------------------------------------------
 
-module key_shape() {
+module key_shape(h = keyHeight) {
   ebitting = concat([0],bitting,[0]);
   n = len(ebitting);
   point = 0.3;
@@ -158,47 +171,52 @@ module key_shape() {
   coflat = 0.1;
   end = (n-1)*waferStep + waferThicknessLast - 0.5;
   top = concat(
-    [[-keyHeight/2, 0]],
+    [[-h/2, 0]],
     [for (i=[0:n-1]) for (j=[0,1])
-      [ebitting[i]*step - keyHeight/2, i*waferStep +
+      [ebitting[i]*step - h/2, i*waferStep +
         (j==0 ? ((i>0   && ebitting[i-1]<ebitting[i]) ? 1-flat : 1+coflat)
               : ((i+1<n && ebitting[i+1]<ebitting[i]) ? 1.5+flat : 1.5-coflat))]
     ],
-    [[-keyHeight/2, end - (keyHeight-point)/2]
+    [[-h/2, end - (h-point)/2]
     ,[-point/2, end]]
   );
   bot = concat(
-    [[keyHeight/2, 0]],
+    [[h/2, 0]],
     [for (i=[0:n-1]) for (j=[0,1])
-      [ebitting[i]*step + keyHeight/2, i*waferStep +
+      [ebitting[i]*step + h/2, i*waferStep +
         (j==0 ? ((i>0   && ebitting[i-1]>ebitting[i]) ? 1-flat : 1+coflat)
               : ((i+1<n && ebitting[i+1]>ebitting[i]) ? 1.5+flat : 1.5-coflat))]
     ],
-    [[keyHeight/2, end - (keyHeight-point)/2]
+    [[h/2, end - (h-point)/2]
     ,[point/2, end]]
   );
   polygon(concat(top,reverse(bot)));
 }
 module key() {
   end = (len(bitting)+1)*waferStep + waferThicknessLast - 0.5;
+  keyBottomChamfer = 0.4;
   chamfer = 0.7;
-  keyHandleSizeX = 20;
-  keyHandleSizeY = 18;
+  keyHandleSizeX = 21;
+  keyHandleSizeY = 21;
   keyHandleChamfer = 5;
   keyHandleHole = 6;
   keyHandleHoleChamfer = keyHandleHole/3.5;
   group() {
     intersection() {
-      extrude_key() {
-        key_shape();
+      extrude_key(chamfer=keyBottomChamfer) {
+        key_shape(h = keyHeight-2*keyBottomChamfer);
       }
       linear_extrude_y(lots,true) {
         sym_polygon_x([[-keyWidth,-10], [-keyWidth,end-chamfer], [-keyWidth/2,end-chamfer], [-keyWidth/2+chamfer,end]]);
       }
     }
-    extrude_key() {
-      polygon([[-keyHeight/2,0],[keyHeight/2,0],[0,-4]]);
-      //translate([-keyHeight/2,-2]) square([keyHeight,2]);
+    intersection() {
+      extrude_key(chamfer=keyBottomChamfer) {
+        polygon([[-keyHeight/2+keyBottomChamfer,0],[keyHeight/2-keyBottomChamfer,0],[keyBottomChamfer,-4]]);
+      }
+      extrude_key(chamfer=keyBottomChamfer) {
+        polygon([[-keyHeight/2+keyBottomChamfer,0],[keyHeight/2-keyBottomChamfer,0],[-keyBottomChamfer,-4]]);
+      }
     }
     linear_extrude_y(2,true) {
       difference() {
@@ -208,7 +226,7 @@ module key() {
     }
   }
 }
-//!key();
+!key();
 
 module key_stack(color = "darkred", offset=0) {
   translate_y(1) color(color) linear_extrude_x(1,true) key_shape();
