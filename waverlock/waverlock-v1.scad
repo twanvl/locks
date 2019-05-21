@@ -208,7 +208,7 @@ module key() {
     }
   }
 }
-!key();
+//!key();
 
 module key_stack(color = "darkred", offset=0) {
   translate_y(1) color(color) linear_extrude_x(1,true) key_shape();
@@ -674,12 +674,13 @@ module housing_back() {
 module exposed_housing() {
   difference() {
     housing();
-    w=8;h=8;
+    w=6;h=8;
     d = lots;
     translate([-lots/2,-w/2,2.5]) cube([lots,w,d]);
     translate([-h/2,-lots/2,2.5]) cube([h,lots,d]);
   }
 }
+!exposed_housing();
 
 //-----------------------------------------------------------------------------
 // Tests
