@@ -105,7 +105,7 @@ clipH = 4.4;
 module key_profile(delta=0) {
   dx=2*delta*keyDelta/keyWidth;
   dy=delta;
-  linear_extrude(eps,convexity=106) {
+  linear_extrude(height=eps,convexity=106) {
     rotate(90)
     polygon([
       [-keyDelta/2-dx,-keyWidth/2-dy],
@@ -295,19 +295,6 @@ module connector_slot(bit=3) {
 // Wafers
 //-----------------------------------------------------------------------------
 
-module wafer_profile1(C=C) {
-  waferWidthExt = waferWidth+2;
-  rotate([90,0,0])
-  linear_extrude(coreR*2+eps,center=true)
-  polygon([
-    [-waferWidth/2,-waferThickness/2-C],
-    [-waferWidthExt/2-C,0],
-    [-waferWidth/2,waferThickness/2+C],
-    [waferWidth/2,waferThickness/2+C],
-    [waferWidthExt/2+C,0],
-    [waferWidth/2,-waferThickness/2-C]
-  ]);
-}
 module wafer_profile(C=0,CX=0) {
   a = waferLip + 2*C;
   b = a + waferLip;
@@ -339,12 +326,6 @@ module wafer_profiles(C=C,CX=CX) {
   }
   translate([0,0,wafers*waferStep]) {
     last_wafer_profile(C+eps,CX=CX,bridgeC=bridgeC);
-  }
-}
-module wafer_outer() {
-  intersection() {
-    wafer_profile(C=0);
-    cylinder(r=coreR,h=waferThickness,center=true);
   }
 }
 module tab_profile(width=tabWidth,height=2*coreR) {
@@ -401,12 +382,12 @@ module wafer(bit, minBit=minBit, maxBit=maxBit, slot=true, pin=true, tabs=true) 
   }
   //translate([2,y+connectorPos,waferThickness/2]) connector_slot(bit);
 }
+
 module first_wafer(bit=0) {
   wafer(0,minBit=max(minBit,-maxDelta/step),maxBit=min(maxBit,maxDelta/step),slot=false,tabs=false);
 }
+
 module last_wafer(bit=0) {
-  //wafer(bit,pin=false);
-  //wafer(0,minBit=0,maxBit=0,pin=false);  
   thickness = waferThicknessLast;
   y = 0;
   difference() {
@@ -423,6 +404,8 @@ module last_wafer(bit=0) {
     translate([0,y+connectorPos,-eps]) connector_slot(bit);
   }
 }
+
+//Tests
 module wafers() {
   wafer(minBit);
   //translate([0,0,3]) wafer(minBit+3);
@@ -827,5 +810,8 @@ module export_everything() {
     translate([2*(2*housingRX+8),coreR,0]) export_retaining_clip();
     translate([-2*(2*housingRX+8),coreR,0]) export_retaining_clip();
     translate([0,-2*housingRY,0]) export_key();
+  } else {
+    //!extrude_key(){circle(1,$fn=1);};
+    cube(1);
   }
 }

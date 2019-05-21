@@ -14,7 +14,7 @@ eps = 1e-3;
 //-----------------------------------------------------------------------------
 
 module linear_extrude_y(height,center=false,convexity=4) {
-  translate([0,center?0:h,0])
+  translate([0,center?0:height,0])
   rotate([90,0,0])
   linear_extrude(height=height,center=center,convexity=convexity) children();
 }
