@@ -182,6 +182,11 @@ module key_shape() {
 module key() {
   end = (len(bitting)+1)*waferStep + waferThicknessLast - 0.5;
   chamfer = 0.7;
+  keyHandleSizeX = 20;
+  keyHandleSizeY = 18;
+  keyHandleChamfer = 5;
+  keyHandleHole = 6;
+  keyHandleHoleChamfer = keyHandleHole/3.5;
   group() {
     intersection() {
       extrude_key() {
@@ -197,13 +202,13 @@ module key() {
     }
     linear_extrude_y(2,true) {
       difference() {
-        translate([0,-16/2]) chamfer_rect(16,16,4);
-        translate([0,-16/2-4]) chamfer_rect(5,5,2.5);
+        translate([0,-keyHandleSizeY/2]) chamfer_rect(keyHandleSizeX,keyHandleSizeY,keyHandleChamfer);
+        translate([0,-keyHandleSizeY+keyHandleHole/2+2]) chamfer_rect(keyHandleHole,keyHandleHole,keyHandleHoleChamfer);
       }
     }
   }
 }
-//!key();
+!key();
 
 module key_stack(color = "darkred", offset=0) {
   translate_y(1) color(color) linear_extrude_x(1,true) key_shape();
@@ -715,7 +720,7 @@ module test() {
 }
 //!test();
 //!export_needed_wafers();
-!export_everything();
+!everything();
 
 if (false) {
 translate([0,step*3,faceThickness+waferThickness/2+C/2]) color("red") wafer(minBit+3);
@@ -801,17 +806,19 @@ module export_retaining_clip() { retaining_clip(); }
 module export_cap() { rotate([180,0,0]) housing_back(); }
 module export_key() { key(); }
 
+module everything() {
+  translate([-wafers/2*(waferWidth+6),coreR+housingRY+8]) export_needed_wafers();
+  translate([-2*housingRX-8,0]) export_core();
+  translate([0,0]) export_housing();
+  translate([2*housingRX+8,0,capDepth]) export_cap();
+  translate([2*(2*housingRX+8),coreR,0]) export_retaining_clip();
+  translate([-2*(2*housingRX+8),coreR,0]) export_retaining_clip();
+  translate([0,-2*housingRY,0]) export_key();
+}
 module export_everything() {
   if (0) {
-    translate([-wafers/2*(waferWidth+6),coreR+housingRY+8]) export_needed_wafers();
-    translate([-2*housingRX-8,0]) export_core();
-    translate([0,0]) export_housing();
-    translate([2*housingRX+8,0,capDepth]) export_cap();
-    translate([2*(2*housingRX+8),coreR,0]) export_retaining_clip();
-    translate([-2*(2*housingRX+8),coreR,0]) export_retaining_clip();
-    translate([0,-2*housingRY,0]) export_key();
+    everything();
   } else {
-    //!extrude_key(){circle(1,$fn=1);};
     cube(1);
   }
 }
