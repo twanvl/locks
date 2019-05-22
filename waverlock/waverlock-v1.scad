@@ -42,9 +42,12 @@ keyWidth = 7;
 keyDelta = 2;
 keyHeight = 1.8;
 
-toothSlope = 1;
-keyC = C + 0.05; // vertical clearance in keyhole
+toothSlope = 1.25;
+//keyC = C + 0.05; // vertical clearance in keyhole
+keyC = 0.2; // vertical clearance in keyhole
 keyCX = 0.2; // horizontal clearance in keyhole (not critical)
+keyA = 0.9; // position of flat part
+keyB = 1.2;
 keyHolePos = 0;
 
 connectorR=1.25;
@@ -137,23 +140,23 @@ module key_profile_test() {
   color("green")translate_z(10) extrude_key(chamfer=0) {square([5,5],true);}
 }
 module key_hole(delta=keyCX) {
-  l=0;
+  l=10;
   extrude_key(delta=delta) {
     sym_polygon_x([
-      [keyHeight/2+keyC+toothSlope*(1+l), -l],
-      [keyHeight/2+keyC+toothSlope*0,    1],
-      [keyHeight/2+keyC+toothSlope*0,    1.5],
-      [keyHeight/2+keyC+toothSlope*0.5,  2],
+      [keyHeight/2+keyC+toothSlope*l, keyA-l],
+      [keyHeight/2+keyC+toothSlope*0, keyA],
+      [keyHeight/2+keyC+toothSlope*0, keyB],
+      [keyHeight/2+keyC+toothSlope*l, keyB+l],
     ]);
   }
 }
 module last_key_hole(delta=keyCX) {
-  l = 10; r = 10;
+  l = 10;
   extrude_key(delta=delta) {
     sym_polygon_x([
-      [keyHeight/2+keyC+toothSlope*l, -l],
-      [keyHeight/2+keyC+toothSlope*0, 0],
-      [keyHeight/2+keyC+toothSlope*0, r],
+      [keyHeight/2+keyC+toothSlope*l, keyA-l],
+      [keyHeight/2+keyC+toothSlope*0, keyA],
+      [keyHeight/2+keyC+toothSlope*0, keyA+l],
     ]);
   }
 }
@@ -174,8 +177,8 @@ module key_shape(h = keyHeight) {
     [[-h/2, 0]],
     [for (i=[0:n-1]) for (j=[0,1])
       [ebitting[i]*step - h/2, i*waferStep +
-        (j==0 ? ((i>0   && ebitting[i-1]<ebitting[i]) ? 1-flat : 1+coflat)
-              : ((i+1<n && ebitting[i+1]<ebitting[i]) ? 1.5+flat : 1.5-coflat))]
+        (j==0 ? ((i>0   && ebitting[i-1]<ebitting[i]) ? keyA-flat : keyA+coflat)
+              : ((i+1<n && ebitting[i+1]<ebitting[i]) ? keyB+flat : keyB-coflat))]
     ],
     [[-h/2, end - (h-point)/2]
     ,[-point/2, end]]
@@ -184,8 +187,8 @@ module key_shape(h = keyHeight) {
     [[h/2, 0]],
     [for (i=[0:n-1]) for (j=[0,1])
       [ebitting[i]*step + h/2, i*waferStep +
-        (j==0 ? ((i>0   && ebitting[i-1]>ebitting[i]) ? 1-flat : 1+coflat)
-              : ((i+1<n && ebitting[i+1]>ebitting[i]) ? 1.5+flat : 1.5-coflat))]
+        (j==0 ? ((i>0   && ebitting[i-1]>ebitting[i]) ? keyA-flat : keyA+coflat)
+              : ((i+1<n && ebitting[i+1]>ebitting[i]) ? keyB+flat : keyB-coflat))]
     ],
     [[h/2, end - (h-point)/2]
     ,[point/2, end]]
@@ -226,7 +229,7 @@ module key() {
     }
   }
 }
-!key();
+//!key();
 
 module key_stack(color = "darkred", offset=0) {
   translate_y(1) color(color) linear_extrude_x(1,true) key_shape();
@@ -321,7 +324,7 @@ module connector_slot(bit=3) {
 module wafer_profile(C=0,CX=0) {
   a = waferLip + 2*C;
   b = a + waferLip;
-  linear_extrude_y(coreR*2+eps,center=true,convexity=2)
+  linear_extrude_y(coreR*2+eps,center=true,convexity=5)
   sym_polygon_x([
     [-waferWidth/2-CX-waferLip,0],
     [-waferWidth/2-CX-waferLip,a],
@@ -333,7 +336,7 @@ module last_wafer_profile(C=0,CX=0,bridgeC=0) {
   thickness = waferThicknessLast;
   a = waferLip + 2*C;
   w = thickness+C-a-waferLip;
-  linear_extrude_y(coreR*2+eps,center=true,convexity=2)
+  linear_extrude_y(coreR*2+eps,center=true,convexity=5)
   sym_polygon_x([
     [-waferWidth/2-CX-waferLip,0],
     [-waferWidth/2-CX-waferLip,a],
@@ -372,7 +375,7 @@ module wafer(bit, minBit=minBit, maxBit=maxBit, slot=true, pin=true, tabs=true) 
     union() {
       // tabs
       if (tabs) intersection() {
-        linear_extrude(thickness) tab_profile();
+        linear_extrude(thickness,convexity=10) tab_profile();
         cylinder(r=coreR,h=thickness);
       }
       // profile
@@ -455,7 +458,7 @@ module waferTest() {
   }
 }
 //!waferTest();
-//!wafers();
+!wafers();
 
 //-----------------------------------------------------------------------------
 // Core
