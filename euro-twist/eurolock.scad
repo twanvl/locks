@@ -9,7 +9,7 @@ include <../util.scad>;
 // Model parameters
 //-----------------------------------------------------------------------------
 
-C = 0.1;
+C = 0.125;
 
 housingR = 17/2;
 coreR = 13/2;
@@ -43,7 +43,7 @@ step=0.55;
 
 // twist per mm in z direction
 // Note: rotate is in opposite direction of twist!
-twist = -60/25;
+twist = -80/25;
 res = 1; // resolution of twist
 
 function pin_pos(i) = firstSep + i*(pinD+pinSep) + pinD/2;
@@ -228,11 +228,8 @@ module key() {
   rotate(-twist*-3)
   translate([0,x,0])
   group() {
-    linear_extrude_x((keyWidth+0.4)/2,false) {
-      translate([0,y+4])
-      text("twist",5,font="Ubuntu",halign="center",valign="center");
-    }
-    rotate([0,0,180])
+    rotated([0,0,180])
+    translate_x((keyWidth+0.4)/2)
     linear_extrude_x((keyWidth+0.4)/2,false) {
       translate([0,y+4])
       text("twist",5,font="Ubuntu",halign="center",valign="center");
@@ -248,3 +245,11 @@ module key() {
 housing();
 translate([20,0,0]) color("pink") core();
 translate([40,0,0]) color("lightgreen") key();
+
+//-----------------------------------------------------------------------------
+// Export
+//-----------------------------------------------------------------------------
+
+module export_key() { key(); }
+module export_housing() { housing(); }
+module export_core() { core(); }
