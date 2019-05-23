@@ -9,7 +9,7 @@ include <../util.scad>;
 // Model parameters
 //-----------------------------------------------------------------------------
 
-C = 0.1;
+C = 0.125;
 keyC = C;
 
 eps = 1e-2;
@@ -18,7 +18,7 @@ discR = 10;
 coreR = discR + 2;
 
 discThickness = 2;
-spacerThickness = 0.4;
+spacerThickness = 0.45;
 
 bits = 5;
 //step = -90/4; // degrees
@@ -28,11 +28,15 @@ step = -120/bits; // degrees
 gateHeight = 2.5;
 falseHeight = 1;
 
+limiterInside = true;
+
 keyR1 = 5;
 keyR2 = 3.5;
+keywayAngle = 0;
 
 discs = 10;
 coreHeight = discs * (discThickness + spacerThickness);
+coreAngle = 0;
 
 corePos = 9;
 setScrewPos = 4+4/2-0.5;
@@ -139,15 +143,16 @@ module keyway_profile() {
 //-----------------------------------------------------------------------------
 
 module wedge_triangle(a,r) {
-  polygon([[0,0],rot(-a/2,[0,-r]),rot(a/2,[0,-r])]);
+  //polygon([[0,0],rot(-a/2,[0,-r]),rot(a/2,[0,-r])]);
+  rotate(270-a/2) wedge(a);
 }
 module rotation_limiter() {
   intersection() {
     difference() {
-      circle(discR+1);
+      circle(coreR);
       circle(discR-2);
     }
-    wedge_triangle(30,discR+1);
+    rotate(270) wedge(30,center=true);
   }
 }
 module rotation_limiter_slot() {
@@ -176,13 +181,14 @@ module disc(bit=0) {
   linear_extrude(discThickness) {
     difference() {
       circle(discR);
-      rotate(1*step) offset(keyC) keyway_profile();
+      rotate(keywayAngle) offset(keyC) keyway_profile();
       // slots
       for (i=[0:bits-1]) {
         rotate(-i*step) sidebar_slot_wiggle(i == bit);
       }
-      rotation_limiter_slot();
+      if (limiterInside) rotation_limiter_slot();
     }
+    if (!limiterInside) rotation_limiter();
   }
 }
 module spacer_disc() {
@@ -199,7 +205,7 @@ module tension_disc() {
   linear_extrude(discThickness) {
     difference() {
       circle(discR);
-      rotate(1*step) offset(keyC) keyway_profile();
+      rotate(keywayAngle) offset(keyC) keyway_profile();
       rotate(-bits*step)
       {
         //sidebar_slot_wiggle(true);
@@ -228,7 +234,7 @@ module spinner_disc() {
       }
     }
     translate([0,0,-C]) linear_extrude(3+2*C) {
-      rotate(1*step) offset(keyC) intersection() { key_profile(); circle(keyR1); }
+      rotate(keywayAngle) offset(keyC) intersection() { key_profile(); circle(keyR1); }
     }
   }
 }
@@ -239,8 +245,12 @@ module disc_test() {
   translate([0,2*coreR,0]) spacer_disc();
   translate([2*coreR,2*coreR,0]) tension_disc();
   translate([4*coreR,2*coreR,0]) spinner_disc();
-  translate([4*coreR,0*coreR,0]) core();
+  translate([4*coreR,0*coreR,0]) intersection() {
+    core();
+    translate_z(10) negative_z();
+  }
 }
+!disc_test();
 
 //-----------------------------------------------------------------------------
 // Key
@@ -264,7 +274,7 @@ module lug_hole(offset=0) {
 }
 
 module core() {
-  rotate(-45) group() {
+  rotate(coreAngle) group() {
     difference() {
       /*
       linear_extrude(coreHeight,convexity=10) {
@@ -276,7 +286,7 @@ module core() {
         rotation_limiter();
       }*/
       cylinder(r=coreR,h=coreHeight+1);
-      translate_z(-eps) cylinder(r=discR+C/2,h=coreHeight+eps);
+      translate_z(-eps) cylinder(r=discR+C,h=coreHeight+eps);
       translate([0,discR+2/2]) cube([2,2+2*gateHeight,coreHeight*2],true);
       translate([0,0,coreHeight-2*eps]) cylinder(r=keyR1+keyC,h=1+eps);
     }

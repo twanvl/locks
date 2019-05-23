@@ -102,14 +102,39 @@ module sym_polygon_180(list) {
 //-----------------------------------------------------------------------------
 
 lots = 1e3;
-module positive_x() { translate([lots,0,0]) cube(2*lots,true); }
-module positive_y() { translate([0,lots,0]) cube(2*lots,true); }
-module positive_z() { translate([0,0,lots]) cube(2*lots,true); }
-module negative_x() { translate([-lots,0,0]) cube(2*lots,true); }
-module negative_y() { translate([0,-lots,0]) cube(2*lots,true); }
-module negative_z() { translate([0,0,-lots]) cube(2*lots,true); }
-module everything() { cube(2*lots,true); }
+module positive_x(h=lots) { translate([h,0,0]) cube(2*h,true); }
+module positive_y(h=lots) { translate([0,h,0]) cube(2*h,true); }
+module positive_z(h=lots) { translate([0,0,h]) cube(2*h,true); }
+module negative_x(h=lots) { translate([-h,0,0]) cube(2*h,true); }
+module negative_y(h=lots) { translate([0,-h,0]) cube(2*h,true); }
+module negative_z(h=lots) { translate([0,0,-h]) cube(2*h,true); }
+module everything(h=lots) { cube(2*h,true); }
 module not() { difference() { group() {children();} everything(); }  }
+
+// a wedge, starting from the positive x, up to rotation of a counter clockwise
+module wedge_space(a, center=false) {
+  da = center ? -a/2 : 0;
+  rotate(da)
+  if (a < 180) {
+    difference() {
+      positive_y(lots/10);
+      rotate(a) positive_y();
+    }
+  } else {
+    union() {
+      positive_y(lots/10);
+      rotate(a-180) positive_y(lots/10);
+    }
+  }
+}
+
+module wedge(a1=undef, a2=undef, center=false, r=lots) {
+  b1 = a2==undef ? (center ? -a1/2 : 0) : a1;
+  b2 = a2==undef ? (center ? a1/2 : a1) : a2;
+  n = 10;
+  points = [for (i=[0:n]) [r*cos(b1+(b2-b1)*i/n),r*sin(b1+(b2-b1)*i/n)]];
+  polygon(concat([[0,0]],points));
+}
 
 //-----------------------------------------------------------------------------
 // Other construction utilities
