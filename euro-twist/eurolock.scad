@@ -20,14 +20,14 @@ bibleWidth = 10;
 bibleHeight = 33-17/2;
 
 pins = 5;
-pinD = 3;
-pinSep = 1;
-firstSep = 3;
-lastSep = 3;
+pinD = 3.05;
+pinSep = 4;
+firstSep = 3 + 3/2;
+lastSep = 2 - 3/2;
 
-housingDepth = firstSep + pins*pinD + (pins-1)*pinSep + lastSep;
-clipThickness = 1;
-clipR = coreR - 1;
+housingDepth = firstSep + pins*pinSep + lastSep;
+clipThickness = 1.2;
+clipR = coreR - 1.1;
 tailDepth = 2;
 
 keyWidth = 2;
@@ -35,6 +35,7 @@ keyHeight = 8.4;
 keyBowR = 12;
 keyBowHoleR = 3;
 keyBowHoleSep = 3;
+keyC = 0.2;
 
 bittingOffset = -1.5;
 //bitting=[1,2,3,4,5];
@@ -43,10 +44,11 @@ step=0.55;
 
 // twist per mm in z direction
 // Note: rotate is in opposite direction of twist!
-twist = -80/25;
+//twist = -80/25;
+twist = 0;
 res = 1; // resolution of twist
 
-function pin_pos(i) = firstSep + i*(pinD+pinSep) + pinD/2;
+function pin_pos(i) = firstSep + i*pinSep;
 
 //-----------------------------------------------------------------------------
 // lock profile
@@ -65,7 +67,7 @@ module housing_profile() {
 module housing() {
   difference() {
     linear_extrude(housingDepth, convexity=10, twist=twist*housingDepth) housing_profile();
-    translate([0,0,-eps]) cylinder(r=faceR,h=faceThicknessB+C);
+    translate([0,0,-eps]) cylinder(r=faceR+C,h=faceThicknessB+C);
     for (i=[0:pins-1]) {
       rotate(-twist*pin_pos(i))
       translate([0,0,pin_pos(i)]) rotate([-90]) cylinder(d=pinD,h=bibleHeight+1);
@@ -78,43 +80,47 @@ module housing() {
 // key profile
 //-----------------------------------------------------------------------------
 
-module key_profile1() {
-  w=keyWidth;
-  h=keyHeight;
-  translate([-w/2,-coreR])
-  polygon([
-    [0,0],[0,1.3],[w/2,1.5],[w/2,2.3],[0,3.5],[0,5.4],[w/2,5.6],[0,h],
-    [w/2+0.1,h],[w,6.2],[w,4.5],[w/2,4.3],[w,3],[w,0]
-  ]);
-}
 module key_profile(y=0,top=0,s=0.5) {
+  // s=0 gives a rectangle, s=0.5 gives key profile, in between interpolates
   w=keyWidth;
   h=keyHeight + top;
   l=w*s;
   r=w-w*s;
-  translate([-w/2,-coreR])
-  polygon([
-    [0,y],[0,1.3],[l,1.5],[l,2.3],[0,3.0],[0,5.0],[l,5.8],[0,h],
-    [r,h],[w,6.2],[w,5.2],[r,4.2],[r,3.8],[w,3.2],[w,y]
-  ]);
+  intersection() {
+    translate([-w/2,-coreR])
+    polygon([
+      [0,y],[0,1.3],[l,1.5],[l,2.3],[0,3.0],[0,5.0],[l,5.8],[0,h],
+      [r,h],[w,6.2],[w,5.2],[r,4.2],[r,3.8],[w,3.2],[w,y]
+    ]);
+    circle(coreR-y);
+  }
 }
 //!key_profile();
+
+module test_key_profile() {
+  C=0.2;
+  translate_z(-1) color("lightgreen") linear_extrude(1) circle(coreR);
+  translate_z(1) linear_extrude(1) key_profile(0,0,0.5);
+  color("red") linear_extrude(1) offset(r=C) {key_profile(-2);}
+}
+//!test_key_profile();
 
 //-----------------------------------------------------------------------------
 // core
 //-----------------------------------------------------------------------------
 
 module core() {
-  coreDepth = housingDepth + tailDepth + clipThickness;
+  clipC = 0.1;
+  coreDepth = housingDepth + tailDepth + clipThickness + clipC;
   difference() {
     //cylinder(r=coreR,h=coreDepth);
     union() {
       translate([0,0,-faceThicknessA]) cylinder(r1=coreR,r2=faceR,h=faceThicknessA);
       cylinder(r=faceR,h=faceThicknessB);
-      cylinder(r=coreR,h=housingDepth);
+      cylinder(r=coreR,h=housingDepth+clipC);
       //translate([0,0,housingDepth-0.5]) cylinder(r=coreR,r2=clipR,h=1);
-      translate([0,0,housingDepth])   cylinder(r=clipR,r2=clipR,h=clipThickness);
-      translate([0,0,housingDepth+1]) cylinder(r=coreR,h=tailDepth);
+      translate([0,0,housingDepth+clipC])   cylinder(r=clipR,r2=clipR,h=clipThickness);
+      translate([0,0,housingDepth+clipC+clipThickness]) cylinder(r=coreR,h=tailDepth);
     }
     // clip
     // actuator
@@ -128,7 +134,7 @@ module core() {
     translate([0,0,-faceThicknessA-eps])
     rotate(-twist*(-faceThicknessA-eps))
     linear_extrude(h,convexity=10, twist=twist*h, slices=res*h*abs(twist)) {
-      offset(r=C) {key_profile(-2);}
+      offset(r=keyC) {key_profile(-2);}
     }
     // pins
     for (i=[0:pins-1]) {
@@ -236,15 +242,31 @@ module key() {
     }
   }
 }
-!key();
+//!key();
 
 //-----------------------------------------------------------------------------
 // testing
 //-----------------------------------------------------------------------------
 
-housing();
-translate([20,0,0]) color("pink") core();
-translate([40,0,0]) color("lightgreen") key();
+module test_parts() {
+  housing();
+  translate([20,0,0]) color("pink") core();
+  translate([40,0,0]) color("lightgreen") key();
+}
+
+module test_together() {
+  $fn=20;
+  intersection() {
+    group() {
+      housing();
+      color("pink") core();
+      color("lightgreen") key();
+    }
+    positive_x();
+    //translate_z(1)positive_z();
+  }
+}
+test_together();
 
 //-----------------------------------------------------------------------------
 // Export
