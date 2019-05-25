@@ -19,8 +19,8 @@ module linear_extrude_y(height,center=false,convexity=4) {
   linear_extrude(height=height,center=center,convexity=convexity) children();
 }
 module linear_extrude_x(height,center=false,convexity=4) {
-  rotate([0,0,90])
-  linear_extrude_y(height=height,center=center,convexity=convexity) children();
+  rotate([0,0,90]) rotate([90,0,0])
+  linear_extrude(height=height,center=center,convexity=convexity) children();
 }
 
 //-----------------------------------------------------------------------------
