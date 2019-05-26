@@ -44,8 +44,8 @@ step=0.55;
 
 // twist per mm in z direction
 // Note: rotate is in opposite direction of twist!
-//twist = -80/25;
-twist = 0;
+twist = -80/25;
+//twist = 0;
 res = 1; // resolution of twist
 
 function pin_pos(i) = firstSep + i*pinSep;
@@ -162,6 +162,17 @@ module rotate_test() {
 // key
 //-----------------------------------------------------------------------------
 
+module twisted(z1,z2) {
+  step = 0.05;
+  for (z=[z1:step:z2-eps]) {
+    rotate(-twist*z)
+    intersection() {
+      group() children();
+      translate([-lots/2,-lots/2,z]) cube([lots,lots,min(step,z2-z)]);
+    }
+  }
+}
+
 module key() {
   h=housingDepth;
   difference() {
@@ -205,38 +216,38 @@ module key() {
   // bow
   x = -coreR+(keyHeight+2)/2;
   y = -keyBowR*1.7/2 - flatSize;
-  rotate(-twist*-3)
-  linear_extrude_x(keyWidth,true) {
-    difference() {
-      //translate([-coreR+(keyHeight)/2,-keyBowR]) circle(keyBowR);
-      //translate([x,y]) scale([1,0.9]) circle(keyBowR);
-      //translate([x,y]) square(keyBowR*1.6,true);
-      translate([x,y]) chamfer_rect(keyBowR*1.7,keyBowR*1.7,4);
-      translate([x-keyHeight/2,-3]) square(keyHeight);
-      translate([x,y-keyBowR*0.9+keyBowHoleSep+keyBowHoleR]) circle(keyBowHoleR);
+  //rotate(-twist*-3) group() {
+  twisted(y-keyBowR*1.7/2,y+keyBowR*1.7/2) {
+    linear_extrude_x(keyWidth,true) {
+      difference() {
+        //translate([-coreR+(keyHeight)/2,-keyBowR]) circle(keyBowR);
+        //translate([x,y]) scale([1,0.9]) circle(keyBowR);
+        //translate([x,y]) square(keyBowR*1.6,true);
+        translate([x,y]) chamfer_rect(keyBowR*1.7,keyBowR*1.7,4);
+        translate([x-keyHeight/2,-3]) square(keyHeight);
+        translate([x,y-keyBowR*0.9+keyBowHoleSep+keyBowHoleR]) circle(keyBowHoleR);
+      }
     }
-  }
-  color("darkgrey")
-  rotate(-twist*-3)
-  linear_extrude_x(keyWidth+0.4,true) {
-    difference() {
-      translate([x,y]) chamfer_rect(keyBowR*1.7,keyBowR*1.7,4);
-      translate([x,y]) chamfer_rect(keyBowR*1.7-2,keyBowR*1.7-2,4-1);
-      //translate([x-keyHeight/2,-3]) square(keyHeight);
+    color("darkgrey")
+    linear_extrude_x(keyWidth+0.4,true) {
+      difference() {
+        translate([x,y]) chamfer_rect(keyBowR*1.7,keyBowR*1.7,4);
+        translate([x,y]) chamfer_rect(keyBowR*1.7-2,keyBowR*1.7-2,4-1);
+        //translate([x-keyHeight/2,-3]) square(keyHeight);
+      }
+      difference() {
+        translate([x,y-keyBowR*0.9+keyBowHoleSep+keyBowHoleR]) circle(keyBowHoleR+1);
+        translate([x,y-keyBowR*0.9+keyBowHoleSep+keyBowHoleR]) circle(keyBowHoleR);
+      }
     }
-    difference() {
-      translate([x,y-keyBowR*0.9+keyBowHoleSep+keyBowHoleR]) circle(keyBowHoleR+1);
-      translate([x,y-keyBowR*0.9+keyBowHoleSep+keyBowHoleR]) circle(keyBowHoleR);
-    }
-  }
-  color("darkgrey")
-  rotate(-twist*-3)
-  translate([0,x,0])
-  group() {
-    rotated([0,0,180])
-    linear_extrude_x((keyWidth+0.4)/2,false) {
-      translate([0,y+4])
-      text("twist",5,font="Ubuntu",halign="center",valign="center");
+    color("darkgrey")
+    translate([0,x,0])
+    group() {
+      rotated([0,0,180])
+      linear_extrude_x((keyWidth+0.4)/2,false) {
+        translate([0,y+4])
+        text("twist",5,font="Ubuntu",halign="center",valign="center");
+      }
     }
   }
 }
