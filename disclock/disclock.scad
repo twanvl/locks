@@ -44,6 +44,7 @@ step = 120/bits; // degrees
 gateHeight = 2.5;
 falseHeight = 1;
 sidebarThickness = 1.85;
+printSidebarSpring = true;
 
 keyR1 = size <= SMALL ? 4.5 : 5;
 keyR2 = 3.5;
@@ -376,12 +377,12 @@ module key(bitting = bitting) {
   linear_extrude(discThickness, scale = 0.25) render() key_profile(keyR1);
 }
 
-module key_with_raft() {
+module key_with_brim() {
   translate_z(2*9.5) key();
   scale([1,1.4,1]) cylinder(r=10,h=0.12);
 }
 
-//!key_with_raft();
+//!key_with_brim();
 
 //-----------------------------------------------------------------------------
 // Locking mechanism
@@ -566,9 +567,19 @@ module housing(threads=true) {
           [sidebarThickness/2+C-0.8,sidebarDepth+0.5+C],
         ]);
       }
-      translate([coreR-1,0,4]) rotate([0,90,0]) cylinder(d=3.3,h=14);
-      translate([coreR-1,0,sidebarDepth/2]) rotate([0,90,0]) cylinder(d=3.3,h=14);
-      translate([coreR-1,0,sidebarDepth-4]) rotate([0,90,0]) cylinder(d=3.3,h=14);
+      if (printSidebarSpring) {
+        h = sidebarSpringDepth + 2*C + 1;
+        translate([coreR-1,-sidebarSpringThickness/2+C,(sidebarDepth-h)/2]) {
+          cube([sidebarSpringWidth+1,sidebarSpringThickness+2*C,h]);
+          //cube([100,100,100]);
+        }
+      } else {
+        translate_z(sidebarPos) {
+          translate([coreR-1,0,4]) rotate([0,90,0]) cylinder(d=3.3,h=14);
+          translate([coreR-1,0,sidebarDepth/2]) rotate([0,90,0]) cylinder(d=3.3,h=14);
+          translate([coreR-1,0,sidebarDepth-4]) rotate([0,90,0]) cylinder(d=3.3,h=14);
+        }
+      }
     }
     // shackle holes
     translates([[-shackleWidth/2,0,shackleLength-shackleLength1],
@@ -628,10 +639,43 @@ module plug(threads=true) {
 //-----------------------------------------------------------------------------
 
 module sidebar() {
+  translate_y(-sidebarThickness/2)
   difference() {
     cube([gateHeight+coreWall,sidebarThickness,sidebarDepth]);
     translate_x(-discR+gateHeight) cylinder(r=discR-2, h=spinnerThickness-spinnerCountersink+C);
   }
+}
+
+sidebarSpringWidth = 12;
+sidebarSpringPrintWidth = sidebarSpringWidth + 1;
+sidebarSpringDepth = sidebarDepth - 6;
+sidebarSpringThickness = sidebarThickness + 2;
+
+module wiggle(w,h,r) {
+  a = atan2(h,w/2);
+  rx = r/sin(a);
+  ry = r/cos(a);
+  //polygon([[0,0],[0,ry],[w/2-rx/2,h],[w/2+rx/2,h],[w,ry],[w,0],[w/2,h-ry]]);
+  polygon([[rx/2,0],[0,0],[0,ry],[w/2-rx/2,h],[w/2+rx/2,h],[w,ry],[w,0],[w-rx/2,0],[w/2,h-ry]]);
+}
+module sidebar_spring() {
+  h = sidebarSpringDepth;
+  nx = 2;
+  r = 0.6;
+  linear_extrude_y(sidebarSpringThickness,center=true) {
+    square([1,sidebarSpringDepth]);
+    for (i=[0:nx-1]) {
+      w = (sidebarSpringPrintWidth-1)/nx;
+      translate([1+i*w,0]) wiggle(w,(sidebarSpringDepth-1)/2,r);
+      translate([1+i*w,sidebarSpringDepth]) mirror([0,1]) wiggle(w,(sidebarSpringDepth-1)/2,r);
+    }
+    //square([sidebarSpringWidth,sidebarSpringDepth]);
+  }
+}
+
+module sidebar_test() {
+  sidebar();
+  translate_x(gateHeight+coreWall) sidebar_spring();
 }
 
 //-----------------------------------------------------------------------------
@@ -667,6 +711,7 @@ module test() {
   unlocked = max(0,min(1,ts*$t));
   open = max(0,min(1,ts*$t-1));
   shacklePos = shackleTravel*max(0,min(1,ts*$t-2));
+  sidebarSpringPos = sidebarPos+(sidebarDepth-sidebarSpringDepth)/2;
 
   group() {
     intersection() {
@@ -694,8 +739,9 @@ module test() {
             }
           }
           if (key) translate_z(0) color("magenta") rotate(coreAngle + keywayAngle + unlocked*bits*step) key();
-          color("green") translate([discR-unlocked*gateHeight+C/2,-sidebarThickness/2,sidebarPos+C/2]) sidebar();
+          color("green") translate([discR-unlocked*gateHeight+C/2,0,sidebarPos+C/2]) sidebar();
         }
+        color("blue") translate([discR-unlocked*gateHeight+C/2+gateHeight+coreWall,0,sidebarSpringPos+C/2]) scale([(sidebarSpringWidth-(1-unlocked)*gateHeight)/sidebarSpringPrintWidth,1,1]) sidebar_spring();
         translate([0,0,2+C+shacklePos]) shackle();
         color("pink") translate([0,0,0]) plug(threads);
         if (false) {
@@ -730,6 +776,17 @@ module export_core() {
 module export_sidebar() {
   rotate([90]) sidebar();
 }
+module export_sidebar_spring() {
+  rotate([90]) sidebar_spring();
+}
+module export_shackle() {
+  rotate([90]) shackle();
+}
+module export_housing() {
+  rotate([180]) housing();
+}
+module export_plug() plug();
+module export_key_with_brim() key_with_brim();
 export_discs();
 export_core();
 export_sidebar();
