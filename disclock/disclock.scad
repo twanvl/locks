@@ -14,7 +14,7 @@ bitting = [5,3,5,0,3,2,1,4,3,5];
 SMALL = 1;
 MEDIUM = 2;
 LARGE = 3;
-size = MEDIUM;
+size = LARGE;
 //size = "small";
 
 C = 0.125;
@@ -32,7 +32,7 @@ layerHeight = 0.15;
 function roundToLayerHeight(z) = round((z-firstLayerHeight)/layerHeight)*layerHeight + firstLayerHeight;
 
 discThickness = size <= MEDIUM ? 1.85 : 2.0;
-spacerThickness = 0.5;
+spacerThickness = size <= MEDIUM ? 0.5 : 0.65;
 spinnerThickness = size <= SMALL ? 2 : 2;
 spinnerCountersink = spinnerThickness/2;
 
@@ -660,14 +660,17 @@ module wiggle(w,h,r) {
 }
 module sidebar_spring() {
   h = sidebarSpringDepth;
-  nx = 2;
-  r = 0.6;
+  nx = 6;
+  r = 0.5;
   linear_extrude_y(sidebarSpringThickness,center=true) {
     square([1,sidebarSpringDepth]);
     for (i=[0:nx-1]) {
       w = (sidebarSpringPrintWidth-1)/nx;
-      translate([1+i*w,0]) wiggle(w,(sidebarSpringDepth-1)/2,r);
-      translate([1+i*w,sidebarSpringDepth]) mirror([0,1]) wiggle(w,(sidebarSpringDepth-1)/2,r);
+      //translate([1+i*w,0]) wiggle(w,sidebarSpringDepth,r);
+      //translate([1+i*w,0]) wiggle(w,(sidebarSpringDepth-1)/2,r);
+      //translate([1+i*w,sidebarSpringDepth]) mirror([0,1]) wiggle(w,(sidebarSpringDepth-1)/2,r);
+      translate([i*w,i%2 ? sidebarSpringDepth-r : 0]) square([w,r]);
+      translate([i*w+w-r,0]) square([r,sidebarSpringDepth]);
     }
     //square([sidebarSpringWidth,sidebarSpringDepth]);
   }
@@ -677,6 +680,7 @@ module sidebar_test() {
   sidebar();
   translate_x(gateHeight+coreWall) sidebar_spring();
 }
+!sidebar_test();
 
 //-----------------------------------------------------------------------------
 // Tests
@@ -780,7 +784,7 @@ module export_sidebar_spring() {
   rotate([90]) sidebar_spring();
 }
 module export_shackle() {
-  rotate([90]) shackle();
+  rotate([-90]) shackle();
 }
 module export_housing() {
   rotate([180]) housing();
