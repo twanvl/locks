@@ -663,14 +663,14 @@ module sidebar_spring() {
   nx = 6;
   r = 0.5;
   linear_extrude_y(sidebarSpringThickness,center=true) {
-    square([1,sidebarSpringDepth]);
+    square([r,sidebarSpringDepth]);
     for (i=[0:nx-1]) {
-      w = (sidebarSpringPrintWidth-1)/nx;
+      w = (sidebarSpringPrintWidth-r)/nx;
       //translate([1+i*w,0]) wiggle(w,sidebarSpringDepth,r);
       //translate([1+i*w,0]) wiggle(w,(sidebarSpringDepth-1)/2,r);
       //translate([1+i*w,sidebarSpringDepth]) mirror([0,1]) wiggle(w,(sidebarSpringDepth-1)/2,r);
-      translate([i*w,i%2 ? sidebarSpringDepth-r : 0]) square([w,r]);
-      translate([i*w+w-r,0]) square([r,sidebarSpringDepth]);
+      translate([i*w+r,i%2 ? sidebarSpringDepth-r : 0]) square([w,r]);
+      translate([i*w+w,0]) square([r,sidebarSpringDepth]);
     }
     //square([sidebarSpringWidth,sidebarSpringDepth]);
   }
@@ -680,7 +680,7 @@ module sidebar_test() {
   sidebar();
   translate_x(gateHeight+coreWall) sidebar_spring();
 }
-!sidebar_test();
+//!sidebar_test();
 
 //-----------------------------------------------------------------------------
 // Tests
