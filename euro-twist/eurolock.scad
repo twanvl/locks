@@ -14,8 +14,8 @@ C = 0.125;
 housingR = 17/2;
 coreR = 13/2;
 faceR = coreR+0.75;
-faceThicknessA = 0.75;
-faceThicknessB = 0.5;
+faceThicknessA = 0.8;
+faceThicknessB = 1.1;
 bibleWidth = 10;
 bibleHeight = 33-17/2;
 
@@ -189,26 +189,25 @@ module key() {
       }
     }
   }
-  steps=10;
+  flatSize = 3 + faceThicknessA;
+  steps = flatSize/0.05;
   for (i=[1:steps]) {
-    z = i*3/steps;
-    h = 1;
+    z = i*flatSize/steps;
+    h = flatSize/steps;
     rotate(-twist*-z)
     translate([0,0,-z])
     linear_extrude(h, convexity=10, twist=twist*h, slices=res*h*abs(twist)) {
       //translate([-keyWidth/2,-coreR]) square([keyWidth,keyHeight+3]);
-      translate([-keyWidth/2,keyHeight-coreR]) square([keyWidth,2]);
+      if (z-h>=faceThicknessA+C) translate([-keyWidth/2,keyHeight-coreR]) square([keyWidth,2]);
       key_profile(s=0.5-0.5*i/steps);
     }
   }
   // bow
-  x = -coreR+(keyHeight)/2;
-  y = -keyBowR-0.4;
+  x = -coreR+(keyHeight+2)/2;
+  y = -keyBowR*1.7/2 - flatSize;
   rotate(-twist*-3)
   linear_extrude_x(keyWidth,true) {
     difference() {
-      x = -coreR+(keyHeight)/2;
-      y = -keyBowR-0.4;
       //translate([-coreR+(keyHeight)/2,-keyBowR]) circle(keyBowR);
       //translate([x,y]) scale([1,0.9]) circle(keyBowR);
       //translate([x,y]) square(keyBowR*1.6,true);
@@ -235,7 +234,6 @@ module key() {
   translate([0,x,0])
   group() {
     rotated([0,0,180])
-    translate_x((keyWidth+0.4)/2)
     linear_extrude_x((keyWidth+0.4)/2,false) {
       translate([0,y+4])
       text("twist",5,font="Ubuntu",halign="center",valign="center");
@@ -243,6 +241,15 @@ module key() {
   }
 }
 //!key();
+
+module key_with_brim() {
+  flatSize = 3 + faceThicknessA;
+  bow = keyBowR*1.7;
+  x = -coreR+(keyHeight+2)/2;
+  translate_z(bow+flatSize) key();
+  translate_y(x) scale([1,1.2,1]) cylinder(r=10,h=0.12);
+}
+!key_with_brim();
 
 //-----------------------------------------------------------------------------
 // testing
