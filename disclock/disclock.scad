@@ -61,9 +61,9 @@ coreBack=2;
 coreLimiter=2;
 coreLimiterFirst = false;
 
-discPos = 8;
+discPos = size <= SMALL ? 6 : size <= MEDIUM ? 7 : 8;
 corePos = discPos + spinnerThickness - spinnerCountersink;
-setScrewPos = 4+4/2-0.5;
+setScrewPos = (size <= SMALL ? 2 : size <= MEDIUM ? 2.5 : 3.2) + 4/2;
 
 shackleDiameter = 8;
 shackleSpacing = 3;
@@ -557,8 +557,25 @@ module housing(threads=true) {
   difference() {
     linear_extrude(housingDepth, convexity=10) {
       //chamfer_rect(housingWidth,housingHeight,5);
-      offset(4) offset(-4)
-      sym_polygon_xy([
+      //offset(4) offset(-4)
+      mirrored([0,1])
+      union() {
+        h1 = shackleDiameter+2*(shackleSpacing-1);
+        square([housingWidth,h1],true);
+        intersection() {
+          // use an ellipse for the sides
+          translate_y(lots/2) square([housingWidth,lots],true);
+          r1 = housingWidth*1;
+          yForEdge = sqrt(r1*r1-(housingWidth/2)*(housingWidth/2));
+          r2 = (housingHeight/2 - h1/2) / (1 - yForEdge/r1);
+          y = r2/r1 * yForEdge;
+          // want: h1/2-y + r2 = housingHeight/2
+          //   = h1/2 - r2/r1 * sqrt.. + r2 = housingHeight/2
+          //  => r2 * (1 - sqrt../r1) =  housingHeight/2 - h1/2
+          translate_y(h1/2-y)  scale([1,r2/r1]) circle(r1);
+        }
+      }
+      *sym_polygon_xy([
         //[1,housingHeight/2],
         [3,housingHeight/2],
         //[housingWidth/4,housingHeight/2-3],
@@ -612,7 +629,7 @@ module housing(threads=true) {
     } else {
       cylinder(r=coreR+1+C,h=corePos-1+tightC);
     }
-    cylinder(d=coreR*2+3+C,h=1.5+C);
+    cylinder(d=coreR*2+2+2*C,h=1.5+C);
     // lugs
     lugDH = 0.2;
     lugZ = lugPos + C - lugDH;
@@ -620,11 +637,11 @@ module housing(threads=true) {
       translate([lugR+lugTravel-coreR,0,lugZ]) lug_hole(coreR+2*C,-C-lugDH,2*C);
     }
     // set screw
-    translate([-(coreR-3+10),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4,h=40);
+    translate([-(coreR-3+10),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4+2*C,h=40);
     if (threads) {
-      translate([-(coreR-3),0,setScrewPos]) rotate([0,-90,0]) m4_thread(length=10);
+      translate([-(coreR-3),0,setScrewPos]) rotate([0,-90,0]) m4_thread(length=10,internal=true);
     } else {
-      translate([-(coreR-3),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4,h=10);
+      translate([-(coreR-3),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4+2*C,h=10);
     }
   }
   // rotation limiter for core
@@ -642,7 +659,7 @@ module plug(threads=true) {
   difference() {
     union() {
       cylinder(r=coreR,h=corePos);
-      cylinder(d=coreR*2+3,h=1.5);
+      cylinder(d=coreR*2+2,h=1.5);
       if (threads) {
         metric_thread(diameter=coreR*2+2,pitch=2,length=corePos-1,angle=30,leadin=1);
       } else {
@@ -653,11 +670,18 @@ module plug(threads=true) {
     translate([0,0,-eps]) cylinder(r1=keyR1+2.5,r2=keyR1+1,h=1+eps);
     //translate([0,0,-1-eps]) cylinder(r1=keyR1+2,r2=keyR1+1,h=1+eps);
     if (threads) {
-      translate([-(coreR-3),0,setScrewPos]) rotate([0,-90,0]) m4_thread(3+1); 
+      translate([-(coreR+2),0,setScrewPos]) rotate([0,90,0]) m4_thread(3.5+2,internal=true); 
     } else {
-      translate([-(coreR-3),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4,h=3+1); 
+      translate([-(coreR+2),0,setScrewPos]) rotate([0,90,0]) cylinder(d=4,h=3.5+2); 
     }
     translate_z(discPos) cylinder(r=discR-2,h=spinnerCountersink+eps);
+  }
+}
+
+module set_screw() {
+  difference() {
+    m4_thread(3+shackleSpacing); 
+    translate([-1/2,-lots/2,0]) cube([1,lots,1]);
   }
 }
 
@@ -731,13 +755,13 @@ module keyway_test() {
 module test() {
   $fs = 1;
   $fa = 8;
-  threads = false;
+  threads = true;
   housing = true;
   key = true;
   discs = true;
   core = false;
   cut = false;
-  cutHousing = -1;
+  cutHousing = 2;
   cutCore = -2;
   //unlocked = 1;
   //open = 1;
@@ -780,11 +804,15 @@ module test() {
         }
         color("blue") translate([discR-unlocked*gateHeight+C/2+gateHeight+coreWall,0,sidebarSpringPos+C/2]) scale([(sidebarSpringWidth-(1-unlocked)*gateHeight)/sidebarSpringPrintWidth,1,1]) sidebar_spring();
         translate([0,0,shacklePosT]) shackle();
-        color("pink") translate([0,0,0]) plug(threads);
+        intersection() {
+          color("pink") translate([0,0,0]) plug(threads);
+          positive_y();
+        }
         if (true) {
           color("pink") translate([-lugR1-(1-open)*lugTravel1,0,lugPos]) mirror([1,0,0]) lug();
           color("pink") translate([lugR2+(1-open)*lugTravel2,0,lugPos]) lug();
         }
+        color("darkgrey") translate([-(coreR+3),0,setScrewPos]) rotate([0,90]) set_screw();
       }
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
@@ -807,6 +835,20 @@ module export_discs() {
     translate([i*coreR*2,coreR*2]) spacer_disc();
   }
 }
+module export_needed_discs() {
+  for (i=[0:5]) {
+    translate([i*coreR*2,0])
+    if (i == 0) {
+      spinner_disc();
+    } else if (bitting[i]==5) {
+      tension_disc();
+    } else {
+      disc(i);
+    }
+    if (i > 0)
+    translate([(i-0.5)*coreR*2,coreR*2]) spacer_disc();
+  }
+}
 module export_core() {
   rotate([180]) core();
 }
@@ -823,6 +865,8 @@ module export_housing() {
   rotate([180]) housing();
 }
 module export_plug() plug();
+module export_lug() lug();
+module export_set_screw() rotate([180]) set_screw();
 module export_key_with_brim() key_with_brim();
 export_discs();
 export_core();
