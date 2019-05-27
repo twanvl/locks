@@ -14,12 +14,13 @@ bitting = [5,3,5,0,3,2,1,4,3,5];
 SMALL = 1;
 MEDIUM = 2;
 LARGE = 3;
-size = LARGE;
+size = MEDIUM;
 //size = "small";
 
 C = 0.125;
 keyC = C;
 tightC = 0.05;
+bridgeC = C+0.5;
 
 eps = 1e-2;
 
@@ -62,20 +63,20 @@ coreBack=2;
 coreLimiter=2;
 coreLimiterFirst = false;
 
-discPos = size <= SMALL ? 6 : size <= MEDIUM ? 7 : 8;
+discPos = size <= SMALL ? 6 : size <= MEDIUM ? 6 : 8;
 corePos = discPos + spinnerThickness - spinnerCountersink;
-setScrewPos = (size <= SMALL ? 2 : size <= MEDIUM ? 2.5 : 3.2) + 4/2;
+setScrewPos = (size <= SMALL ? 2 : size <= MEDIUM ? 2 : 3.2) + 4/2;
 
 shackleDiameter = 8;
-shackleSpacing = 3;
+shackleSpacing = size <= MEDIUM ? 2.5 : 3;
 shackleWidth = 2*coreR + shackleDiameter + 2*shackleSpacing;
 
 lugR=coreR-2;
-lugHeight=shackleDiameter+3;
+lugHeight=shackleDiameter+4;
 lugOverlap=shackleDiameter/2-0.5;
 lugRetainOverlap=1;
 lugTravel=lugOverlap+0.5;
-lugDepth=8;
+lugDepth=5;
 lugC = 0.5;
 lugPos = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lugDepth/2 + lugC;
 
@@ -87,7 +88,7 @@ housingDepth = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0)
 sidebarPos = corePos;
 sidebarDepth = (discs-1) * (discThickness + spacerThickness) + spinnerThickness - spinnerCountersink;
 
-shackleLength = housingDepth + 5;
+shackleLength = housingDepth + 7;
 shackleLength1 = shackleLength;
 shackleLength2 = shackleLength - coreDepth - corePos + 3;
 shacklePos = 2;
@@ -417,12 +418,17 @@ module actuator_profile(offset=0) {
 module lug_hole(dx=0,dz=C,dy=0) {
   linear_extrude_y(lugHeight+dy,true) {
     x = coreR-lugR-lugTravel+shackleSpacing+lugOverlap + dx;
-    chamferX = 4;
-    chamferZ = 3;
-    sym_polygon_y([[0,-lugDepth/2+dz],[x-chamferX,-lugDepth/2+dz],[x,-lugDepth/2+dz+chamferZ]]);
+    chamferX1 = 4;
+    chamferZ1 = 4;
+    chamferX2 = 0.5;
+    chamferZ2 = 0.5;
+    //sym_polygon_y([[0,-lugDepth/2+dz],[x-chamferX,-lugDepth/2+dz],[x,-lugDepth/2+dz+chamferZ]]);
+    polygon([
+      [0,-lugDepth/2-dz], [x-chamferX1,-lugDepth/2-dz], [x,-lugDepth/2-dz+chamferZ1],
+      [x,lugDepth/2+dz-chamferZ2], [x-chamferX2,lugDepth/2+dz], [0,lugDepth/2+dz]]);
   }
 }
-module lug(dx=0,dy=C) {
+module lug(dx=0,dy=0) {
   linear_extrude(lugDepth-2*dy,center=true) {
     intersection() {
       scale([lugTravel*2-2*C,lugHeight]) circle(d=1,$fn=20);
@@ -476,7 +482,6 @@ module core() {
         actuator_profile();
       }
       if (!coreLimiterFirst) {
-        bridgeC = C+0.5;
         translate_z(lugDepth+lugC-coreLimiter-bridgeC) {
           #linear_extrude(coreLimiter+bridgeC+eps) {
             offset(C) difference() {
@@ -515,7 +520,7 @@ module shackle(shackleLabel = true) {
       }
     }
     mirrored([1,0,0]) {
-      translate([lugR+lugTravel,0,lugZ]) lug_hole(C,-C);
+      translate([lugR+lugTravel,0,lugZ]) lug_hole(C,C);
     }
     x = -shackleWidth/2+shackleDiameter/2 - lugRetainOverlap - C;
     translate([x, -shackleDiameter/2, lugZ-shackleTravel]) cube([10,shackleDiameter,shackleTravel]);
@@ -585,12 +590,13 @@ module housing(threads=true) {
       ]);
     }
     // core slot
-    translate_z(-eps) cylinder(r=coreR+C,h=corePos+coreDepth+coreBack+2*C);
-    translate_z(corePos+coreDepth+coreBack+C) cylinder(r=lugR+C,h=lugC+lugDepth+C);
+    translate_z(-eps) cylinder(r=coreR+C,h=corePos+coreDepth+coreBack+lugC+2*C);
+    translate_z(corePos+coreDepth+coreBack+lugC+C) cylinder(r=lugR+C,h=lugDepth+C);
     // sidebar slot
     translate_z(sidebarPos) {
       //translate([coreR-1,-sidebarThickness/2-C,corePos-C]) cube([gateHeight+1,sidebarThickness+2*C,coreDepth+3*C]);
       translate_x(coreR-1) linear_extrude_x(gateHeight+1+2*C) {
+        square([sidebarThickness+2*C,sidebarDepth+1],true);
         sym_polygon_x([
           [sidebarThickness/2+C-0.8,-0.5-C],
           [sidebarThickness/2+C,-0.5-C+0.7],
@@ -620,9 +626,8 @@ module housing(threads=true) {
     // shackle holes
     translates([[-shackleWidth/2,0,shackleLength-shackleLength1],
                 [shackleWidth/2,0,shackleLength-shackleLength2]]) {
-      //translate([0,0,2]) cylinder(r1=shackleDiameter/2+C-2, r2=shackleDiameter/2+C, h=2);
-      translate([0,0,1.5]) cylinder(r1=shackleDiameter/2+C-2.5, r2=shackleDiameter/2+C, h=2.5);
-      translate([0,0,4]) cylinder(r=shackleDiameter/2+C, h=housingDepth);
+      translate([0,0,shacklePos-bridgeC]) cylinder(r1=shackleDiameter/2+C-(2+bridgeC), r2=shackleDiameter/2+C, h=2+bridgeC);
+      translate([0,0,shacklePos+2]) cylinder(r=shackleDiameter/2+C, h=housingDepth);
     }
     // plug hole
     if (threads) {
@@ -635,7 +640,7 @@ module housing(threads=true) {
     lugDH = 0.2;
     lugZ = lugPos + C - lugDH;
     mirrored([1,0,0]) {
-      translate([lugR+lugTravel-coreR,0,lugZ]) lug_hole(coreR+2*C,-C-lugDH,2*C);
+      translate([lugR+lugTravel-coreR,0,lugZ]) lug_hole(coreR+2*C,C+lugDH,2*C);
     }
     // set screw
     translate([-(coreR-3+10),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4+2*C,h=40);
@@ -693,7 +698,7 @@ module set_screw() {
 module sidebar() {
   translate_y(-sidebarThickness/2)
   difference() {
-    cube([gateHeight+coreWall,sidebarThickness,sidebarDepth]);
+    cube([gateHeight+coreWall,sidebarThickness,sidebarDepth-C]);
     translate_x(-discR+gateHeight) cylinder(r=discR-2, h=spinnerThickness-spinnerCountersink+C);
   }
 }
@@ -759,11 +764,11 @@ module test() {
   threads = true;
   housing = true;
   key = true;
-  discs = true;
-  core = false;
+  discs = false;
+  core = true;
   cut = false;
-  cutHousing = 0;
-  cutCore = -2;
+  cutHousing = 1;
+  cutCore = 0;
   //unlocked = 1;
   //open = 1;
   ts = 4;
@@ -781,7 +786,7 @@ module test() {
         }
         rotate(open*90)
         group() {
-          intersection() {
+          if (core) intersection() {
             translate([0,0,corePos + C]) color("lightgreen") core();
             translate_y(cutCore) positive_y();
           }
@@ -809,14 +814,13 @@ module test() {
           color("pink") translate([0,0,0]) plug(threads);
           positive_y();
         }
-        if (true) {
+        if (false) {
           color("pink") translate([-lugR1-(1-open)*lugTravel1,0,lugPos]) mirror([1,0,0]) lug();
           color("pink") translate([lugR2+(1-open)*lugTravel2,0,lugPos]) lug();
         }
         color("darkgrey") translate([-(coreR+3),0,setScrewPos]) rotate([0,90]) set_screw();
       }
       if (cut) positive_y();
-      translate_y(0.21) negative_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
       //translate_z(10) positive_z();
     }
