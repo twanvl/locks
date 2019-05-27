@@ -162,8 +162,22 @@ module rotated(a) {
 // Threads
 //-----------------------------------------------------------------------------
 
-module m3_thread(length,internal=false) metric_thread(diameter=3,pitch=0.5,length=length,internal=internal);
-module m4_thread(length,internal=false) metric_thread(diameter=4,pitch=0.7,length=length,internal=internal);
+function coarse_pitch(d) =
+  d == 1 ? 0.25 :
+  d == 2 ? 0.4 :
+  d == 3 ? 0.5 :
+  d == 4 ? 0.7 :
+  d == 5 ? 0.8 :
+  d == 10 ? 1.5 :
+  d == 20 ? 2.5 :
+  "unknown pitch for thread " + str(d);
+
+module m3_thread(length,C=0,internal=false) {
+  metric_thread(diameter=3+2*C,pitch=0.5,length=length,internal=internal);
+}
+module m4_thread(length,C=0,internal=false) {
+  metric_thread(diameter=4+2*C,pitch=0.7,length=length,internal=internal);
+}
 
 //-----------------------------------------------------------------------------
 // Twisting

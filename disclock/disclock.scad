@@ -26,6 +26,7 @@ eps = 1e-2;
 discR = size <= SMALL ? 8.5 : 10;
 coreWall = size <= SMALL ? 1.6 : 1.7;
 coreR = discR + coreWall;
+echo("core diameter ",2*coreR);
 
 firstLayerHeight = 0.2;
 layerHeight = 0.15;
@@ -761,7 +762,7 @@ module test() {
   discs = true;
   core = false;
   cut = false;
-  cutHousing = 2;
+  cutHousing = 0;
   cutCore = -2;
   //unlocked = 1;
   //open = 1;
@@ -815,6 +816,7 @@ module test() {
         color("darkgrey") translate([-(coreR+3),0,setScrewPos]) rotate([0,90]) set_screw();
       }
       if (cut) positive_y();
+      translate_y(0.21) negative_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
       //translate_z(10) positive_z();
     }
@@ -836,14 +838,14 @@ module export_discs() {
   }
 }
 module export_needed_discs() {
-  for (i=[0:5]) {
+  for (i=[0:discs-1]) {
     translate([i*coreR*2,0])
     if (i == 0) {
       spinner_disc();
     } else if (bitting[i]==5) {
       tension_disc();
     } else {
-      disc(i);
+      disc(bitting[i]);
     }
     if (i > 0)
     translate([(i-0.5)*coreR*2,coreR*2]) spacer_disc();
