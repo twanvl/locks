@@ -626,7 +626,7 @@ module housing(threads=true) {
     }
     // plug hole
     if (threads) {
-      metric_thread(diameter=coreR*2+2,pitch=2,length=corePos-1+tightC,internal=true,leadin=1,angle=30);
+      metric_thread(diameter=coreR*2+2+2*C,pitch=2,length=corePos-1+tightC,internal=true,leadin=1,angle=30);
     } else {
       cylinder(r=coreR+1+C,h=corePos-1+tightC);
     }
@@ -640,9 +640,9 @@ module housing(threads=true) {
     // set screw
     translate([-(coreR-3+10),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4+2*C,h=40);
     if (threads) {
-      translate([-(coreR-3),0,setScrewPos]) rotate([0,-90,0]) m4_thread(length=10,internal=true);
+      translate([-(coreR+8),0,setScrewPos]) rotate([0,90,0]) m4_thread(3.5+8,C=C,internal=true);
     } else {
-      translate([-(coreR-3),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4+2*C,h=10);
+      translate([-(coreR+8),0,setScrewPos]) rotate([0,90,0]) cylinder(d=4,h=3.5+8);
     }
   }
   // rotation limiter for core
@@ -671,9 +671,9 @@ module plug(threads=true) {
     translate([0,0,-eps]) cylinder(r1=keyR1+2.5,r2=keyR1+1,h=1+eps);
     //translate([0,0,-1-eps]) cylinder(r1=keyR1+2,r2=keyR1+1,h=1+eps);
     if (threads) {
-      translate([-(coreR+2),0,setScrewPos]) rotate([0,90,0]) m4_thread(3.5+2,internal=true); 
+      translate([-(coreR+8),0,setScrewPos]) rotate([0,90,0]) m4_thread(3.5+8,C=C,internal=true);
     } else {
-      translate([-(coreR+2),0,setScrewPos]) rotate([0,90,0]) cylinder(d=4,h=3.5+2); 
+      translate([-(coreR+8),0,setScrewPos]) rotate([0,90,0]) cylinder(d=4,h=3.5+8); 
     }
     translate_z(discPos) cylinder(r=discR-2,h=spinnerCountersink+eps);
   }
