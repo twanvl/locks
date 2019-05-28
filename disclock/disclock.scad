@@ -1,4 +1,4 @@
-
+//=============================================================================
 // Disc detainer lock
 // by Twan van Laarhoven
 //=============================================================================
@@ -14,7 +14,7 @@ bitting = [5,3,5,0,3,2,1,4,3,5];
 SMALL = 1;
 MEDIUM = 2;
 LARGE = 3;
-size = MEDIUM;
+size = LARGE;
 //size = "small";
 
 C = 0.125;
@@ -68,6 +68,7 @@ corePos = discPos + spinnerThickness - spinnerCountersink;
 setScrewPos = (size <= SMALL ? 2 : size <= MEDIUM ? 2 : 3.2) + 4/2;
 
 shackleDiameter = 8;
+shackleChamfer = 1;
 shackleSpacing = size <= MEDIUM ? 2.5 : 3;
 shackleWidth = 2*coreR + shackleDiameter + 2*shackleSpacing;
 
@@ -82,7 +83,7 @@ lugPos = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lug
 
 housingHeight = 2*coreR + 2*shackleSpacing;
 housingWidth = shackleWidth + shackleDiameter + 2*shackleSpacing;
-housingBack = 1.5;
+housingBack = 2;
 housingDepth = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lugDepth + lugC + housingBack + 2*C;
 
 sidebarPos = corePos;
@@ -92,13 +93,12 @@ shackleLength = housingDepth + 7;
 shackleLength1 = shackleLength;
 shackleLength2 = shackleLength - coreDepth - corePos + 3;
 shacklePos = 2;
-shackleTravel = coreDepth + 3;
+//shackleTravel = coreDepth + 3;
+shackleTravel = housingBack + lugDepth + 6;
 
 //-----------------------------------------------------------------------------
 // key profile
 //-----------------------------------------------------------------------------
-
-function rot(a,p) = [cos(a)*p[0]+sin(a)*p[1], cos(a)*p[1]-sin(a)*p[0]];
 
 module key_profile(r=keyR1) {
   //x=3.5/2;y=keyR1;
@@ -186,25 +186,28 @@ module keyway_profile() {
 //-----------------------------------------------------------------------------
 
 module wedge_triangle(a,r) {
-  //polygon([[0,0],rot(-a/2,[0,-r]),rot(a/2,[0,-r])]);
   rotate(270-a/2) wedge(a);
 }
+
+//discLimiterR = discR - 1 + C;
+discLimiterR = discR - 2;
+
 module rotation_limiter() {
   intersection() {
     difference() {
       circle(coreR);
-      circle(discR-2);
+      circle(discLimiterR);
     }
     a = limiterInside ? 270 : 270-bits*step/2;
     rotate(a) wedge(limiterAngle,center=true);
   }
 }
 module rotation_limiter_slot(fixed = false) {
-  offset(C)
+  offset(delta=C)
   intersection() {
     difference() {
       circle(coreR+1);
-      circle(discR-2);
+      circle(discLimiterR);
     }
     a = limiterInside || fixed ? 270 : 270-bits*step/2;
     rotate(a) wedge(-limiterAngle/2,(fixed ? 0 : bits*step)+limiterAngle/2,center=true);
@@ -243,7 +246,7 @@ module disc(bit=0) {
     difference() {
       disc_profile();
       // slots
-      for (i=[0:bits-1]) {
+      for (i=[0:bits]) {
         rotate(i*step) sidebar_slot_wiggle(i == bit);
       }
     }
@@ -258,6 +261,16 @@ module spacer_disc() {
     }
   }
 }
+module spacer_disc_for_spinner() {
+  spacer_disc();
+  translate_z(spacerThickness) linear_extrude(spinnerThickness-spinnerCountersink-C) {
+    difference() {
+      disc_profile(false,true);
+      circle(discLimiterR);
+      sidebar_slot_wiggle(true);
+    }
+  }
+}
 module tension_disc() {
   linear_extrude(discThickness, convexity=10) {
     difference() {
@@ -267,8 +280,7 @@ module tension_disc() {
         //sidebar_slot_wiggle(true);
         w = 2+1*C;
         h = 2.5;
-        translate([0,discR])
-        polygon([[-w/2,0],[-w/2,-h],[w/2,-h],[w*4/2,0]]);
+        polygon([[-w/2,discR+10],[-w/2,discR-h],[w/2,discR-h],rot(step,[w/2,discR])]);
       }
     }
   }
@@ -284,10 +296,18 @@ module spinner_disc() {
         circle(discR);
       }*/
       //linear_extrude(1) circle(coreR);
-      cylinder(r=limiterInside ? discR-2-C : discR, h=spinnerThickness);
+      cylinder(r=limiterInside ? discLimiterR-C : discR, h=spinnerThickness);
     }
     translate([0,0,-C]) linear_extrude(3+2*C) {
       rotate(keywayAngle) offset(keyC) key_profile();
+    }
+    translate([0,0,-C]) linear_extrude(3+2*C)
+    rotated(180)
+    rotate(bits*step) {
+      w = 2+1*C;
+      w2 = 4*w;
+      h = 2.5;
+      polygon([[-w2/2,discR],[-w/2,discR-h],[w/2,discR-h],[w2/2,discR]]);
     }
   }
 }
@@ -307,6 +327,7 @@ module disc_test() {
   translate([0,2*coreR,0]) spacer_disc();
   translate([2*coreR,2*coreR,0]) tension_disc();
   translate([4*coreR,2*coreR,0]) spinner_disc();
+  translate([6*coreR,2*coreR,0]) spacer_disc_for_spinner();
   translate([4*coreR,0*coreR,0]) intersection() {
     core();
     //translate_z(10) negative_z();
@@ -506,17 +527,17 @@ module shackle(shackleLabel = true) {
     lugZ = lugPos - shacklePos;
     group() {
       translate([-shackleWidth/2,0,shackleLength-shackleLength1]) {
-        cylinder(d1=shackleDiameter-4,d2=shackleDiameter,h=2);
+        cylinder(d1=shackleDiameter-2*shackleChamfer,d2=shackleDiameter,h=shackleChamfer);
         //translate_z(2) cylinder(d=shackleDiameter,h=shackleLength1-2);
         translate_z(lugZ-shackleTravel+2) cylinder(d=shackleDiameter,h=shackleLength-(lugZ-shackleTravel+2));
         translate_z(lugZ-shackleTravel+1) cylinder(d2=shackleDiameter,d1=shackleDiameter-2*lugRetainOverlap-2*C,h=1);
         translate_z(lugZ-shackleTravel-1) cylinder(d=shackleDiameter-2*lugRetainOverlap-2*C,h=2);
         translate_z(lugZ-shackleTravel-2) cylinder(d1=shackleDiameter,d2=shackleDiameter-2*lugRetainOverlap-2*C,h=1);
-        translate_z(2) cylinder(d=shackleDiameter,h=(lugZ-shackleTravel-2)-2);
+        translate_z(shackleChamfer) cylinder(d=shackleDiameter,h=(lugZ-shackleTravel-2)-shackleChamfer);
       }
       translate([shackleWidth/2,0,shackleLength-shackleLength2]) {
-        cylinder(d1=shackleDiameter-4,d2=shackleDiameter,h=2);
-        translate_z(2) cylinder(d=shackleDiameter,h=shackleLength2-2);
+        cylinder(d1=shackleDiameter-2*shackleChamfer,d2=shackleDiameter,h=shackleChamfer);
+        translate_z(shackleChamfer) cylinder(d=shackleDiameter,h=shackleLength2-shackleChamfer);
       }
     }
     mirrored([1,0,0]) {
@@ -596,7 +617,9 @@ module housing(threads=true) {
     translate_z(sidebarPos) {
       //translate([coreR-1,-sidebarThickness/2-C,corePos-C]) cube([gateHeight+1,sidebarThickness+2*C,coreDepth+3*C]);
       translate_x(coreR-1) linear_extrude_x(gateHeight+1+2*C) {
-        square([sidebarThickness+2*C,sidebarDepth+1],true);
+        translate_y(-(sidebarThickness/2+C)-0.5) {
+          #square([sidebarThickness+0.5+2*C,sidebarDepth+2*C+bridgeC]);
+        }
         sym_polygon_x([
           [sidebarThickness/2+C-0.8,-0.5-C],
           [sidebarThickness/2+C,-0.5-C+0.7],
@@ -626,8 +649,8 @@ module housing(threads=true) {
     // shackle holes
     translates([[-shackleWidth/2,0,shackleLength-shackleLength1],
                 [shackleWidth/2,0,shackleLength-shackleLength2]]) {
-      translate([0,0,shacklePos-bridgeC]) cylinder(r1=shackleDiameter/2+C-(2+bridgeC), r2=shackleDiameter/2+C, h=2+bridgeC);
-      translate([0,0,shacklePos+2]) cylinder(r=shackleDiameter/2+C, h=housingDepth);
+      translate([0,0,shacklePos-bridgeC]) cylinder(r1=shackleDiameter/2+C-(shackleChamfer+bridgeC), r2=shackleDiameter/2+C, h=shackleChamfer+bridgeC);
+      translate([0,0,shacklePos+shackleChamfer]) cylinder(r=shackleDiameter/2+C, h=housingDepth);
     }
     // plug hole
     if (threads) {
@@ -699,7 +722,6 @@ module sidebar() {
   translate_y(-sidebarThickness/2)
   difference() {
     cube([gateHeight+coreWall,sidebarThickness,sidebarDepth-C]);
-    translate_x(-discR+gateHeight) cylinder(r=discR-2, h=spinnerThickness-spinnerCountersink+C);
   }
 }
 
@@ -846,13 +868,16 @@ module export_needed_discs() {
     translate([i*coreR*2,0])
     if (i == 0) {
       spinner_disc();
-    } else if (bitting[i]==5) {
+    } else if (bitting[i]==bits) {
       tension_disc();
     } else {
       disc(bitting[i]);
     }
-    if (i > 0)
-    translate([(i-0.5)*coreR*2,coreR*2]) spacer_disc();
+    if (i == 1) {
+      translate([(i-0.5)*coreR*2,coreR*2]) spacer_disc_for_spinner();
+    } else if (i > 0) {
+      translate([(i-0.5)*coreR*2,coreR*2]) spacer_disc();
+    }
   }
 }
 module export_core() {
