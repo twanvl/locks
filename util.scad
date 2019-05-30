@@ -34,7 +34,7 @@ module linear_extrude_chamfer(height,chamfer1,chamfer2,center=false,convexity=4,
   n1 = ceil(chamfer1/step);
   n2 = ceil(chamfer2/step);
   translate_z(center ? -height/2 : 0) {
-    for (i=[0:n1-1]) {
+    if (n1 > 0) for (i=[0:n1-1]) {
       z = i*step;
       translate_z(z)
       linear_extrude(min(chamfer1,z+step) - z, convexity=convexity) {
@@ -45,7 +45,7 @@ module linear_extrude_chamfer(height,chamfer1,chamfer2,center=false,convexity=4,
     linear_extrude(height-chamfer1-chamfer2, convexity=convexity) {
       children();
     }
-    for (i=[0:n2-1]) {
+    if (n2 > 0) for (i=[0:n2-1]) {
       z = i*step;
       z1 = min(chamfer2,z+step);
       translate_z(height-z1)
