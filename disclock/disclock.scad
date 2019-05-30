@@ -482,11 +482,15 @@ module lug_hole(dx=0,dz=C,dy=0) {
   }
 }
 module lug(dx=0,dy=0) {
-  linear_extrude(lugDepth-2*dy,center=true) {
-    intersection() {
-      scale([lugTravel*2-2*C,lugHeight]) circle(d=1,$fn=20);
-      translate_x(-lots) square(2*lots,true);
+  difference() {
+    linear_extrude(lugDepth-2*dy,center=true) {
+      intersection() {
+        scale([lugTravel*2-2*C,lugHeight]) circle(d=1,$fn=20);
+        translate_x(-lots) square(2*lots,true);
+      }
     }
+    translate([-coreLimiterR-lugTravel+2.2, 0, (lugDepth-2*dy-(coreLimiter+bridgeC))/2])
+    cylinder(r1=coreLimiterR-2.2, r2=coreLimiterR, h=coreLimiter+bridgeC+eps, center=true);
   }
   lug_hole(dx,dy);
 }
@@ -799,19 +803,21 @@ module keyway_test() {
 module test() {
   $fs = 1;
   $fa = 8;
-  threads = true;
+  threads = false;
   housing = true;
   key = false;
   discs = false;
-  core = true;
+  core = false;
   cut = false;
+  lugs = true;
   cutHousing = 0;
   cutCore = 0;
   //unlocked = 1;
   //open = 1;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
-  open = max(0,min(1,ts*$t-1));
+  //open = max(0,min(1,ts*$t-1));
+  open = 1.7;
   shacklePosT = shacklePos + C + shackleTravel*max(0,min(1,ts*$t-2));
   sidebarSpringPos = sidebarPos+(sidebarDepth-sidebarSpringDepth)/2;
 
@@ -853,7 +859,7 @@ module test() {
           color("pink") translate([0,0,0]) plug(threads);
           positive_y();
         }
-        if (false) {
+        if (lugs) {
           color("pink") translate([-lugR1-(1-open)*lugTravel1,0,lugPos]) mirror([1,0,0]) lug();
           color("pink") translate([lugR2+(1-open)*lugTravel2,0,lugPos]) lug();
         }
