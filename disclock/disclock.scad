@@ -33,10 +33,18 @@ firstLayerHeight = 0.2;
 layerHeight = 0.15;
 function roundToLayerHeight(z) = round((z-firstLayerHeight)/layerHeight)*layerHeight + firstLayerHeight;
 
+keyR1 = size <= SMALL ? 4.5 : 5;
+keyR2 = 3.5;
+keyWidth = size <= SMALL ? 2.5 : 3;
+keywayAngle = 0;
+
 discThickness = size <= MEDIUM ? 1.85 : 2.0;
 spacerThickness = size <= MEDIUM ? 0.5 : 0.65;
 spinnerThickness = size <= SMALL ? 2 : 2;
 spinnerCountersink = spinnerThickness/2;
+builtinSpacerThickness = layerHeight;
+builtinSpacerThickness2 = layerHeight;
+builtinSpacerR = keyR1 + C + 0.5;
 
 bits = 5;
 //step = -90/4; // degrees
@@ -47,11 +55,6 @@ gateHeight = 2.5;
 falseHeight = 1;
 sidebarThickness = 1.85;
 printSidebarSpring = true;
-
-keyR1 = size <= SMALL ? 4.5 : 5;
-keyR2 = 3.5;
-keyWidth = size <= SMALL ? 2.5 : 3;
-keywayAngle = 0;
 
 limiterInside = true;
 limiterAngle = 30;
@@ -226,7 +229,7 @@ module sidebar_slot(deep) {
   }
 }
 module sidebar_slot_wiggle(deep) {
-  Ca = 1;
+  Ca = 1.3;
   rotate(-Ca) sidebar_slot(deep);
   rotate(0) sidebar_slot(deep);
   rotate(Ca) sidebar_slot(deep);
@@ -235,14 +238,20 @@ module sidebar_slot_wiggle(deep) {
 module disc_profile(keyway = true, fixed = false) {
   difference() {
     circle(discR);
-    rotate(keywayAngle) offset(keyC) keyway_profile();
+    if (keyway) rotate(keywayAngle) offset(keyC) keyway_profile();
     if (limiterInside) rotation_limiter_slot(fixed);
   }
   if (!limiterInside) rotate(-bits*step) rotation_limiter();
 }
 
+module builtin_spacer() {
+  linear_extrude(builtinSpacerThickness, convexity=10) difference() {
+    circle(builtinSpacerR);
+    circle(keyR1+C);
+  }
+}
 module disc(bit=0) {
-  linear_extrude(discThickness, convexity=10) {
+  linear_extrude(discThickness - builtinSpacerThickness, convexity=10) {
     difference() {
       disc_profile();
       // slots
@@ -251,19 +260,21 @@ module disc(bit=0) {
       }
     }
   }
+  translate_z(discThickness - builtinSpacerThickness) builtin_spacer();
 }
 module spacer_disc() {
-  linear_extrude(spacerThickness, convexity=10) {
+  linear_extrude(spacerThickness - builtinSpacerThickness2, convexity=10) {
     difference() {
       disc_profile(false,true);
       circle(keyR1+keyC);
       sidebar_slot_wiggle(true);
     }
   }
+  translate_z(spacerThickness - builtinSpacerThickness) builtin_spacer();
 }
 module spacer_disc_for_spinner() {
   spacer_disc();
-  translate_z(spacerThickness) linear_extrude(spinnerThickness-spinnerCountersink-C) {
+  translate_z(spacerThickness - builtinSpacerThickness2) linear_extrude(spinnerThickness + builtinSpacerThickness2 - spinnerCountersink - C) {
     difference() {
       disc_profile(false,true);
       circle(discLimiterR);
@@ -272,7 +283,7 @@ module spacer_disc_for_spinner() {
   }
 }
 module tension_disc() {
-  linear_extrude(discThickness, convexity=10) {
+  linear_extrude(discThickness - builtinSpacerThickness, convexity=10) {
     difference() {
       disc_profile();
       rotate(bits*step)
@@ -280,10 +291,11 @@ module tension_disc() {
         //sidebar_slot_wiggle(true);
         w = 2+1*C;
         h = 2.5;
-        polygon([[-w/2,discR+10],[-w/2,discR-h],[w/2,discR-h],rot(step,[w/2,discR])]);
+        polygon([rot(-1.2,[-w/2,discR+10]),[-w/2,discR-h],[w/2,discR-h],rot(step,[w/2,discR])]);
       }
     }
   }
+  translate_z(discThickness - builtinSpacerThickness) builtin_spacer();
 }
 module spinner_disc() {
   difference() {
@@ -321,6 +333,25 @@ module spacer_disc1() {
   }
 }
 
+module disc_sanding_tool() {
+  h = 15;
+  depth = 2*layerHeight;
+  difference() {
+    intersection() {
+      cylinder(r=discR+3,h=h);
+      linear_extrude_y(2*discR+10,true) {
+        sym_polygon_x([[5,0],[5,5],[discR+3,h-2],[discR+3,h]]);
+      }
+    }
+    translate_z(h-depth) linear_extrude(depth+eps) {
+      difference() {
+        offset(C) disc_profile(false,true);
+        rotate(keywayAngle) key_profile();
+      }
+    }
+  }
+}
+
 module disc_test() {
   disc(0);
   translate([2*coreR,0,0]) disc(1);
@@ -332,8 +363,9 @@ module disc_test() {
     core();
     //translate_z(10) negative_z();
   }
+  translate([7*coreR,0*coreR,0]) disc_sanding_tool();
 }
-//!disc_test();
+!disc_test();
 
 //-----------------------------------------------------------------------------
 // Key
@@ -899,6 +931,7 @@ module export_plug() plug();
 module export_lug() lug();
 module export_set_screw() rotate([180]) set_screw();
 module export_key_with_brim() key_with_brim();
+module export_disc_sanding_tool() disc_sanding_tool();
 export_discs();
 export_core();
 export_sidebar();

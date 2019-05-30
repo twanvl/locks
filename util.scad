@@ -30,6 +30,32 @@ module linear_extrude_x(height,center=false,convexity=4) {
   linear_extrude(height=height,center=center,convexity=convexity) children();
 }
 
+module linear_extrude_chamfer(height,chamfer1,chamfer2,center=false,convexity=4,step=0.05) {
+  n1 = ceil(chamfer1/step);
+  n2 = ceil(chamfer2/step);
+  translate_z(center ? -height/2 : 0) {
+    for (i=[0:n1-1]) {
+      z = i*step;
+      translate_z(z)
+      linear_extrude(min(chamfer1,z+step) - z, convexity=convexity) {
+        offset(z-chamfer1) children();
+      }
+    }
+    translate_z(chamfer1)
+    linear_extrude(height-chamfer1-chamfer2, convexity=convexity) {
+      children();
+    }
+    for (i=[0:n2-1]) {
+      z = i*step;
+      z1 = min(chamfer2,z+step);
+      translate_z(height-z1)
+      linear_extrude(z1 - z, convexity=convexity) {
+        offset(z-chamfer2) children();
+      }
+    }
+  }
+}
+
 //-----------------------------------------------------------------------------
 // Chamfering
 //-----------------------------------------------------------------------------
