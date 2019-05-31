@@ -669,7 +669,7 @@ module housing(threads=true) {
     }
     // plug hole
     if (threads) {
-      clearance = 4*C;
+      clearance = 3*C;
       metric_thread(diameter=coreR*2+2+clearance,pitch=2,length=corePos-1+tightC,internal=true,leadin=1,angle=30);
     } else {
       cylinder(r=coreR+1+C,h=corePos-1+tightC);
@@ -803,7 +803,7 @@ module keyway_test() {
 module test() {
   $fs = 1;
   $fa = 8;
-  threads = false;
+  threads = true;
   housing = true;
   key = false;
   discs = false;
