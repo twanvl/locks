@@ -212,6 +212,27 @@ module m4_thread(length,C=0,internal=false) {
   metric_thread(diameter=4+2*C,pitch=0.7,length=length,internal=internal);
 }
 
+module thread_with_stop(diameter, C = 0, pitch, length, stop, internal = false, angle=30) {
+  d = diameter + 2*C * 1.5;
+  stopl = (stop == undef) ? pitch - C*pitch/d/3.14 : stop;
+  h = pitch / (2 * tan(angle));
+  inner_r = d/2 - h*(internal ? 0.625 : 5.3/8);
+  step = 10;
+  difference() {
+    metric_thread(diameter=d, pitch=pitch, length=length, internal = internal, angle=angle);
+    rotate(-90+360*(length-stopl) / pitch)
+    for(i=[0:step:360-step]) {
+      translate_z(i/360*pitch + length - stopl)
+      linear_extrude(pitch,center=false) {
+        difference() {
+          wedge(i-step/2,i+step/2+0.1);
+          circle(r=inner_r);
+        }
+      }
+    }
+  }
+}
+
 //-----------------------------------------------------------------------------
 // Twisting
 //-----------------------------------------------------------------------------
