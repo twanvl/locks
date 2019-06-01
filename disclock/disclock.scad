@@ -737,18 +737,27 @@ module housing(threads=true) {
       translate([0,0,shacklePos+shackleChamfer]) cylinder(r=shackleDiameter/2+C, h=housingDepth);
     }
     // lugs
-    lugZ = lugPos;
-    linear_extrude_x(2*(coreR+shackleSpacing+lugOverlap+C),true) {
-      chamfer1 = 1; // chamfer at bottom side for printability
-      chamfer2 = 0.8; // chamfer at bottom side for printability
-      sym_polygon_x([
-        [lugHeight/2+C, lugPos+lugDepth/2+C],
-        [lugHeight/2+C, lugPos-lugDepth/2-C+chamfer1*0.8],
-        [lugHeight/2-chamfer1-chamfer2, lugPos-lugDepth/2-C-chamfer2*0.8]
-      ]);
-    }
-    *mirrored([1,0,0]) {
-      translate([lugR+lugTravel-coreR,0,lugZ]) lug_hole(coreR+2*C,bridgeC,C,2*C,hole=true);
+    group() {
+      linear_extrude_x(2*(coreR+shackleSpacing+lugOverlap+C),true) {
+        chamfer1 = 1; // chamfer at bottom side for printability
+        chamfer2 = 0.8; // chamfer at bottom side for printability
+        sym_polygon_x([
+          [lugHeight/2+C, lugPos+lugDepth/2+C],
+          [lugHeight/2+C, lugPos-lugDepth/2-C+chamfer1*0.8],
+          [lugHeight/2-chamfer1-chamfer2, lugPos-lugDepth/2-C-chamfer2*0.8]
+        ]);
+      }
+      intersection() {
+        cylinder(r=coreR+C,h=lots);
+        translate_z(lugPos) cube([lots,lugHeight+2*C,lugDepth+2*C],true);
+      }
+      render() intersection() {
+        chamfer2 = 0.8;
+        d=1;
+        translate_z(lugPos-lugDepth/2-(chamfer2+d)*0.8)
+          cylinder(r1=coreR+C,r2=coreR+C+d,h=d*0.8);
+        cube([100,lugHeight+2*C,100],true);
+      }
     }
     // plug hole
     if (threads) {
@@ -894,7 +903,7 @@ module test() {
   discs = false;
   core = false;
   cut = false;
-  lugs = true;
+  lugs = false;
   shackle = false;
   cutHousing = 0;
   cutCore = 0;
