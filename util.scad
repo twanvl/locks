@@ -208,8 +208,8 @@ function coarse_pitch(d) =
 module m3_thread(length,C=0,internal=false) {
   metric_thread(diameter=3+2*C,pitch=0.5,length=length,internal=internal);
 }
-module m4_thread(length,C=0,internal=false) {
-  metric_thread(diameter=4+2*C,pitch=0.7,length=length,internal=internal);
+module m4_thread(length,C=0,internal=false,leadin=0) {
+  metric_thread(diameter=4+2*C,pitch=0.7,length=length,internal=internal,leadin=leadin);
 }
 
 module thread_with_stop(diameter, C = 0, pitch, length, stop, internal = false, angle=30) {

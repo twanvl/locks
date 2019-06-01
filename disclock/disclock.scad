@@ -752,11 +752,11 @@ module housing(threads=true) {
         translate_z(lugPos) cube([lots,lugHeight+2*C,lugDepth+2*C],true);
       }
       render() intersection() {
-        chamfer2 = 0.8;
-        d=1;
+        chamfer1 = 1; chamfer2 = 0.8;
+        d=0.5;
         translate_z(lugPos-lugDepth/2-(chamfer2+d)*0.8)
           cylinder(r1=coreR+C,r2=coreR+C+d,h=d*0.8);
-        cube([100,lugHeight+2*C,100],true);
+        cube([100,lugHeight+2*C-2*(chamfer1+chamfer2),100],true);
       }
     }
     // plug hole
@@ -823,10 +823,14 @@ module plug(threads=true) {
 
 module set_screw() {
   difference() {
-    m4_thread(3+shackleSpacing); 
-    translate([-1/2,-lots/2,0]) cube([1,lots,1]);
+    m4_thread(3+shackleSpacing, leadin=1); 
+    //translate([-1/2,-lots/2,0]) cube([1,lots,1]);
+    //translate([-1/2,-lots/2,0]) cube([1,lots,1]);
+    // 2mm hex key
+    translate_z(-eps) cylinder(d=2/cos(180/6)+C,$fn=6,h=1.5);
   }
 }
+!rotate([180]) set_screw();
 
 //-----------------------------------------------------------------------------
 // Sidebar
@@ -1014,18 +1018,18 @@ module export_housing() {
   rotate([180]) housing();
 }
 module export_plug() plug();
-module export_lug() lug();
+module export_lug() rotate([180]) lug();
 module export_set_screw() rotate([180]) set_screw();
 module export_key_with_brim() key_with_brim();
 module export_disc_sanding_tool() disc_sanding_tool();
 module export_housing_plug_test() {
-  intersection() {
+  rotate([180]) intersection() {
     housing();
     cylinder(r=coreR+3,h=corePos+1);
   }
 }
 module export_housing_lug_test() {
-  intersection() {
+  rotate([180]) intersection() {
     housing(threads=false);
     negative_x();
     translate_z(lugPos-lugDepth/2-3) positive_z();
