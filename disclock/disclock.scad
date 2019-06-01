@@ -752,8 +752,7 @@ module housing(threads=true) {
     }
     // plug hole
     if (threads) {
-      //clearance = 3*C;
-      //metric_thread(diameter=coreR*2+2+clearance,pitch=2,length=corePos-1+tightC,internal=true,leadin=1,angle=30);
+      rotate(-120)
       thread_with_stop(diameter=coreR*2+2,C=C,pitch=2,length=corePos,angle=30);
     } else {
       cylinder(r=coreR+1+C,h=corePos-1+tightC);
@@ -790,7 +789,7 @@ module plug(threads=true) {
       cylinder(r=coreR,h=corePos);
       cylinder(d=coreR*2+2,h=1.5);
       if (threads) {
-        //metric_thread(diameter=coreR*2+2,pitch=2,length=corePos-1,angle=30,leadin=1);
+        rotate(-120)
         thread_with_stop(diameter=coreR*2+2,pitch=2,length=corePos,angle=30);
       } else {
         cylinder(r=coreR+1,h=corePos-1);
@@ -811,7 +810,7 @@ module plug(threads=true) {
     }
   }
 }
-!plug();
+//!plug();
 
 module set_screw() {
   difference() {
