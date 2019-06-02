@@ -29,10 +29,11 @@ LARGE = 3;
 ORIGINAL = 4;
 size = LARGE;
 
-C = 0.125;
+C = 0.125; // clearance
 keyC = C;
 tightC = 0.05;
 bridgeC = C+0.5;
+coreC = 0.15; // clearance for core hole
 
 eps = 1e-2;
 
@@ -91,7 +92,7 @@ shackleChamfer = 1;
 shackleSpacing = size <= MEDIUM ? 2.5 : 3;
 shackleWidth = 2*coreR + shackleDiameter + 2*shackleSpacing;
 
-lugR=coreR-2;
+lugR = size <= SMALL ? coreR : coreR-2;
 lugHeight=shackleDiameter+4;
 lugOverlap=shackleDiameter/2-0.5;
 lugRetainOverlap=1;
@@ -728,8 +729,8 @@ module housing(threads=true, logo=true) {
       }
     }
     // core slot
-    translate_z(-eps) cylinder(r=coreR+C,h=corePos+coreDepth+coreBack+lugC+2*C);
-    translate_z(corePos+coreDepth+coreBack+lugC+C) cylinder(r=lugR+C,h=lugDepth+C);
+    translate_z(-eps) cylinder(r=coreR+coreC,h=corePos+coreDepth+coreBack+lugC+2*C);
+    translate_z(corePos+coreDepth+coreBack+lugC+C) cylinder(r=lugR+coreC,h=lugDepth+C);
     // sidebar slot
     sidebarPosY = sidebarThickness/2+C;
     translate([coreR-1, sidebarPosY - (sidebarThickness+0.5+2*C), sidebarPos-C-bridgeC]) {
@@ -934,15 +935,15 @@ module test() {
   discs = false;
   core = true;
   cut = false;
-  lugs = false;
+  lugs = true;
   shackle = false;
-  cutHousing = 0;
-  cutCore = 0;
+  cutHousing = undef;
+  cutCore = undef;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
   //open = max(0,min(1,ts*$t-1));
   //open=1.6;
-  open=1;
+  open=0;
   shacklePosT = shacklePos + C + shackleTravel*max(0,min(1,ts*$t-2));
   sidebarSpringPos = sidebarPos+(sidebarDepth-sidebarSpringDepth)/2;
 
