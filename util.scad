@@ -13,7 +13,7 @@ eps = 1e-3;
 // Math
 //-----------------------------------------------------------------------------
 
-function polar(r,t) = [r*cos(t),r*sin(t)];
+function polar(a,r) = r == undef ? [cos(a),sin(a)] : [r*cos(a),r*sin(a)];
 function rot(a,p) = [cos(a)*p[0]+sin(a)*p[1], cos(a)*p[1]-sin(a)*p[0]];
 function diagonal(a,b) = sqrt(a*a+b*b);
 function side_given_diagonal(c,b) = sqrt(c*c-b*b);
@@ -168,7 +168,7 @@ module wedge(a1=undef, a2=undef, center=false, r=lots) {
   b1 = a2==undef ? (center ? -a1/2 : 0) : a1;
   b2 = a2==undef ? (center ? a1/2 : a1) : a2;
   n = 10;
-  points = [for (i=[0:n]) polar(r, b1+(b2-b1)*i/n)];
+  points = [for (i=[0:n]) polar(b1+(b2-b1)*i/n, r)];
   polygon(concat([[0,0]],points));
 }
 
@@ -267,4 +267,3 @@ module logo_test() {
     translate_z(1+eps) logo(local=true);
   }
 }
-logo_test();

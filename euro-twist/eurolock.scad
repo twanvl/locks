@@ -44,9 +44,12 @@ step=0.55;
 
 // twist per mm in z direction
 // Note: rotate is in opposite direction of twist!
-twist = -80/25;
+//twist = -40/25;
+//twist = -80/25;
+twist = -120/25;
 //twist = 0;
 res = 1; // resolution of twist
+bibleExtend = abs(twist) > 2 ? abs(twist) : 0; // extend bible to account for twisting
 
 function pin_pos(i) = firstSep + i*pinSep;
 
@@ -55,15 +58,27 @@ function pin_pos(i) = firstSep + i*pinSep;
 //-----------------------------------------------------------------------------
 
 module housing_profile() {
+  step = $fn == undef ? 1 : 360/$fn;
   difference() {
     union() {
       circle(r=housingR);
-      translate([-bibleWidth/2,0]) square([bibleWidth,bibleHeight-bibleWidth/2], center=false);
-      translate([0,bibleHeight-bibleWidth/2]) circle(r=bibleWidth/2);
+      if (bibleExtend == 0) {
+        translate([-bibleWidth/2,0]) square([bibleWidth,bibleHeight-bibleWidth/2], center=false);
+        translate([0,bibleHeight-bibleWidth/2]) circle(r=bibleWidth/2);
+      } else {
+        sym_polygon_x(concat(
+          [[0,0],
+           rot(-bibleExtend,[-bibleWidth/2,0]),
+           rot(-bibleExtend,[-bibleWidth/2,bibleHeight-bibleWidth/2])],
+          [for (a=[0:step:90]) rot(-bibleExtend,[0,bibleHeight-bibleWidth/2] + bibleWidth/2*polar(180-a)) ],
+          [for (a=[-bibleExtend:step:0]) rot(a,[0,bibleHeight]) ]
+        ));
+        }
     }
     circle(r=coreR+C);
   }
 }
+
 module housing() {
   difference() {
     linear_extrude(housingDepth, convexity=10, twist=twist*housingDepth) housing_profile();
@@ -162,18 +177,22 @@ module rotate_test() {
 // key
 //-----------------------------------------------------------------------------
 
-module twisted(z1,z2) {
-  step = 0.05;
-  for (z=[z1:step:z2-eps]) {
-    rotate(-twist*z)
-    intersection() {
-      group() children();
-      translate([-lots/2,-lots/2,z]) cube([lots,lots,min(step,z2-z)]);
+module twisted(z1,z2, twist=twist) {
+  if (twist == 0) {
+    children();
+  } else {
+    step = 0.05;
+    for (z=[z1:step:z2-eps]) {
+      rotate(-twist*z)
+      intersection() {
+        group() children();
+        translate([-lots/2,-lots/2,z]) cube([lots,lots,min(step,z2-z)]);
+      }
     }
   }
 }
 
-module key() {
+module key(twistBow=true) {
   h=housingDepth;
   difference() {
     z = 0;
@@ -217,7 +236,7 @@ module key() {
   x = -coreR+(keyHeight+2)/2;
   y = -keyBowR*1.7/2 - flatSize;
   //rotate(-twist*-3) group() {
-  twisted(y-keyBowR*1.7/2,y+keyBowR*1.7/2) {
+  twisted(y-keyBowR*1.7/2, y+keyBowR*1.7/2, twistBow ? twist : 0) {
     linear_extrude_x(keyWidth,true) {
       difference() {
         //translate([-coreR+(keyHeight)/2,-keyBowR]) circle(keyBowR);
@@ -260,7 +279,7 @@ module key_with_brim() {
   translate_z(bow+flatSize) key();
   translate_y(x) scale([1,1.2,1]) cylinder(r=10,h=0.12);
 }
-!key_with_brim();
+//!key_with_brim();
 
 //-----------------------------------------------------------------------------
 // testing
@@ -269,7 +288,7 @@ module key_with_brim() {
 module test_parts() {
   housing();
   translate([20,0,0]) color("pink") core();
-  translate([40,0,0]) color("lightgreen") key();
+  translate([40,0,0]) color("lightgreen") key(false);
 }
 
 module test_together() {
@@ -278,9 +297,9 @@ module test_together() {
     group() {
       housing();
       color("pink") core();
-      color("lightgreen") key();
+      color("lightgreen") key(false);
     }
-    positive_x();
+    //positive_x();
     //translate_z(1)positive_z();
   }
 }
