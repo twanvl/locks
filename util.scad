@@ -15,6 +15,9 @@ eps = 1e-3;
 
 function polar(r,t) = [r*cos(t),r*sin(t)];
 function rot(a,p) = [cos(a)*p[0]+sin(a)*p[1], cos(a)*p[1]-sin(a)*p[0]];
+function diagonal(a,b) = sqrt(a*a+b*b);
+function side_given_diagonal(c,b) = sqrt(c*c-b*b);
+function on_circle(r,x) = [x,side_given_diagonal(r,x)];
 
 //-----------------------------------------------------------------------------
 // Extruding
@@ -142,7 +145,7 @@ module negative_x(h=lots) { translate([-h,0,0]) cube(2*h,true); }
 module negative_y(h=lots) { translate([0,-h,0]) cube(2*h,true); }
 module negative_z(h=lots) { translate([0,0,-h]) cube(2*h,true); }
 module everything(h=lots) { cube(2*h,true); }
-module not() { difference() { group() {children();} everything(); }  }
+module not() { difference() { everything(); children(); }  }
 
 // a wedge, starting from the positive x, up to rotation of a counter clockwise
 module wedge_space(a, center=false) {
@@ -236,3 +239,32 @@ module thread_with_stop(diameter, C = 0, pitch, length, stop, internal = false, 
 //-----------------------------------------------------------------------------
 // Twisting
 //-----------------------------------------------------------------------------
+
+//-----------------------------------------------------------------------------
+// Logo
+//-----------------------------------------------------------------------------
+
+module logo(r=10, logo=true, local=false) {
+  h1 = r*0.3;
+  h2 = r*0.15;
+  difference() {
+    cylinder(r1=r,r2=r+h1,h=h1);
+    if (logo)
+    for (step=[0:0.05:h2]) {
+      pos = min(1, (step+0.025)/h2);
+      e = 0.5*(1-pos) + 1.7*((sqrt(1-pos*pos)) - 1);
+      translate_z(step) linear_extrude(0.05, convexity=10) {
+        offset(0.1*r*e)
+        scale(0.015*r) import(local ? "flinder.dxf" : "../flinder.dxf");
+      }
+    }
+  }
+}
+
+module logo_test() {
+  difference() {
+    cylinder(r=15,h=3);
+    translate_z(1+eps) logo(local=true);
+  }
+}
+logo_test();

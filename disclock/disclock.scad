@@ -9,13 +9,25 @@ include <../util.scad>;
 // Model parameters
 //-----------------------------------------------------------------------------
 
+// Bitting code for the key.
+// Rules:
+//  * first should be a 5 (for spinner disc)
+//  * excluding spinner, there should be a 5 near the start and one near the end (for tension discs)
 bitting = [5,3,5,0,3,2,1,4,3,5];
+randomBitting = false;
+
+if (randomBitting) {
+  // TODO: set global
+  // TODO: enforce constraints
+  bitting = concat([5], [for (i=rands(0,6-1e-10,9)) floor(i)]);
+  echo("bitting",bitting);
+}
 
 SMALL = 1;
 MEDIUM = 2;
 LARGE = 3;
+ORIGINAL = 4;
 size = LARGE;
-//size = "small";
 
 C = 0.125;
 keyC = C;
@@ -23,6 +35,11 @@ tightC = 0.05;
 bridgeC = C+0.5;
 
 eps = 1e-2;
+
+bits = 5;
+//step = -90/4; // degrees
+step = 120/bits; // degrees
+//step = -100/4; // degrees
 
 discR = size <= SMALL ? 8.5 : 10;
 coreWall = size <= SMALL ? 1.6 : 1.7;
@@ -33,9 +50,13 @@ firstLayerHeight = 0.2;
 layerHeight = 0.15;
 function roundToLayerHeight(z) = round((z-firstLayerHeight)/layerHeight)*layerHeight + firstLayerHeight;
 
-keyR1 = size <= SMALL ? 4.5 : 5;
-keyR2 = 3.5;
-keyWidth = size <= SMALL ? 2.5 : 3;
+keyR1 = size <= SMALL ? 4 : 5;
+keyR2 = size <= SMALL ? 3 : 3.5;
+keyWidth = size <= SMALL ? 2.5 : size <= MEDIUM ? 2.75 : 3;
+keyRot = size <= SMALL ? 0.2*step : size <= MEDIUM ? 0.25*step : 0.5*step;
+//keyThickness = 2 * rot(keyRot,on_circle(keyR1+1, keyWidth/2))[0];
+keyThickness = 2 * rot(keyRot,on_circle(keyR1, keyWidth/2))[0];
+echo("keyThickness", keyThickness);
 keywayAngle = 0;
 
 discThickness = size <= MEDIUM ? 1.85 : 2.0;
@@ -45,11 +66,6 @@ spinnerCountersink = spinnerThickness/2;
 builtinSpacerThickness = layerHeight;
 builtinSpacerThickness2 = layerHeight;
 builtinSpacerR = keyR1 + C + 0.5;
-
-bits = 5;
-//step = -90/4; // degrees
-step = 120/bits; // degrees
-//step = -100/4; // degrees
 
 gateHeight = 2.5;
 falseHeight = 1;
@@ -107,81 +123,22 @@ shackleTravel = housingBack + lugDepth + 6;
 module key_profile(r=keyR1) {
   //x=3.5/2;y=keyR1;
   //square([3.5,10],true);
+  keyWidth2 = keyWidth - 0.0;
+  keyWidth3 = keyWidth/2 + 0.08;
   intersection() {
     union() {
       rotate(0) square([keyWidth,r],true);
-      rotate(-step*0.5) square([keyWidth,2*r],true);
-      rotate(step*0.5) square([keyWidth,2*r],true);
+      rotate(-keyRot) square([keyWidth2,2*r],true);
+      rotate(keyRot) square([keyWidth2,2*r],true);
+      circle(keyWidth3);
     }
     circle(r);
   }
-  //translate([-1.5,2.5]) square([3,5],true);
-  //translate([1.5,-2.5]) square([3,5],true);
-  //sym_polygon_xy([[0.8*x,y],[x,0.9*y],[0.8*x,0.6*y]]);
-  //sym_polygon_xy([[x,y],[x,y*0.8],[x*1.5,y*0.6]]);
-  //sym_polygon_xy([[x,y],[x*0.6,y*0.6]]);
-  //sym_polygon_xy([[x,y],[x,y-1],[x-0.6,y-2.9]]);
-  /*
-  sym_polygon_xy([
-    rot(-step*0.33,[0,5]), rot(-step*1.5,[0,5]), rot(-step*1.5,[0,3.5]),
-    rot(-1.5*step,[0,3.5]), rot(-2*step,[0,3.5]), rot(-2*step,[0,2]) ]);
-  */
-  //sym_polygon_xy([[x-1,y],[x,y-2]]);
-  //sym_polygon_180([[x-1,y],[x,y-2],[x,-y]]);
-  //sym_polygon_180([[-x,y],[x,y],[x*0.6,y*0.6],[x*0.8,y*0.3]]);
 }
 module keyway_profile() {
-  x=3.5/2;y=10/2;
-  //sym_polygon_xy([[0.5*x,y],[x,0.8*y],[1*x,0.7*y],[1.8*x,0.6*y]]);
-  //sym_polygon_xy([[0.5*x,y],[x,0.9*y],[1*x,0.7*y],[1.8*x,0.7*y]]);
-  //key_profile();
-  /*render() {
-    square([3,10],true);
-    rotate(-22.5) square([3,8],true);
-    rotate(-45) square([3,6.2],true);
-  }*/
-  //sym_polygon_180([[3.5,-x],[x,-x],[x,-y],[-x+1,-y],[-x-0.5,-y*0.6]]);
-  *render() {
-    //intersection() {sym_polygon_180([[x-1,y],[x,y-2],[x+2,y-4],[x,-1],[x,-y+2],[x-1,-y]]);circle(5);}
-    intersection() {sym_polygon_180([[x,y],[x,y-2],[x+2,y-4],[x,-1],[x,-y+2],[x,-y]]);circle(5);}
-  }
   render() {
-    /*
-    intersection() {square([3,11],true);circle(5);}
-    rotate(-22.5) intersection() {square([3,11],true);circle(4);}
-    rotate(-45)   intersection() {square([3,11],true);circle(3);}
-    rotate(-22.5*3) intersection() {square([3,11],true);circle(2);}
-    */
-    
-    
     intersection() {key_profile();circle(keyR1);}
-    //rotate(-1*step)   intersection() {key_profile();circle(5);}
-    //rotate(0.5*step)   intersection() {key_profile();circle(4.5);}
-    //rotate(1*step)   intersection() {key_profile();circle(4);}
-    //rotate(1*step)   intersection() {key_profile();circle(4);}
-    //rotate(2*step)   intersection() {key_profile();circle(3.5);}
-    rotate(-2*step)   intersection() {key_profile();circle(keyR2);}
-    //rotate(1*step)   intersection() {key_profile();circle(4);}
-    //rotate(2*step)   intersection() {key_profile();circle(4);}
-    //rotate(4*step)   intersection() {key_profile();circle(3);}
-    //rotate(3*step)   intersection() {key_profile();circle(2.5);}
-    //rotate(-step) intersection() {key_profile();circle(5);}
-    //rotate(-step) intersection() {key_profile();circle(5);}
-    //rotate(-22.5) intersection() {key_profile();circle(4);}
-    //rotate(-45)   intersection() {key_profile();circle(3);}
-    //rotate(2*step)   intersection() {key_profile();circle(3.5);}
-    //rotate(2*step)   intersection() {square([3.8,11],true);circle(3.5);}
-    //rotate(3*step)   intersection() {key_profile();circle(3.5);}
-    //rotate(3*step)   intersection() {sym_polygon_180([[-4,0],[-4,11],[1,11],[1,0]]);circle(3.5);}
-    //rotate(-60)   intersection() {key_profile();circle(3);}
-    //rotate(-22.5*3) intersection() {key_profile();circle(3);}
-    //rotate(-22.5*3) intersection() {key_profile();circle(3);}
-    //rotate(4*step) intersection() {key_profile();circle(2.5);}
-    //rotate(-90) intersection() {key_profile();circle(2);}
-    //rotate(-30) intersection() {key_profile();circle(4);}
-    //rotate(-60)   intersection() {key_profile();circle(3);}
-    //rotate(-45)   intersection() {key_profile();circle(3);}
-    //rotate(-22.5*3) intersection() {key_profile();circle(2);}
+    rotate(-2*step) intersection() {key_profile();circle(keyR2);}
   }
 }
 
@@ -193,8 +150,7 @@ module wedge_triangle(a,r) {
   rotate(270-a/2) wedge(a);
 }
 
-//discLimiterR = discR - 1 + C;
-discLimiterR = discR - 2;
+discLimiterR = size <= MEDIUM ? discR - 1 + C : discR - 2;
 
 module rotation_limiter() {
   intersection() {
@@ -364,7 +320,7 @@ module disc_test() {
     core();
     //translate_z(10) negative_z();
   }
-  translate([7*coreR,0*coreR,0]) disc_sanding_tool();
+  //translate([7*coreR,0*coreR,0]) disc_sanding_tool();
 }
 //!disc_test();
 
@@ -380,6 +336,7 @@ module key_bit_profile(bit) {
       rotate((bits-bit-2)*step) key_profile();
       if (bits-bit > 2) rotate((bits-bit-2.5)*step) key_profile();
       if (bits-bit > 3) rotate((bits-bit-3)*step) key_profile();
+      if (bits-bit > 3) rotate((bits-bit-3.5)*step) key_profile();
       if (bits-bit > 3) rotate((bits-bit-3.5)*step) key_profile();
       if (bits-bit > 4) rotate((bits-bit-4)*step) key_profile();
       if (bits-bit > 4) rotate((bits-bit-4.5)*step) key_profile();
@@ -399,16 +356,47 @@ module linear_extrude_x_inset(a,b,r) {
   linear_extrude_x(b,true) inset(r) children();
 }
 
+module key_bitting(bitting = bitting) {
+  transition = spacerThickness;
+  translate_z(discPos) group() {
+    for (i=[0:len(bitting)-1]) {
+      mirror([1,0,0])
+      translate_z(i*(discThickness+spacerThickness)) {
+        if (i+1 < len(bitting)) {
+          linear_extrude(discThickness+spacerThickness-transition) {
+            key_bit_profile(bitting[i]);
+          }
+          translate_z(discThickness+spacerThickness-transition)
+          linear_extrude(transition) {
+            key_bit_profile(min(bitting[i],bitting[i+1]));
+          }
+        } else {
+          linear_extrude(discThickness) {
+            key_bit_profile(bitting[i]);
+          }
+          translate_z(discThickness)
+          linear_extrude(discThickness, scale = 0.25) {
+            mirror([1,0,0]) render() key_bit_profile(bitting[i]);
+          }
+        }
+      }
+    }
+  }
+}
+
 module key(bitting = bitting) {
-  linear_extrude(discPos) key_profile(keyR1+1);
+  intersection() {
+    linear_extrude(discPos) key_profile(keyR1+1);
+    cube([keyThickness,lots,lots],true);
+  }
   intersection() {
     cylinder(r=keyR1+1,h=discPos);
     linear_extrude_y(lots,true) {
-      sym_polygon_x([[-5/2,0],[-3/2,discPos]]);
+      sym_polygon_x([[-keyThickness/2,0],[-keyWidth/2,discPos]]);
     }
   }
   translate_z(-9.5) group() {
-    linear_extrude_x_inset(4,5,1,true) {
+    linear_extrude_x_inset(keyThickness-1,keyThickness,1,true) {
       difference() {
         intersection() {
           circle(11);
@@ -421,31 +409,50 @@ module key(bitting = bitting) {
       }
     }
   }
-  translate_z(discPos) group() {
-    for (i=[0:len(bitting)-1]) {
-      mirror([1,0,0])
-      translate_z(i*(discThickness+spacerThickness)) {
-        linear_extrude(discThickness) {
-          key_bit_profile(bitting[i]);
+  key_bitting(bitting);
+}
+
+module shell(r=0.5,h=0.15*2) {
+  intersection() {
+    children();
+    minkowski() {
+      not() children();
+      cylinder(r=r,h=2*h,center=true);
+    }
+  }
+}
+
+module key_with_brim(support = true, brim = true) {
+  translate_z(2*9.5) group() {
+    key();
+    if (support) {
+      shell()
+      difference() {
+        translate_z(discPos) {
+          linear_extrude(len(bitting)*(discThickness+spacerThickness) - spacerThickness)
+            key_profile();
         }
-        if (i+1 < len(bitting)) {
-          translate_z(discThickness) linear_extrude(discThickness) {
-            key_bit_profile(min(bitting[i],bitting[i+1]));
+        minkowski() {
+          key_bitting();
+          cylinder(r=2*C,h=2*layerHeight,center=true);
+        }
+        transition = spacerThickness;
+        *for (i=[0:len(bitting)-1]) {
+          //if (i+1 < len(bitting) && bitting[i] != bitting[i+1]) {
+          if (i+1 < len(bitting) && bitting[i] > bitting[i+1]) {
+            translate_z(discPos + i*(discThickness+spacerThickness) + discThickness + (bitting[i] > bitting[i+1] ? 0 : transition-layerHeight)) {
+              cylinder(r=keyR1,h=layerHeight);
+            }
           }
         }
       }
     }
   }
-  translate_z(discPos + len(bitting)*(discThickness+spacerThickness) - spacerThickness)
-  linear_extrude(discThickness, scale = 0.25) render() key_profile(keyR1);
+  if (brim) translate([-15/2,-10/2,0]) cube([15,10,0.15]);
 }
 
-module key_with_brim() {
-  translate_z(2*9.5) key();
-  scale([1,1.4,1]) cylinder(r=10,h=0.12);
-}
-
-//!key_with_brim();
+!key_with_brim();
+//!keyway_test();
 
 //-----------------------------------------------------------------------------
 // Locking mechanism
@@ -655,7 +662,7 @@ module shackle(shackleLabel = true) {
 
 
 module shackle_with_support() {
-  offset = 2*0.15;
+  offset = 1*0.15;
   base = 0.35;
   rotate([0,180,0])
   group() {
@@ -685,7 +692,7 @@ module shackle_with_support() {
 
 include <../threads.scad>
 
-module housing(threads=true) {
+module housing(threads=true, logo=true) {
   difference() {
     housingChamfer = 0.45;
     //linear_extrude(housingDepth, convexity=10) {
@@ -774,6 +781,13 @@ module housing(threads=true) {
     } else {
       translate([-(coreR+8),0,setScrewPos]) rotate([0,90,0]) cylinder(d=4,h=3.5+8);
     }
+    // logo
+    logoSize = 6;
+    logoPos = logoSize+3;
+    translate([housingWidth/2-logoPos,-(shackleDiameter/2+shackleSpacing+housingHeight/2)/2+logoSize*0.12,logoPos])
+    rotate([0,0,23])
+    rotate([90])
+    logo(r=logoSize,logo=logo);
   }
   // rotation limiter for core
   translate_z(housingDepth-housingBack-coreLimiter) {
@@ -791,6 +805,7 @@ module housing(threads=true) {
     }
   }
 }
+//!housing(threads=false, logo=true);
 
 module plug(threads=true) {
   difference() {
@@ -830,7 +845,7 @@ module set_screw() {
     translate_z(-eps) cylinder(d=2/cos(180/6)+C,$fn=6,h=1.5);
   }
 }
-!rotate([180]) set_screw();
+//!rotate([180]) set_screw();
 
 //-----------------------------------------------------------------------------
 // Sidebar
@@ -902,6 +917,7 @@ module test() {
   $fs = 1;
   $fa = 8;
   threads = true;
+  logo = false;
   housing = true;
   key = false;
   discs = false;
@@ -922,7 +938,7 @@ module test() {
     intersection() {
       group() {
         if (housing) intersection() {
-          translate_z(0) housing(threads);
+          translate_z(0) housing(threads,logo);
           translate_y(cutHousing) positive_y();
           //translate_z(corePos-1.9) negative_z();
         }
@@ -1021,16 +1037,17 @@ module export_plug() plug();
 module export_lug() rotate([180]) lug();
 module export_set_screw() rotate([180]) set_screw();
 module export_key_with_brim() key_with_brim();
+module export_key_with_support() key_with_brim(brim=false,support=true);
 module export_disc_sanding_tool() disc_sanding_tool();
 module export_housing_plug_test() {
   rotate([180]) intersection() {
-    housing();
+    housing(logo=false);
     cylinder(r=coreR+3,h=corePos+1);
   }
 }
 module export_housing_lug_test() {
   rotate([180]) intersection() {
-    housing(threads=false);
+    housing(threads=false, logo=false);
     negative_x();
     translate_z(lugPos-lugDepth/2-3) positive_z();
   }
