@@ -23,11 +23,12 @@ if (randomBitting) {
   echo("bitting",bitting);
 }
 
-SMALL = 1;
-MEDIUM = 2;
-LARGE = 3;
-ORIGINAL = 4;
-size = LARGE;
+TINY = 1;
+SMALL = 2;
+MEDIUM = 3;
+LARGE = 4;
+ORIGINAL = 5;
+size = ORIGINAL;
 
 C = 0.125; // clearance
 keyC = C;
@@ -37,40 +38,40 @@ coreC = 0.15; // clearance for core hole
 
 eps = 1e-2;
 
-bits = 5;
+bits = size <= TINY ? 4 : 5;
 //step = -90/4; // degrees
-step = 120/bits; // degrees
+step = size < ORIGINAL ? 135/bits : 120/bits; // degrees
 //step = -100/4; // degrees
 
-discR = size <= SMALL ? 8.5 : 10;
-coreWall = size <= SMALL ? 1.6 : 1.7;
+discR = size <= TINY ? 7.2 : size <= SMALL ? 8.5 : 10;
+coreWall = size <= TINY ? 1 : size <= MEDIUM ? 1.6 : 1.7;
 coreR = discR + coreWall;
 echo("core diameter ",2*coreR);
 
-firstLayerHeight = 0.2;
 layerHeight = 0.15;
+firstLayerHeight = size == ORIGINAL ? 0.2 : layerHeight;
 function roundToLayerHeight(z) = round((z-firstLayerHeight)/layerHeight)*layerHeight + firstLayerHeight;
 
 keyR1 = size <= SMALL ? 4 : 5;
 keyR2 = size <= SMALL ? 3 : 3.5;
-keyWidth = size <= SMALL ? 2.5 : size <= MEDIUM ? 2.75 : 3;
+keyWidth = size <= SMALL ? 2.75 : size <= MEDIUM ? 2.75 : 3;
 keyRot = size <= SMALL ? 0.2*step : size <= MEDIUM ? 0.25*step : 0.5*step;
 //keyThickness = 2 * rot(keyRot,on_circle(keyR1+1, keyWidth/2))[0];
 keyThickness = 2 * rot(keyRot,on_circle(keyR1, keyWidth/2))[0];
 echo("keyThickness", keyThickness);
 keywayAngle = 0;
 
-discThickness = size <= MEDIUM ? 1.85 : 2.0;
-spacerThickness = size <= MEDIUM ? 0.5 : 0.65;
-spinnerThickness = size <= SMALL ? 2 : 2;
-spinnerCountersink = spinnerThickness/2;
+discThickness = roundToLayerHeight(size <= MEDIUM ? 1.85 : 2.0);
+spacerThickness = roundToLayerHeight(size <= MEDIUM ? 0.5 : 0.65);
+spinnerThickness = roundToLayerHeight(size <= SMALL ? 1.5 : 2);
+spinnerCountersink = roundToLayerHeight(spinnerThickness/2);
 builtinSpacerThickness = layerHeight;
 builtinSpacerThickness2 = layerHeight;
 builtinSpacerR = keyR1 + C + 0.5;
 
-gateHeight = 2.5;
-falseHeight = 1;
-sidebarThickness = 1.85;
+gateHeight = size <= TINY ? 2 : 2.5;
+falseHeight = size <= TINY ? 0.5 : 1;
+sidebarThickness = roundToLayerHeight(1.85);
 printSidebarSpring = true;
 
 limiterInside = true;
@@ -79,41 +80,41 @@ limiterAngle = 30;
 discs = len(bitting);
 coreDepth = (discs-1) * (discThickness + spacerThickness) + spinnerThickness - spinnerCountersink + C;
 coreAngle = -90;
-coreBack=2;
+coreBack = roundToLayerHeight(2);
 coreLimiter=2;
 coreLimiterFirst = false;
 
-discPos = size <= SMALL ? 6 : size <= MEDIUM ? 6 : 8;
+discPos = roundToLayerHeight(size <= SMALL ? 6 : size <= MEDIUM ? 6 : 8);
 corePos = discPos + spinnerThickness - spinnerCountersink;
 setScrewPos = (size <= SMALL ? 2 : size <= MEDIUM ? 2 : 3.2) + 4/2;
 
-shackleDiameter = 8;
+shackleDiameter = size <= TINY ? 6 : 8;
 shackleChamfer = 1;
-shackleSpacing = size <= MEDIUM ? 2.5 : 3;
+shackleSpacing = size <= SMALL ? 2 : size <= MEDIUM ? 2.5 : 3;
 shackleWidth = 2*coreR + shackleDiameter + 2*shackleSpacing;
 
-lugR = size <= SMALL ? coreR : coreR-2;
+lugR = size <= SMALL ? coreR-1.5 : coreR-2;
 lugHeight=shackleDiameter+4;
 lugOverlap=shackleDiameter/2-0.5;
 lugRetainOverlap=1;
 lugTravel=lugOverlap+0.5;
-lugDepth = 6.6;
+lugDepth = roundToLayerHeight(size <= SMALL ? 5 : 6.6);
 lugSlope = 0.8; // about 60deg
 lugC = 0.5 + C;
 lugPos = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lugDepth/2 + lugC + C;
 
 housingHeight = 2*coreR + 2*shackleSpacing;
 housingWidth = shackleWidth + shackleDiameter + 2*shackleSpacing;
-housingBack = 2;
+housingBack = roundToLayerHeight(size <= TINY ? 1.5 : 2);
 housingDepth = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lugDepth + lugC + housingBack + 2*C;
 
 sidebarPos = corePos;
 sidebarDepth = (discs-1) * (discThickness + spacerThickness) + spinnerThickness - spinnerCountersink;
 
-shackleLength = housingDepth + 7;
+shackleLength = housingDepth + (size <= TINY ? 5 : 7);
 shackleLength1 = shackleLength;
 shackleLength2 = shackleLength - coreDepth - corePos + 3;
-shacklePos = 2;
+shacklePos = roundToLayerHeight(size <= TINY ? 1.5 : 2);
 //shackleTravel = coreDepth + 3;
 shackleTravel = housingBack + lugDepth + 6;
 
@@ -259,17 +260,7 @@ module tension_disc() {
 }
 module spinner_disc() {
   difference() {
-    union() {
-      //translate([0,0,1]) cylinder(r1=discR,r2=discR-2,h=2);
-      /*linear_extrude(3) {
-        circle(discR-2);
-      }
-      linear_extrude(2) {
-        circle(discR);
-      }*/
-      //linear_extrude(1) circle(coreR);
-      cylinder(r=limiterInside ? discLimiterR-C : discR, h=spinnerThickness);
-    }
+    cylinder(r=limiterInside ? discLimiterR-C : discR, h=spinnerThickness);
     translate([0,0,-C]) linear_extrude(3+2*C) {
       rotate(keywayAngle) offset(keyC) key_profile();
     }
@@ -326,8 +317,9 @@ module disc_test() {
     //translate_z(10) negative_z();
   }
   //translate([7*coreR,0*coreR,0]) disc_sanding_tool();
+  translate([7*coreR,0*coreR,0]) keyway_test();
 }
-!disc_test();
+//!disc_test();
 
 //-----------------------------------------------------------------------------
 // Key
@@ -887,7 +879,7 @@ module sidebar() {
   chamfer_cube(gateHeight+coreWall,sidebarThickness,sidebarDepth-C,sidebarChamfer,rz=0);
 }
 
-sidebarSpringWidth = 12;
+sidebarSpringWidth = shackleDiameter+2*shackleSpacing-2;
 sidebarSpringPrintWidth = sidebarSpringWidth + 1;
 sidebarSpringDepth = sidebarDepth - 6;
 sidebarSpringThickness = sidebarThickness + 2;
@@ -982,7 +974,7 @@ module core_limiter_test2() {
     }
   }
 }
-module export_core_limiter_test() {
+module core_limiter_test() {
   intersection() {
     group() {
       core_limiter_test1();
@@ -991,7 +983,7 @@ module export_core_limiter_test() {
     //positive_x();
   }
 }
-!export_core_limiter_test();
+//!core_limiter_test();
 
 module test() {
   $fs = 1; $fa = 8;
@@ -1005,8 +997,8 @@ module test() {
   lugs = true;
   shackle = false;
   sidebar = core;
-  cutHousing = undef;
-  cutCore = undef;
+  cutHousing = 0;
+  cutCore = 0;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
   //open = max(0,min(1,ts*$t-1));
@@ -1065,8 +1057,8 @@ module test() {
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
       //translate_z(10) positive_z();
-      translate_z(housingDepth-housingBack-eps) negative_z();
-      translate_z(corePos+1) positive_z();
+      //translate_z(housingDepth-housingBack-eps) negative_z();
+      //translate_z(corePos+1) positive_z();
     }
     //rotate(-70) color("lightblue") translate([0,coreR+4.5]) cube([3,9,coreDepth*2],true);
     //translate([coreR-3,0,corePos-3.5/2-1.5]) rotate([0,90,0]) cylinder(d=4,h=6);
