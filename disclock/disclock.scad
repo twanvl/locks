@@ -547,7 +547,10 @@ coreLimiterR = lugR - lugTravel;
 module core() {
   rotate(coreAngle) group() {
     difference() {
-      cylinder(r=coreR,h=coreDepth+coreBack);
+      union() {
+        cylinder(r=coreR,h=coreDepth);
+        translate_z(coreDepth) cylinder(r1=coreR,r2=lugR,h=coreBack);
+      }
       translate_z(-eps) cylinder(r=discR+C,h=coreDepth+eps);
       // sidebar slot
       translate([0,discR+2/2]) cube([sidebarThickness+2*C,2+2*gateHeight,coreDepth*2],true);
@@ -929,7 +932,7 @@ module test() {
   housing = true;
   key = false;
   discs = false;
-  core = false;
+  core = true;
   cut = false;
   lugs = false;
   shackle = false;
@@ -938,7 +941,8 @@ module test() {
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
   //open = max(0,min(1,ts*$t-1));
-  open = 1.7;
+  //open=1.6;
+  open=1;
   shacklePosT = shacklePos + C + shackleTravel*max(0,min(1,ts*$t-2));
   sidebarSpringPos = sidebarPos+(sidebarDepth-sidebarSpringDepth)/2;
 
@@ -947,14 +951,16 @@ module test() {
       group() {
         if (housing) intersection() {
           translate_z(0) housing(threads,logo);
-          translate_y(cutHousing) positive_y();
+          if (cutHousing!=undef) translate_y(cutHousing) positive_y();
           //translate_z(corePos-1.9) negative_z();
         }
+        //translate([0.08,-0.08])
+        rotate(-2) // simulate slop in core movement
         rotate(open*90)
         group() {
           if (core) intersection() {
             translate([0,0,corePos + C]) color("lightgreen") core();
-            translate_y(cutCore) positive_y();
+            if (cutCore!=undef) translate_y(cutCore) positive_y();
           }
           if (discs) translate_z(discPos + C/2) {
             //translate_z(0) color("lightyellow") rotate(coreAngle) spinner_disc();
@@ -990,9 +996,11 @@ module test() {
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
       //translate_z(10) positive_z();
+      translate_z(housingDepth-housingBack-eps) negative_z();
+      translate_z(corePos+1) positive_z();
     }
     //rotate(-70) color("lightblue") translate([0,coreR+4.5]) cube([3,9,coreDepth*2],true);
-  //translate([coreR-3,0,corePos-3.5/2-1.5]) rotate([0,90,0]) cylinder(d=4,h=6);
+    //translate([coreR-3,0,corePos-3.5/2-1.5]) rotate([0,90,0]) cylinder(d=4,h=6);
   }
 }
 !test();
