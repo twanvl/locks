@@ -87,10 +87,13 @@ module octahedron(r) {
   }
 }
 
-module chamfer_cube(x,y,z,r) {
+module chamfer_cube(x,y,z, r=1,rx=undef,ry=undef,rz=undef) {
+  rxx = rx == undef ? r : max(eps,rx);
+  ryy = ry == undef ? r : max(eps,ry);
+  rzz = rz == undef ? r : max(eps,rz);
   minkowski() {
-    cube([x-2*r,y-2*r,z-2*r],center=true);
-    octahedron(r,center=true);
+    cube([x-2*rxx,y-2*ryy,z-2*rzz],center=true);
+    scale([rxx,ryy,rzz]) octahedron(1,center=true);
   }
 }
 

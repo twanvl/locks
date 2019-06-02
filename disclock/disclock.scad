@@ -859,10 +859,9 @@ module set_screw() {
 //-----------------------------------------------------------------------------
 
 module sidebar() {
-  translate_y(-sidebarThickness/2)
-  difference() {
-    cube([gateHeight+coreWall,sidebarThickness,sidebarDepth-C]);
-  }
+  sidebarChamfer = 0.3;
+  translate([(gateHeight+coreWall)/2,0,(sidebarDepth-C)/2])
+  chamfer_cube(gateHeight+coreWall,sidebarThickness,sidebarDepth-C,sidebarChamfer,rz=0);
 }
 
 sidebarSpringWidth = 12;
@@ -885,19 +884,21 @@ module sidebar_spring() {
     square([r,sidebarSpringDepth]);
     for (i=[0:nx-1]) {
       w = (sidebarSpringPrintWidth-r)/nx;
-      //translate([1+i*w,0]) wiggle(w,sidebarSpringDepth,r);
-      //translate([1+i*w,0]) wiggle(w,(sidebarSpringDepth-1)/2,r);
-      //translate([1+i*w,sidebarSpringDepth]) mirror([0,1]) wiggle(w,(sidebarSpringDepth-1)/2,r);
       translate([i*w+r,i%2 ? sidebarSpringDepth-r : 0]) square([w,r]);
       translate([i*w+w,0]) square([r,sidebarSpringDepth]);
     }
-    //square([sidebarSpringWidth,sidebarSpringDepth]);
+  }
+  // pusher for sidebar
+  p = r;
+  translate_y((sidebarSpringThickness-sidebarThickness)/2)
+  linear_extrude(sidebarSpringDepth) {
+    sym_polygon_y([[0,sidebarThickness/2],[-p,sidebarThickness/2-1.5*p]]);
   }
 }
 
 module sidebar_test() {
   sidebar();
-  translate_x(gateHeight+coreWall) sidebar_spring();
+  translate_x(gateHeight+coreWall + 2) sidebar_spring();
 }
 //!sidebar_test();
 
