@@ -98,7 +98,7 @@ lugRetainOverlap=1;
 lugTravel=lugOverlap+0.5;
 lugDepth = 6.6;
 lugSlope = 0.8; // about 60deg
-lugC = C;
+lugC = 0.5 + C;
 lugPos = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lugDepth/2 + lugC + C;
 
 housingHeight = 2*coreR + 2*shackleSpacing;
@@ -691,7 +691,7 @@ module shackle_with_support() {
     }
   }
 }
-!shackle_with_support();
+//!shackle_with_support();
 
 //-----------------------------------------------------------------------------
 // Housing
@@ -923,7 +923,7 @@ module keyway_test() {
 module test() {
   $fs = 1;
   $fa = 8;
-  threads = true;
+  threads = false;
   logo = false;
   housing = true;
   key = false;
@@ -984,7 +984,7 @@ module test() {
           color("pink") translate([-lugR1-(1-open)*lugTravel1,0,lugPos]) mirror([1,0,0]) lug();
           color("pink") translate([lugR2+(1-open)*lugTravel2,0,lugPos]) lug();
         }
-        color("darkgrey") translate([-(coreR+3),0,setScrewPos]) rotate([0,90]) set_screw();
+        if (threads) color("darkgrey") translate([-(coreR+3),0,setScrewPos]) rotate([0,90]) set_screw();
       }
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
