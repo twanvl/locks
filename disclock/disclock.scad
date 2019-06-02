@@ -669,7 +669,7 @@ module shackle(shackleLabel = true) {
 
 
 module shackle_with_support() {
-  offset = 1*0.15;
+  offset = 1*layerHeight;
   base = 0.35;
   rotate([0,180,0])
   group() {
@@ -677,21 +677,21 @@ module shackle_with_support() {
     color("red")
     translate_z(shackleLength) 
     difference() {
-      cube([shackleWidth,shackleDiameter/sqrt(2),(shackleWidth+shackleDiameter+2*offset)+2*base],true);
+      cube([(shackleWidth+shackleDiameter+2*offset)*sqrt(2)/2+1, shackleDiameter/sqrt(2)+1, (shackleWidth+shackleDiameter+2*offset)+2*base],true);
       rotate([90,0,0]) rotate_extrude() {
         union() {
-          //circle(d=shackleDiameter+0.5);
-          //translate([shackleWidth/2-shackleDiameter/4,0])
-          //  square([shackleDiameter/2,shackleDiameter+1],true);
           translate([shackleWidth/2,0]) circle(d=shackleDiameter+2*offset);
-          translate([0,-(shackleDiameter+offset)/2]) square([shackleWidth/2,shackleDiameter+offset]);
+          //translate([0,-(shackleDiameter+offset)/2]) square([shackleWidth/2,shackleDiameter+offset]);
+          translate([0,-(shackleDiameter+2*offset+10)/2])
+            square([shackleWidth/2+(shackleDiameter+2*offset)*sqrt(2)/4,shackleDiameter+2*offset+10]);
         }
       }
-      translate_z((shackleWidth+shackleDiameter)*(0.5-sqrt(2)/2)) negative_z();
+      //translate_z((shackleWidth+shackleDiameter)*(0.5-sqrt(2)/2)) negative_z();
+      translate_z((shackleWidth+shackleDiameter+2*offset)*(sqrt(2)/4)) negative_z();
     }
   }
 }
-//!shackle_with_support();
+!shackle_with_support();
 
 //-----------------------------------------------------------------------------
 // Housing
