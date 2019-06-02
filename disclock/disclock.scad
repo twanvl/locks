@@ -357,7 +357,8 @@ module linear_extrude_x_inset(a,b,r) {
 }
 
 module key_bitting(bitting = bitting) {
-  transition = spacerThickness;
+  transition = spacerThickness*2;
+  transition2 = spacerThickness;
   translate_z(discPos) group() {
     for (i=[0:len(bitting)-1]) {
       mirror([1,0,0])
@@ -369,6 +370,14 @@ module key_bitting(bitting = bitting) {
           translate_z(discThickness+spacerThickness-transition)
           linear_extrude(transition) {
             key_bit_profile(min(bitting[i],bitting[i+1]));
+          }
+          translate_z(discThickness+spacerThickness-transition)
+          linear_extrude(transition2, scale=0.5) {
+            key_bit_profile(bitting[i]);
+          }
+          translate_z(discThickness+spacerThickness)
+          mirror([0,0,1]) linear_extrude(transition2, scale=0.5) {
+            key_bit_profile(bitting[i+1]);
           }
         } else {
           linear_extrude(discThickness) {
@@ -424,9 +433,8 @@ module shell(r=0.5,h=0.15*2) {
 
 module key_with_brim(support = true, brim = true) {
   translate_z(2*9.5) group() {
-    key();
+    union() key();
     if (support) {
-      shell()
       difference() {
         translate_z(discPos) {
           linear_extrude(len(bitting)*(discThickness+spacerThickness) - spacerThickness)
@@ -434,11 +442,10 @@ module key_with_brim(support = true, brim = true) {
         }
         minkowski() {
           key_bitting();
-          cylinder(r=2*C,h=2*layerHeight,center=true);
+          translate_z(-2*layerHeight) cylinder(r=2*C,h=4*layerHeight);
         }
         transition = spacerThickness;
         *for (i=[0:len(bitting)-1]) {
-          //if (i+1 < len(bitting) && bitting[i] != bitting[i+1]) {
           if (i+1 < len(bitting) && bitting[i] > bitting[i+1]) {
             translate_z(discPos + i*(discThickness+spacerThickness) + discThickness + (bitting[i] > bitting[i+1] ? 0 : transition-layerHeight)) {
               cylinder(r=keyR1,h=layerHeight);
@@ -451,7 +458,7 @@ module key_with_brim(support = true, brim = true) {
   if (brim) translate([-15/2,-10/2,0]) cube([15,10,0.15]);
 }
 
-!key_with_brim();
+//!key_with_brim(support=true);
 //!keyway_test();
 
 //-----------------------------------------------------------------------------
