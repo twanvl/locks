@@ -891,16 +891,21 @@ module wiggle(w,h,r) {
   //polygon([[0,0],[0,ry],[w/2-rx/2,h],[w/2+rx/2,h],[w,ry],[w,0],[w/2,h-ry]]);
   polygon([[rx/2,0],[0,0],[0,ry],[w/2-rx/2,h],[w/2+rx/2,h],[w,ry],[w,0],[w-rx/2,0],[w/2,h-ry]]);
 }
-module sidebar_spring() {
+module sidebar_spring(angle = 0) {
   h = sidebarSpringDepth;
   nx = 6;
   r = 0.5;
+  w = (sidebarSpringPrintWidth-r)/nx;
+  h2 = h*cos(angle);
+  w2 = w + h*sin(angle);
   linear_extrude_y(sidebarSpringThickness,center=true) {
     square([r,sidebarSpringDepth]);
     for (i=[0:nx-1]) {
-      w = (sidebarSpringPrintWidth-r)/nx;
-      translate([i*w+r,i%2 ? sidebarSpringDepth-r : 0]) square([w,r]);
-      translate([i*w+w,0]) square([r,sidebarSpringDepth]);
+      translate([i*w2+r/2,i%2 ? h2-r : 0]) square([w,r]);
+      translate([i*w2+r/2+ (i%2==0 ? w : w2), 0])
+        rotate(i%2==0 ? -angle : angle)
+        translate([-r/2,0])
+        square([r,sidebarSpringDepth]);
     }
   }
   // pusher for sidebar
@@ -913,9 +918,9 @@ module sidebar_spring() {
 
 module sidebar_test() {
   sidebar();
-  translate_x(gateHeight+coreWall + 2) sidebar_spring();
+  translate_x(gateHeight+coreWall + 2) sidebar_spring(5);
 }
-//!sidebar_test();
+!sidebar_test();
 
 //-----------------------------------------------------------------------------
 // Tests
@@ -1100,9 +1105,9 @@ module export_core() {
 module export_sidebar() {
   rotate([90]) sidebar();
 }
-module export_sidebar_spring() {
-  rotate([90]) sidebar_spring();
-}
+module export_sidebar_spring() rotate([90]) sidebar_spring();
+module export_sidebar_spring5() rotate([90]) sidebar_spring(5);
+module export_sidebar_spring10() rotate([90]) sidebar_spring(10);
 module export_shackle() {
   rotate([-90]) shackle();
 }
