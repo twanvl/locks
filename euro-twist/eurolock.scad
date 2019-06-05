@@ -4,12 +4,13 @@
 //=============================================================================
 
 include <../util.scad>;
+include <../threads.scad>;
 
 //-----------------------------------------------------------------------------
 // Model parameters
 //-----------------------------------------------------------------------------
 
-C = 0.125;
+C = 0.15;
 
 housingR = 17/2;
 coreR = 13/2;
@@ -20,7 +21,7 @@ bibleWidth = 10;
 bibleHeight = 33-17/2;
 
 pins = 5;
-pinD = 3.05;
+pinD = 3.1;
 pinSep = 4;
 firstSep = 3 + 3/2;
 lastSep = 2 - 3/2;
@@ -58,7 +59,7 @@ function pin_pos(i) = firstSep + i*pinSep;
 //-----------------------------------------------------------------------------
 
 module housing_profile() {
-  step = $fn == undef ? 1 : 360/$fn;
+  step = $fn == undef || $fn == 0 ? 1 : 360/$fn;
   difference() {
     union() {
       circle(r=housingR);
@@ -84,12 +85,28 @@ module housing() {
     linear_extrude(housingDepth, convexity=10, twist=twist*housingDepth) housing_profile();
     translate([0,0,-eps]) cylinder(r=faceR+C,h=faceThicknessB+C);
     for (i=[0:pins-1]) {
-      rotate(-twist*pin_pos(i))
-      translate([0,0,pin_pos(i)]) rotate([-90]) cylinder(d=pinD,h=bibleHeight+1);
+      rotate(-twist*pin_pos(i)) {
+        translate([0,0,pin_pos(i)]) rotate([-90]) cylinder(d=pinD,h=bibleHeight+1);
+        if (true) {
+          screwHeight = 4;
+          translate([0,bibleHeight-screwHeight,pin_pos(i)]) rotate([-90])
+          //cylinder(d=4,h=screwHeight);
+          m4_thread(screwHeight,C=C,internal=true);
+        }
+      }
     }
   }
 }
 //!housing();
+
+module grub_screw() {
+  rotate([180])
+  difference() {
+    m4_thread(3.5, leadin=1); 
+    // 2mm hex key
+    translate_z(-eps) cylinder(d=2/cos(180/6)+C,$fn=6,h=1.5);
+  }
+}
 
 //-----------------------------------------------------------------------------
 // key profile
@@ -124,9 +141,10 @@ module test_key_profile() {
 // core
 //-----------------------------------------------------------------------------
 
+clipC = 0.1;
+coreDepth = housingDepth + tailDepth + clipThickness + clipC;
+
 module core() {
-  clipC = 0.1;
-  coreDepth = housingDepth + tailDepth + clipThickness + clipC;
   difference() {
     //cylinder(r=coreR,h=coreDepth);
     union() {
@@ -282,13 +300,36 @@ module key_with_brim() {
 //!key_with_brim();
 
 //-----------------------------------------------------------------------------
+// clip
+//-----------------------------------------------------------------------------
+
+module clip() {
+  r1 = clipR+C;
+  r2 = clipR+2;
+  gap = 60;
+  rotate(90)
+  linear_extrude(clipThickness - 0.1) {
+    difference() {
+      circle(r2);
+      circle(r1);
+      //translate_y(r2/2)square([gap+r2-r1,housingR],true);
+      wedge(gap,center=true);
+      translate_x(-r1+1) circle(1.5);
+    }
+    translate(polar(gap/2,(r1+r2)/2)) circle((r2-r1)/2);
+    translate(polar(-gap/2,(r1+r2)/2)) circle((r2-r1)/2);
+  }
+}
+//!clip();
+
+//-----------------------------------------------------------------------------
 // testing
 //-----------------------------------------------------------------------------
 
 module test_parts() {
   housing();
   translate([20,0,0]) color("pink") core();
-  translate([40,0,0]) color("lightgreen") key(false);
+  translate([40,0,0]) color("lightgreen") key();
 }
 
 module test_together() {
@@ -298,17 +339,21 @@ module test_together() {
       housing();
       color("pink") core();
       color("lightgreen") key(false);
+      translate_z(housingDepth+clipC/2) rotate(-twist*housingDepth) color("blue") clip();
     }
     //positive_x();
     //translate_z(1)positive_z();
   }
 }
 test_together();
+//test_parts();
 
 //-----------------------------------------------------------------------------
 // Export
 //-----------------------------------------------------------------------------
 
 module export_key() { key(); }
+module export_key_with_brim() { key_with_brim(); }
 module export_housing() { housing(); }
 module export_core() { core(); }
+module export_clip() { clip(); }
