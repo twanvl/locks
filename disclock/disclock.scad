@@ -61,7 +61,7 @@ keyThickness = 2 * rot(keyRot,on_circle(keyR1, keyWidth/2))[0];
 echo("keyThickness", keyThickness);
 keywayAngle = 0;
 
-discThickness = roundToLayerHeight(size <= MEDIUM ? 1.85 : 2.0);
+discThickness = roundToLayerHeight(size <= SMALL ? 1.5 : size <= MEDIUM ? 1.85 : 2.0);
 spacerThickness = roundToLayerHeight(size <= MEDIUM ? 0.5 : 0.65);
 spinnerThickness = roundToLayerHeight(size <= SMALL ? 1.5 : 2);
 spinnerCountersink = roundToLayerHeight(spinnerThickness/2);
@@ -920,7 +920,7 @@ module sidebar_test() {
   sidebar();
   translate_x(gateHeight+coreWall + 2) sidebar_spring(5);
 }
-!sidebar_test();
+//!sidebar_test();
 
 //-----------------------------------------------------------------------------
 // Tests
@@ -1002,8 +1002,8 @@ module test() {
   lugs = true;
   shackle = false;
   sidebar = core;
-  cutHousing = 0;
-  cutCore = 0;
+  cutHousing = undef;
+  cutCore = cutHousing;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
   //open = max(0,min(1,ts*$t-1));
@@ -1034,7 +1034,7 @@ module test() {
               translate_z(i*(discThickness+spacerThickness)) color("lightyellow") rotate(coreAngle + unlocked * bitting[i]*step)
               mirror([1,0,0]) if (i==0) {
                 spinner_disc();
-              } else if (bitting[i] == 5) {
+              } else if (bitting[i] == bits) {
                 tension_disc();
               } else {
                 disc(bitting[i]);
@@ -1062,8 +1062,8 @@ module test() {
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
       //translate_z(10) positive_z();
-      //translate_z(housingDepth-housingBack-eps) negative_z();
-      //translate_z(corePos+1) positive_z();
+      translate_z(housingDepth-housingBack-eps) negative_z();
+      translate_z(corePos+1) positive_z();
     }
     //rotate(-70) color("lightblue") translate([0,coreR+4.5]) cube([3,9,coreDepth*2],true);
     //translate([coreR-3,0,corePos-3.5/2-1.5]) rotate([0,90,0]) cylinder(d=4,h=6);

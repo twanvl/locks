@@ -97,6 +97,13 @@ module chamfer_cube(x,y,z, r=1,rx=undef,ry=undef,rz=undef) {
   }
 }
 
+module chamfer(r) {
+  minkowski() {
+    offset(delta=-r) children();
+    octahedron(r,center=true);
+  }
+}
+
 module minkowski_difference(size=1e12) {
   difference() {
     cube(size*[1.1,1.1,1.1], center=true);
