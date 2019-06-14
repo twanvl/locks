@@ -13,22 +13,17 @@ include <../util.scad>;
 // Rules:
 //  * first should be a 5 (for spinner disc)
 //  * excluding spinner, there should be a 5 near the start and one near the end (for tension discs)
-bitting = [5,3,5,0,3,2,1,4,3,5];
-randomBitting = false;
-
-if (randomBitting) {
-  // TODO: set global
-  // TODO: enforce constraints
-  bitting = concat([5], [for (i=rands(0,6-1e-10,9)) floor(i)]);
-  echo("bitting",bitting);
-}
+//bittingCode = undef;
+//bittingCode = [5,3,5,0,3,2,1,4,3,5];
+bittingCode = [4,2,4,0,3,2,2,0,0,0,4,1];
 
 TINY = 1;
-SMALL = 2;
-MEDIUM = 3;
-LARGE = 4;
-ORIGINAL = 5;
-size = ORIGINAL;
+SMALLER = 2;
+SMALL = 3;
+MEDIUM = 4;
+LARGE = 5;
+ORIGINAL = 6;
+size = SMALLER;
 
 C = 0.125; // clearance
 keyC = C;
@@ -38,13 +33,13 @@ coreC = 0.15; // clearance for core hole
 
 eps = 1e-2;
 
-bits = size <= TINY ? 4 : 5;
+bits = size <= SMALLER ? 4 : 5;
 //step = -90/4; // degrees
 step = size < ORIGINAL ? 135/bits : 120/bits; // degrees
 //step = -100/4; // degrees
 
-discR = size <= TINY ? 7.2 : size <= SMALL ? 8.5 : 10;
-coreWall = size <= TINY ? 1 : size <= MEDIUM ? 1.6 : 1.7;
+discR = size <= TINY ? 7.2 : size <= SMALLER ? 7.5 : size <= SMALL ? 8.5 : 10;
+coreWall = size <= TINY ? 1 : size <= SMALLER ? 1.2 : size <= MEDIUM ? 1.6 : 1.7;
 coreR = discR + coreWall;
 echo("core diameter ",2*coreR);
 
@@ -52,14 +47,18 @@ layerHeight = 0.15;
 firstLayerHeight = size == ORIGINAL ? 0.2 : layerHeight;
 function roundToLayerHeight(z) = round((z-firstLayerHeight)/layerHeight)*layerHeight + firstLayerHeight;
 
-keyR1 = size <= SMALL ? 4 : 5;
-keyR2 = size <= SMALL ? 3 : 3.5;
-keyWidth = size <= SMALL ? 2.75 : size <= MEDIUM ? 2.75 : 3;
+keyR1 = size <= SMALLER ? 3.75 : size <= SMALL ? 4 : 5;
+keyR2 = size <= SMALLER ? 2.7 : size <= SMALL ? 3 : 3.5;
+keyWidth = size <= SMALLER ? 2.5 : size <= SMALL ? 2.75 : size <= MEDIUM ? 2.75 : 3;
 keyRot = size <= SMALL ? 0.2*step : size <= MEDIUM ? 0.25*step : 0.5*step;
 //keyThickness = 2 * rot(keyRot,on_circle(keyR1+1, keyWidth/2))[0];
 keyThickness = 2 * rot(keyRot,on_circle(keyR1, keyWidth/2))[0];
 echo("keyThickness", keyThickness);
 keywayAngle = 0;
+
+keywayR = size <= SMALLER ? keyR1 + 0.5 : keyR1 + 1;
+keywayC = size <= SMALLER ? 0.3 : 0.5;
+keywayChamfer = 2;
 
 discThickness = roundToLayerHeight(size <= SMALL ? 1.5 : size <= MEDIUM ? 1.85 : 2.0);
 spacerThickness = roundToLayerHeight(size <= MEDIUM ? 0.5 : 0.65);
@@ -77,46 +76,57 @@ printSidebarSpring = true;
 limiterInside = true;
 limiterAngle = 30;
 
+function randomBitting(n,bits=bits) =
+  insert_at(randi(n-2,n-1), bits,
+  insert_at(0, bits,
+  insert_at(randi(0,1), bits, randis(0,bits-1,n-3))));
+bitting = bittingCode == undef ? randomBitting(12) : bittingCode;
+echo("Bitting: ", bitting);
+
 discs = len(bitting);
 coreDepth = (discs-1) * (discThickness + spacerThickness) + spinnerThickness - spinnerCountersink + C;
 coreAngle = -90;
-coreBack = roundToLayerHeight(2);
-coreLimiter=2;
+coreBack = discThickness;
+coreBackChamfer = 1;
+coreLimiter = 2;
 coreLimiterFirst = false;
 
-discPos = roundToLayerHeight(size <= SMALL ? 6 : size <= MEDIUM ? 6 : 8);
+discPos = roundToLayerHeight(size <= SMALL ? 6.2 : size <= MEDIUM ? 7 : 8);
 corePos = discPos + spinnerThickness - spinnerCountersink;
 setScrewPos = (size <= SMALL ? 2 : size <= MEDIUM ? 2 : 3.2) + 4/2;
+setScrewLength = size <= SMALLER ? 3 : 3.5; // relative to coreR
 
 shackleDiameter = size <= TINY ? 6 : 8;
 shackleChamfer = 1;
-shackleSpacing = size <= SMALL ? 2 : size <= MEDIUM ? 2.5 : 3;
+shackleSpacing = size <= SMALLER ? 2 : size <= MEDIUM ? 2.5 : 3;
 shackleWidth = 2*coreR + shackleDiameter + 2*shackleSpacing;
 
-lugR = size <= SMALL ? coreR-1.5 : coreR-2;
+lugR = size <= SMALL ? coreR-2 : coreR-2;
 lugHeight=shackleDiameter+4;
-lugOverlap=shackleDiameter/2-0.5;
+lugOverlap = size == SMALLER ? shackleDiameter/2-1 : shackleDiameter/2-0.5;
 lugRetainOverlap=1;
 lugTravel=lugOverlap+0.5;
-lugDepth = roundToLayerHeight(size <= SMALL ? 5 : 6.6);
-lugSlope = 0.8; // about 60deg
+lugDepth = roundToLayerHeight(size <= SMALLER ? 5.0 : size <= SMALL ? 5.7 : 6.6);
+lugSlope = size <= SMALLER ? 0.75 : 0.8; // about 60deg
 lugC = 0.5 + C;
 lugPos = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lugDepth/2 + lugC + C;
 
-housingHeight = 2*coreR + 2*shackleSpacing;
-housingWidth = shackleWidth + shackleDiameter + 2*shackleSpacing;
-housingBack = roundToLayerHeight(size <= TINY ? 1.5 : 2);
+housingSpacing = size <= SMALL ? 2 : size <= MEDIUM ? 2.5 : 2;
+housingHeight = 2*coreR + 2*housingSpacing;
+housingWidth = shackleWidth + shackleDiameter + 2*housingSpacing;
+housingBack = roundToLayerHeight(size <= SMALLER ? 1.5 : 2);
 housingDepth = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lugDepth + lugC + housingBack + 2*C;
 
 sidebarPos = corePos;
 sidebarDepth = (discs-1) * (discThickness + spacerThickness) + spinnerThickness - spinnerCountersink;
 
+shacklePos = roundToLayerHeight(size <= TINY ? 1.5 : 2);
 shackleLength = housingDepth + (size <= TINY ? 5 : 7);
 shackleLength1 = shackleLength;
-shackleLength2 = shackleLength - coreDepth - corePos + 3;
-shacklePos = roundToLayerHeight(size <= TINY ? 1.5 : 2);
+shackleLength2 = shackleLength - coreDepth - corePos + shackleSpacing + shacklePos-2 - (size <= SMALLER ? 0.5 : 0);
 //shackleTravel = coreDepth + 3;
 shackleTravel = housingBack + lugDepth + 6;
+
 
 //-----------------------------------------------------------------------------
 // key profile
@@ -348,9 +358,9 @@ module inset(r) {
     offset(-r) union() children();
   }
 }
-module linear_extrude_x_inset(a,b,r) {
-  linear_extrude_x(a,true) children();
-  linear_extrude_x(b,true) inset(r) children();
+module linear_extrude_x_inset(a,b,r,center=true) {
+  linear_extrude_x(a,center) children();
+  linear_extrude_x(b,center) inset(r) children();
 }
 
 module key_bitting(bitting = bitting) {
@@ -382,7 +392,7 @@ module key_bitting(bitting = bitting) {
           }
           translate_z(discThickness)
           linear_extrude(discThickness, scale = 0.25) {
-            mirror([1,0,0]) render() key_bit_profile(bitting[i]);
+            render() key_bit_profile(bitting[i]);
           }
         }
       }
@@ -390,25 +400,27 @@ module key_bitting(bitting = bitting) {
   }
 }
 
+keyHandleSizeX = size <= SMALLER ? 9.5 : 11;
+keyHandleSizeY = size <= SMALLER ? 8.5 : 9.5;
 module key(bitting = bitting) {
   intersection() {
-    linear_extrude(discPos) key_profile(keyR1+1);
+    linear_extrude(discPos) key_profile(keywayR);
     cube([keyThickness,lots,lots],true);
   }
   intersection() {
-    cylinder(r=keyR1+1,h=discPos);
+    cylinder(r=keywayR,h=discPos);
     linear_extrude_y(lots,true) {
       sym_polygon_x([[-keyThickness/2,0],[-keyWidth/2,discPos]]);
     }
   }
-  translate_z(-9.5) group() {
+  translate_z(-keyHandleSizeY) group() {
     linear_extrude_x_inset(keyThickness-1,keyThickness,1,true) {
       difference() {
         intersection() {
-          circle(11);
-          square([lots,2*9.5],true);
+          circle(keyHandleSizeX);
+          square([lots,2*keyHandleSizeY],true);
         }
-        translate_y(-4) intersection() {
+        translate_y(-keyHandleSizeY+(size <= SMALLER ? 4.5 : 5.5)) intersection() {
           circle(3);
           square([lots,5],true);
         }
@@ -454,7 +466,6 @@ module key_with_brim(support = true, brim = true) {
   }
   if (brim) translate([-15/2,-10/2,0]) cube([15,10,0.15]);
 }
-
 //!key_with_brim(support=true);
 //!keyway_test();
 
@@ -480,8 +491,6 @@ module actuator_profile(offset=0) {
   }
 }
 
-module lug_profile(C=0) {
-}
 module lug_hole(dx,dz1,dz2,dy=0,hole=false) {
   x = coreR-lugR-lugTravel+shackleSpacing+lugOverlap + dx;
   chamferX1 = lugOverlap;
@@ -506,7 +515,7 @@ module lug_hole(dx,dz1,dz2,dy=0,hole=false) {
     }
   }
 }
-module lug(clear_limiter = false) {
+module lug(clear_limiter = size <= SMALL) {
   intersection() {
     group() {
       difference() {
@@ -545,8 +554,9 @@ module core() {
   rotate(coreAngle) group() {
     difference() {
       union() {
-        cylinder(r=coreR,h=coreDepth);
-        translate_z(coreDepth) cylinder(r1=coreR,r2=lugR,h=coreBack);
+        cylinder(r=coreR,h=coreDepth+coreBack-coreBackChamfer);
+        translate_z(coreDepth+coreBack-coreBackChamfer)
+          cylinder(r1=coreR,r2=max(lugR,coreR-coreBackChamfer/0.8),h=coreBackChamfer);
       }
       translate_z(-eps) cylinder(r=discR+C,h=coreDepth+eps);
       // sidebar slot
@@ -711,7 +721,7 @@ module housing(threads=true, logo=true) {
       //offset(4) offset(-4)
       mirrored([0,1])
       union() {
-        h1 = shackleDiameter+2*(shackleSpacing-1);
+        h1 = shackleDiameter+2*(housingSpacing-1);
         square([housingWidth,h1],true);
         intersection() {
           // use an ellipse for the sides
@@ -791,19 +801,30 @@ module housing(threads=true, logo=true) {
     }
     cylinder(d=coreR*2+2+2*C,h=1.5+C);
     // set screw
-    translate([-(coreR-3+10),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4+2*C,h=40);
+    dx = shackleDiameter/2 + shackleSpacing;
+    translate([-(coreR+dx),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4+2*C,h=lots);
     if (threads) {
-      translate([-(coreR+8),0,setScrewPos]) rotate([0,90,0]) m4_thread(3.5+8,C=C,internal=true);
+      translate([-(coreR+dx),0,setScrewPos]) rotate([0,90,0]) m4_thread(setScrewLength+dx,C=C,internal=true);
     } else {
-      translate([-(coreR+8),0,setScrewPos]) rotate([0,90,0]) cylinder(d=4,h=3.5+8);
+      translate([-(coreR+dx),0,setScrewPos]) rotate([0,90,0]) cylinder(d=4,h=setScrewLength+dx);
     }
     // logo
-    logoSize = 6;
-    logoPos = logoSize+3;
-    translate([housingWidth/2-logoPos,-(shackleDiameter/2+shackleSpacing+housingHeight/2)/2+logoSize*0.12,logoPos])
-    rotate([0,0,23])
-    rotate([90])
-    logo(r=logoSize,logo=logo);
+    if (size <= SMALLER) {
+      logoSize = 6;
+      logoPos = logoSize+3;
+      translate([housingWidth/2-logoPos,-(shackleDiameter/2+housingSpacing+housingHeight/2)/2+logoSize*0.100,logoPos])
+      rotate([0,0,17.5])
+      rotate([90])
+      color("red")
+      logo(r=logoSize,logo=true);
+    } else {
+      logoSize = 6;
+      logoPos = logoSize+3;
+      translate([housingWidth/2-logoPos,-(shackleDiameter/2+housingSpacing+housingHeight/2)/2+logoSize*0.12,logoPos])
+      rotate([0,0,23])
+      rotate([90])
+      logo(r=logoSize,logo=logo);
+    }
   }
   // rotation limiter for core
   translate_z(housingDepth-housingBack-coreLimiter) {
@@ -841,18 +862,19 @@ module plug(threads=true) {
         cylinder(r=coreR+1,h=corePos-1);
       }
     }
-    translate([0,0,-eps]) cylinder(r=keyR1+1.5,h=lots);
-    translate([0,0,-eps]) cylinder(r1=keyR1+2.5,r2=keyR1+1,h=1+eps);
+    translate([0,0,-eps]) cylinder(r=keywayR+keywayC,h=lots);
+    translate([0,0,-eps]) cylinder(r1=keywayR+keywayC+keywayChamfer,r2=keywayR+keywayC,h=keywayChamfer+eps);
     //translate([0,0,-1-eps]) cylinder(r1=keyR1+2,r2=keyR1+1,h=1+eps);
+    dx = shackleDiameter/2 + shackleSpacing;
     if (threads) {
-      translate([-(coreR+8),0,setScrewPos]) rotate([0,90,0]) m4_thread(3.5+8,C=C,internal=true);
+      translate([-(coreR+dx),0,setScrewPos]) rotate([0,90,0]) m4_thread(setScrewLength+dx,C=C,internal=true);
     } else {
-      translate([-(coreR+8),0,setScrewPos]) rotate([0,90,0]) cylinder(d=4,h=3.5+8); 
+      translate([-(coreR+dx),0,setScrewPos]) rotate([0,90,0]) cylinder(d=4,h=setScrewLength+dx); 
     }
-    translate_z(discPos) cylinder(r=discR-2,h=spinnerCountersink+eps);
+    translate_z(discPos) cylinder(r=discLimiterR,h=spinnerCountersink+eps);
     // unscrewing screw slot
-    translate_z(-6) rotate([90,0,90]) {
-      cylinder(r=11, h=5+2*C, center=true);
+    translate_z(size <= SMALLER ? -5.2 : -6) rotate([90,0,90]) {
+      cylinder(r=keyHandleSizeX, h=keyThickness+2*C, center=true);
     }
   }
 }
@@ -860,7 +882,7 @@ module plug(threads=true) {
 
 module set_screw() {
   difference() {
-    m4_thread(3+shackleSpacing, leadin=1); 
+    m4_thread(setScrewLength+shackleSpacing, leadin=1); 
     //translate([-1/2,-lots/2,0]) cube([1,lots,1]);
     //translate([-1/2,-lots/2,0]) cube([1,lots,1]);
     // 2mm hex key
@@ -879,7 +901,7 @@ module sidebar() {
   chamfer_cube(gateHeight+coreWall,sidebarThickness,sidebarDepth-C,sidebarChamfer,rz=0);
 }
 
-sidebarSpringWidth = shackleDiameter+2*shackleSpacing-2;
+sidebarSpringWidth = shackleDiameter+shackleSpacing+housingSpacing-2;
 sidebarSpringPrintWidth = sidebarSpringWidth + 1;
 sidebarSpringDepth = sidebarDepth - 6;
 sidebarSpringThickness = sidebarThickness + 2;
@@ -995,15 +1017,16 @@ module test() {
   threads = false;
   logo = false;
   housing = true;
-  key = false;
+  key = true;
   discs = false;
   core = true;
   cut = false;
   lugs = true;
-  shackle = false;
+  shackle = true;
   sidebar = core;
-  cutHousing = undef;
+  cutHousing = 0;
   cutCore = cutHousing;
+  cutShackle = cutHousing;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
   //open = max(0,min(1,ts*$t-1));
@@ -1031,13 +1054,14 @@ module test() {
           if (discs) translate_z(discPos + C/2) {
             //translate_z(0) color("lightyellow") rotate(coreAngle) spinner_disc();
             for (i=[0:len(bitting)-1]) {
-              translate_z(i*(discThickness+spacerThickness)) color("lightyellow") rotate(coreAngle + unlocked * bitting[i]*step)
+              translate_z(i*(discThickness+spacerThickness))
+              rotate(coreAngle + unlocked * bitting[i]*step)
               mirror([1,0,0]) if (i==0) {
-                spinner_disc();
+                color("lightgreen") spinner_disc();
               } else if (bitting[i] == bits) {
-                tension_disc();
+                color("lightblue") tension_disc();
               } else {
-                disc(bitting[i]);
+                color("lightyellow") disc(bitting[i]);
               }
               *if (i < len(bitting)-1)
               translate_z(i*(discThickness+spacerThickness)+discThickness) color("lightyellow") rotate(coreAngle) spacer_disc();
@@ -1048,10 +1072,13 @@ module test() {
         }
         color("blue") translate([discR-unlocked*gateHeight+C/2+gateHeight+coreWall,(sidebarThickness-sidebarSpringThickness)/2, sidebarSpringPos+C/2])
           scale([(sidebarSpringWidth-(1-unlocked)*gateHeight)/sidebarSpringPrintWidth,1,1]) sidebar_spring();
-        if (shackle) translate([0,0,shacklePosT]) shackle();
+        if (shackle) intersection() {
+          translate([0,0,shacklePosT]) shackle();
+          if (cutShackle!=undef) translate_y(cutShackle) positive_y();
+        }
         intersection() {
           color("pink") translate([0,0,0]) plug(threads);
-          translate_y(cutHousing) positive_y();
+          if (cutHousing!=undef) translate_y(cutHousing) positive_y();
         }
         if (lugs) {
           color("pink") translate([-lugR1-(1-open)*lugTravel1,0,lugPos]) mirror([1,0,0]) lug();
@@ -1062,13 +1089,14 @@ module test() {
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
       //translate_z(10) positive_z();
-      translate_z(housingDepth-housingBack-eps) negative_z();
-      translate_z(corePos+1) positive_z();
+      //translate_z(housingDepth-housingBack-eps) negative_z();
+      //translate_z(corePos+1) positive_z();
     }
     //rotate(-70) color("lightblue") translate([0,coreR+4.5]) cube([3,9,coreDepth*2],true);
     //translate([coreR-3,0,corePos-3.5/2-1.5]) rotate([0,90,0]) cylinder(d=4,h=6);
   }
 }
+//!disc_test();
 !test();
 
 //-----------------------------------------------------------------------------
@@ -1118,6 +1146,7 @@ module export_housing() {
 module export_plug() plug();
 module export_lug() rotate([180]) lug();
 module export_set_screw() rotate([180]) set_screw();
+module export_key() key_with_brim(brim=false,support=false);
 module export_key_with_brim() key_with_brim();
 module export_key_with_support() key_with_brim(brim=false,support=true);
 module export_disc_sanding_tool() disc_sanding_tool();

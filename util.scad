@@ -93,7 +93,7 @@ module chamfer_cube(x,y,z, r=1,rx=undef,ry=undef,rz=undef) {
   rzz = rz == undef ? r : max(eps,rz);
   minkowski() {
     cube([x-2*rxx,y-2*ryy,z-2*rzz],center=true);
-    scale([rxx,ryy,rzz]) octahedron(1,center=true);
+    scale([rxx,ryy,rzz]) octahedron(1);
   }
 }
 
@@ -125,6 +125,11 @@ function mul_vec(a,b) = [for (i=[0:len(a)-1]) a[i]*b[i]];
 function reverse(list) = [for (i=[0:len(list)-1]) list[len(list)-i-1]];
 function mul_vecs(a,list) = [for (x=list) mul_vec(a,x)];
 function palindrome(mul, list) = concat(list, mul_vecs(mul,reverse(list)));
+function randi(min,max) = floor(rands(min,max+1-1e-10,1)[0]);
+function randis(min,max,n) = [for (i=rands(0,max-min+1-1e-10,n)) min + floor(i)];
+function drop(n,xs,i=0) = [for (i=[n:len(xs)-1]) xs[i]];
+function insert_at(pos,x,xs) = [for (i=[0:len(xs)]) i < pos ? xs[i] : i == pos ? x : xs[i-1]];
+
 module sym_polygon(mul,list) {
   polygon(palindrome(mul,list));
 }
