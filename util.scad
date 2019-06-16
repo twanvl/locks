@@ -103,6 +103,12 @@ module chamfer(r) {
     octahedron(r,center=true);
   }
 }
+module chamfer2d(r) {
+  minkowski() {
+    offset(delta=-r) children();
+    circle(r,$fn=2);
+  }
+}
 
 module minkowski_difference(size=1e12) {
   difference() {

@@ -15,7 +15,7 @@ include <../util.scad>;
 //  * excluding spinner, there should be a 5 near the start and one near the end (for tension discs)
 //bittingCode = undef;
 //bittingCode = [5,3,5,0,3,2,1,4,3,5];
-bittingCode = [4,2,4,0,3,2,2,0,0,0,4,1];
+bittingCode = [4,2,4,0,3,2,1,0,3,0,1,4];
 
 TINY = 1;
 SMALLER = 2;
@@ -38,8 +38,8 @@ bits = size <= SMALLER ? 4 : 5;
 step = size < ORIGINAL ? 135/bits : 120/bits; // degrees
 //step = -100/4; // degrees
 
-discR = size <= TINY ? 7.2 : size <= SMALLER ? 7.5 : size <= SMALL ? 8.5 : 10;
-coreWall = size <= TINY ? 1 : size <= SMALLER ? 1.2 : size <= MEDIUM ? 1.6 : 1.7;
+discR = size <= TINY ? 7.2 : size <= SMALLER ? 7.4 : size <= SMALL ? 8.5 : 10;
+coreWall = size <= TINY ? 1 : size <= SMALLER ? 1.3 : size <= MEDIUM ? 1.6 : 1.7;
 coreR = discR + coreWall;
 echo("core diameter ",2*coreR);
 
@@ -49,10 +49,12 @@ function roundToLayerHeight(z) = round((z-firstLayerHeight)/layerHeight)*layerHe
 
 keyR1 = size <= SMALLER ? 3.75 : size <= SMALL ? 4 : 5;
 keyR2 = size <= SMALLER ? 2.7 : size <= SMALL ? 3 : 3.5;
-keyWidth = size <= SMALLER ? 2.5 : size <= SMALL ? 2.75 : size <= MEDIUM ? 2.75 : 3;
-keyRot = size <= SMALL ? 0.2*step : size <= MEDIUM ? 0.25*step : 0.5*step;
+keyWidth = size <= SMALLER ? 2.1 : size <= SMALL ? 2.75 : size <= MEDIUM ? 2.75 : 3;
+keyWidthCenter = size <= SMALLER ? 1.3 : keyWidth/2 + 0.08;
+keyRot = size <= SMALL ? 0.45*step : size <= MEDIUM ? 0.3*step : 0.5*step;
 //keyThickness = 2 * rot(keyRot,on_circle(keyR1+1, keyWidth/2))[0];
 keyThickness = 2 * rot(keyRot,on_circle(keyR1, keyWidth/2))[0];
+keyProfileFillet = 0.2;
 echo("keyThickness", keyThickness);
 keywayAngle = 0;
 
@@ -69,7 +71,8 @@ builtinSpacerThickness2 = layerHeight;
 builtinSpacerR = keyR1 + C + 0.5;
 
 gateHeight = size <= TINY ? 2 : 2.4;
-falseHeight = size <= TINY ? 0.5 : 1;
+smoothGates = true;
+falseHeight = size <= TINY ? 0.5 : smoothGates ? 0.8 : 1;
 sidebarThickness = roundToLayerHeight(1.85);
 printSidebarSpring = true;
 
@@ -77,9 +80,9 @@ limiterInside = true;
 limiterAngle = 30;
 
 function randomBitting(n,bits=bits) =
-  insert_at(randi(n-2,n-1), bits,
+  insert_at(n-1, bits,
   insert_at(0, bits,
-  insert_at(randi(0,1), bits, randis(0,bits-1,n-3))));
+  insert_at(1, bits, randis(0,bits-1,n-3))));
 bitting = bittingCode == undef ? randomBitting(12) : bittingCode;
 echo("Bitting: ", bitting);
 
@@ -111,9 +114,11 @@ lugSlope = size <= SMALLER ? 0.75 : 0.8; // about 60deg
 lugC = 0.5 + C;
 lugPos = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lugDepth/2 + lugC + C;
 
-housingSpacing = size <= SMALL ? 2 : size <= MEDIUM ? 2.5 : 2;
-housingHeight = 2*coreR + 2*housingSpacing;
-housingWidth = shackleWidth + shackleDiameter + 2*housingSpacing;
+housingSpacingX = size <= TINY ? 2 : size <= SMALLER ? 2.75 : 3;
+housingSpacingY = size <= TINY ? 2 : size <= SMALLER ? 2 : size <= MEDIUM ? 2.5 : 3;
+housingSpacingY2 = housingSpacingX;
+housingHeight = 2*coreR + 2*housingSpacingY;
+housingWidth = shackleWidth + shackleDiameter + 2*housingSpacingX;
 housingBack = roundToLayerHeight(size <= SMALLER ? 1.5 : 2);
 housingDepth = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0) + lugDepth + lugC + housingBack + 2*C;
 
@@ -137,20 +142,22 @@ module key_profile(r=keyR1) {
   //x=3.5/2;y=keyR1;
   //square([3.5,10],true);
   keyWidth2 = keyWidth - 0.0;
-  keyWidth3 = keyWidth/2 + 0.08;
+  fillet(keyProfileFillet)
   intersection() {
     union() {
       rotate(0) square([keyWidth,r],true);
       rotate(-keyRot) square([keyWidth2,2*r],true);
       rotate(keyRot) square([keyWidth2,2*r],true);
-      circle(keyWidth3);
+      circle(keyWidthCenter);
     }
     circle(r);
   }
 }
 module keyway_profile() {
   render() {
+    fillet(keyProfileFillet)
     intersection() {key_profile();circle(keyR1);}
+    fillet(keyProfileFillet)
     rotate(-2*step) intersection() {key_profile();circle(keyR2);}
   }
 }
@@ -184,22 +191,22 @@ module rotation_limiter_slot(fixed = false) {
   }
 }
 
-module sidebar_slot(deep,C=C) {
+module sidebar_slot(deep,C=C,chamfer=true) {
   w = sidebarThickness+1*C;
   h = deep ? gateHeight+C : falseHeight;
-  chamferX = 0.3;
-  chamferY = 0.4;
+  chamferX = chamfer && smoothGates ? falseHeight : 0.3;
+  chamferY = chamfer && smoothGates ? falseHeight : 0.4;
   translate([0,discR]) {
     //sym_polygon_x([[-w/2,0],[-w/2,-h]]);
     sym_polygon_x([[-w/2-chamferX,0],[-w/2,-chamferY],[-w/2,-h]]);
     //sym_polygon_x([[-w/2-0.1,0],[-w/2,-0.2],[-w/2-0.1,-1],[-w/2,-h]]);
   }
 }
-module sidebar_slot_wiggle(deep) {
-  Ca = size <= SMALLER ? 1.5 : 1.3;
-  rotate(-Ca) sidebar_slot(deep);
-  rotate(0) sidebar_slot(deep);
-  rotate(Ca) sidebar_slot(deep);
+module sidebar_slot_wiggle(deep, chamfer=true) {
+  Ca = smoothGates ? 1 : size <= SMALLER ? 1.5 : 1.3;
+  rotate(-Ca) sidebar_slot(deep,chamfer=chamfer);
+  rotate(0) sidebar_slot(deep,chamfer=chamfer);
+  rotate(Ca) sidebar_slot(deep,chamfer=chamfer);
 }
 
 module disc_profile(keyway = true, fixed = false) {
@@ -234,7 +241,7 @@ module spacer_disc() {
     difference() {
       disc_profile(false,true);
       circle(keyR1+keyC);
-      sidebar_slot_wiggle(true);
+      sidebar_slot_wiggle(true,chamfer=false);
     }
   }
   translate_z(spacerThickness - builtinSpacerThickness) builtin_spacer();
@@ -731,19 +738,24 @@ module housing(threads=true, logo=true) {
       //offset(4) offset(-4)
       mirrored([0,1])
       union() {
-        h1 = shackleDiameter+2*(housingSpacing-1);
-        square([housingWidth,h1],true);
-        intersection() {
-          // use an ellipse for the sides
-          translate_y(lots/2) square([housingWidth,lots],true);
-          r1 = housingWidth*1;
-          yForEdge = sqrt(r1*r1-(housingWidth/2)*(housingWidth/2));
-          r2 = (housingHeight/2 - h1/2) / (1 - yForEdge/r1);
-          y = r2/r1 * yForEdge;
-          // want: h1/2-y + r2 = housingHeight/2
-          //   = h1/2 - r2/r1 * sqrt.. + r2 = housingHeight/2
-          //  => r2 * (1 - sqrt../r1) =  housingHeight/2 - h1/2
-          translate_y(h1/2-y)  scale([1,r2/r1]) circle(r1);
+        h1 = shackleDiameter+2*(housingSpacingY2-1);
+        chamfer_rect(housingWidth,h1,housingChamfer);
+        difference() {
+          intersection() {
+            // use an ellipse for the sides
+            translate_y(lots/2) square([housingWidth,lots],true);
+            r1 = housingWidth*1;
+            yForEdge = sqrt(r1*r1-(housingWidth/2)*(housingWidth/2));
+            r2 = (housingHeight/2 - h1/2) / (1 - yForEdge/r1);
+            y = r2/r1 * yForEdge;
+            // want: h1/2-y + r2 = housingHeight/2
+            //   = h1/2 - r2/r1 * sqrt.. + r2 = housingHeight/2
+            //  => r2 * (1 - sqrt../r1) =  housingHeight/2 - h1/2
+            translate_y(h1/2-y)  scale([1,r2/r1]) circle(r1);
+          }
+          // chamfer
+          mirrored([1,0])
+          translate([housingWidth/2+housingChamfer,h1/2+housingChamfer]) scale([0.7,1]) circle(r=3*housingChamfer,$fn=4);
         }
       }
     }
@@ -822,7 +834,7 @@ module housing(threads=true, logo=true) {
     if (size <= SMALLER) {
       logoSize = 6;
       logoPos = logoSize+3;
-      translate([housingWidth/2-logoPos,-(shackleDiameter/2+housingSpacing+housingHeight/2)/2+logoSize*0.100,logoPos])
+      translate([housingWidth/2-logoPos,-(shackleDiameter/2+housingSpacingY2+housingHeight/2)/2+logoSize*0.100,logoPos])
       rotate([0,0,17.5])
       rotate([90])
       color("red")
@@ -830,7 +842,7 @@ module housing(threads=true, logo=true) {
     } else {
       logoSize = 6;
       logoPos = logoSize+3;
-      translate([housingWidth/2-logoPos,-(shackleDiameter/2+housingSpacing+housingHeight/2)/2+logoSize*0.12,logoPos])
+      translate([housingWidth/2-logoPos,-(shackleDiameter/2+housingSpacingY2+housingHeight/2)/2+logoSize*0.12,logoPos])
       rotate([0,0,23])
       rotate([90])
       logo(r=logoSize,logo=logo);
@@ -918,7 +930,7 @@ module sidebar() {
   }
 }
 
-sidebarSpringWidth = shackleDiameter+shackleSpacing+housingSpacing-2;
+sidebarSpringWidth = shackleDiameter+shackleSpacing+housingSpacingX-2;
 sidebarSpringPrintWidth = sidebarSpringWidth + 1;
 sidebarSpringDepth = sidebarDepth - 6;
 sidebarSpringThickness = sidebarThickness + 2;
