@@ -68,7 +68,7 @@ builtinSpacerThickness = layerHeight;
 builtinSpacerThickness2 = layerHeight;
 builtinSpacerR = keyR1 + C + 0.5;
 
-gateHeight = size <= TINY ? 2 : 2.5;
+gateHeight = size <= TINY ? 2 : 2.4;
 falseHeight = size <= TINY ? 0.5 : 1;
 sidebarThickness = roundToLayerHeight(1.85);
 printSidebarSpring = true;
@@ -119,6 +119,7 @@ housingDepth = corePos + coreDepth + coreBack + (coreLimiterFirst?coreLimiter:0)
 
 sidebarPos = corePos;
 sidebarDepth = (discs-1) * (discThickness + spacerThickness) + spinnerThickness - spinnerCountersink;
+sidebarInSpinner = false;
 
 shacklePos = roundToLayerHeight(size <= TINY ? 1.5 : 2);
 shackleLength = housingDepth + (size <= TINY ? 5 : 7);
@@ -171,11 +172,12 @@ module rotation_limiter() {
   }
 }
 module rotation_limiter_slot(fixed = false) {
-  offset(delta=C)
+  C1 = C * 0.33;
+  offset(delta=C1)
   intersection() {
     difference() {
       circle(coreR+1);
-      circle(discLimiterR);
+      circle(discLimiterR-(C-C1));
     }
     a = limiterInside || fixed ? 270 : 270-bits*step/2;
     rotate(a) wedge(-limiterAngle/2,(fixed ? 0 : bits*step)+limiterAngle/2,center=true);
@@ -184,17 +186,17 @@ module rotation_limiter_slot(fixed = false) {
 
 module sidebar_slot(deep,C=C) {
   w = sidebarThickness+1*C;
-  Ca = 1;
-  h = deep ? gateHeight : falseHeight;
-  chamfer = 0.3;
+  h = deep ? gateHeight+C : falseHeight;
+  chamferX = 0.3;
+  chamferY = 0.4;
   translate([0,discR]) {
     //sym_polygon_x([[-w/2,0],[-w/2,-h]]);
-    sym_polygon_x([[-w/2-chamfer,0],[-w/2,-chamfer],[-w/2,-h]]);
+    sym_polygon_x([[-w/2-chamferX,0],[-w/2,-chamferY],[-w/2,-h]]);
     //sym_polygon_x([[-w/2-0.1,0],[-w/2,-0.2],[-w/2-0.1,-1],[-w/2,-h]]);
   }
 }
 module sidebar_slot_wiggle(deep) {
-  Ca = 1.3;
+  Ca = size <= SMALLER ? 1.5 : 1.3;
   rotate(-Ca) sidebar_slot(deep);
   rotate(0) sidebar_slot(deep);
   rotate(Ca) sidebar_slot(deep);
@@ -255,7 +257,7 @@ module tension_disc() {
       {
         //sidebar_slot_wiggle(true);
         w = 2+1*C;
-        h = 2.5;
+        h = gateHeight+C;
         //translate([0,discR]) polygon([[-w/2,0],[-w/2,-h],[w/2,-h],[w*4/2,0]]);
         polygon([
           rot(-1.3,[-w/2,discR+10]), rot(-1.3,[-w/2,discR-h]),
@@ -275,12 +277,14 @@ module spinner_disc() {
       rotate(keywayAngle) offset(keyC) key_profile();
     }
     translate([0,0,-C]) linear_extrude(3+2*C)
-    rotated(180)
-    rotate(bits*step) {
-      w = 2+1*C;
-      w2 = 4*w;
-      h = 2.5;
-      polygon([[-w2/2,discR],[-w/2,discR-h],[w/2,discR-h],[w2/2,discR]]);
+    if (sidebarInSpinner) {
+      rotated(180)
+      rotate(bits*step) {
+        w = 2+1*C;
+        w2 = 5*w;
+        h = gateHeight+C;
+        polygon([[-w2/2,discR],[-w/2,discR-h],[w/2,discR-h],[w2/2,discR]]);
+      }
     }
   }
 }
@@ -319,7 +323,7 @@ module disc_test() {
   translate([0,2*coreR,0]) spacer_disc();
   translate([2*coreR,2*coreR,0]) tension_disc();
   translate([2*coreR,2*coreR,-2]) color("blue") disc(1);
-  translate([2*coreR,2*coreR,-2]) rotate(4.1*step-90) translate_x(-discR-4.5) color("green") sidebar();
+  translate([2*coreR,2*coreR,-2]) rotate((bits-0.9)*step-90) translate_x(-discR-4.5) color("green") sidebar();
   translate([4*coreR,2*coreR,0]) spinner_disc();
   translate([6*coreR,2*coreR,0]) spacer_disc_for_spinner();
   translate([4*coreR,0*coreR,0]) intersection() {
@@ -479,7 +483,7 @@ lugR1 = lugR + lugTravel - lugTravel1;
 lugR2 = lugR + lugTravel - lugTravel2;
 
 module actuator_profile(offset=0) {
-  o = 4;
+  o = size <= SMALLER ? 1.5 : 4;
   intersection() {
     offset(r=o+offset) offset(r=-o)
     difference() {
@@ -560,7 +564,8 @@ module core() {
       }
       translate_z(-eps) cylinder(r=discR+C,h=coreDepth+eps);
       // sidebar slot
-      translate([0,discR+2/2]) cube([sidebarThickness+2*C,2+2*gateHeight,coreDepth*2],true);
+      sidebarC = C/2;
+      translate([0,discR+2/2]) cube([sidebarThickness+2*sidebarC,2+2*gateHeight,coreDepth*2],true);
       // key end
       translate([0,0,coreDepth-2*eps]) cylinder(r1=keyR1+keyC,r2=keyR1*0.25+keyC,h=discThickness+0.5);
       if (!limiterInside) {
@@ -614,6 +619,11 @@ module core_limiter_slot() {
 // Shackle
 //-----------------------------------------------------------------------------
 
+function layout_text(text,sz) =
+  text == "SOFTENED" ? [sz*-3.5,sz*-2.47,sz*-1.45,sz*-0.5,sz*0.35,sz*1.45,sz*2.45,sz*3.5] : // manual kerning
+  text == "PLASTIC" ? [sz*-3,sz*-2,sz*-0.8,sz*0.35,sz*1.35,sz*2.15,sz*3] // manual kerning
+  : [for (i=[0:len(text)-1]) (i - (len(text)-1)/2) * sz];
+
 module shackle(shackleLabel = true) {
   // legs
   difference() {
@@ -666,14 +676,14 @@ module shackle(shackleLabel = true) {
       if (shackleLabel)
       rotate([90,0,0])
       linear_extrude(6,convexity=10) {
-        text="SOFTENED";
-        sz = -12;
-        //pos = [for (i=[0:len(text)-1]) (i - (len(text)-1)/2) * sz];
-        pos = [sz*-3.5,sz*-2.47,sz*-1.45,sz*-0.5,sz*0.35,sz*1.45,sz*2.45,sz*3.5]; // manual kerning
+        text = "PLASTIC";
+        textSize = size <= SMALLER ? 4.1 : 4.3;
+        sz = size <= SMALLER ? -13.5 : -12;
+        pos = layout_text(text,sz);
         for (i=[0:len(text)-1]) {
           rotate(pos[i])
           translate([0,shackleWidth/2])
-          text(text[i],size=4.3,font="Ubuntu:style=Bold",halign="center",valign="center");
+          text(text[i],size=textSize,font="Ubuntu:style=Bold",halign="center",valign="center");
         }
       }
     }
@@ -896,9 +906,16 @@ module set_screw() {
 //-----------------------------------------------------------------------------
 
 module sidebar() {
-  sidebarChamfer = 0.3;
-  translate([(gateHeight+coreWall)/2,0,(sidebarDepth-C)/2])
-  chamfer_cube(gateHeight+coreWall,sidebarThickness,sidebarDepth-C,sidebarChamfer,rz=0);
+  sidebarChamfer = 0.4;
+  difference() {
+    translate([(gateHeight+coreWall)/2,0,(sidebarDepth-C)/2])
+    chamfer_cube(gateHeight+coreWall,sidebarThickness,sidebarDepth-C,sidebarChamfer,rz=0);
+    if (!sidebarInSpinner) {
+     translate([-lots+gateHeight-discR+discLimiterR+C,-lots/2,C-spinnerCountersink])
+      //translate([(gateHeight+coreWall)-(coreR-discLimiterR)-lots,-lots/2,-spinnerCountersink])
+      cube([lots,lots,discThickness]);
+    }
+  }
 }
 
 sidebarSpringWidth = shackleDiameter+shackleSpacing+housingSpacing-2;
@@ -958,6 +975,13 @@ module keyway_test() {
       rotate(i*step) {
         translate([0,0,-1]) color("yellow") keyway_profile();
         translate([0,0,-2]) color("pink") rotate(2) offset(C) keyway_profile();
+      }
+    }
+    translate([10+i*10,-10]) {
+      color("blue") render() key_bit_profile(bits-i);
+      rotate(0) {
+        translate([0,0,-1]) color("yellow") keyway_profile();
+        translate([0,0,-2]) color("pink") rotate(-2) offset(C) keyway_profile();
       }
     }
   }
@@ -1026,7 +1050,7 @@ module test() {
   sidebar = core;
   cutHousing = 0;
   cutCore = cutHousing;
-  cutShackle = cutHousing;
+  cutShackle = undef;//cutHousing;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
   //open = max(0,min(1,ts*$t-1));
