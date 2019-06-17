@@ -495,8 +495,8 @@ module actuator_profile(offset=0) {
     offset(r=o+offset) offset(r=-o)
     difference() {
       circle(lugR);
-      translate([-lugR,0]) scale([lugTravel1*2,lugHeight]) circle(d=1,$fn=20);
-      translate([lugR,0]) scale([lugTravel2*2,lugHeight]) circle(d=1,$fn=20);
+      translate([-lugR,0]) scale([lugTravel1*2,lugHeight]) circle(d=1,$fn=80);
+      translate([lugR,0]) scale([lugTravel2*2,lugHeight]) circle(d=1,$fn=80);
     }
     circle(coreR);
   }
@@ -559,7 +559,7 @@ module lug(clear_limiter = size <= SMALL) {
 // Core
 //-----------------------------------------------------------------------------
 
-coreLimiterR = lugR - lugTravel;
+coreLimiterR = size <= SMALLER ? lugR - lugTravel + 1 : lugR - lugTravel;
 
 module core() {
   rotate(coreAngle) group() {
@@ -729,7 +729,7 @@ module shackle_with_support() {
 
 include <../threads.scad>
 
-module housing(threads=true, logo=true) {
+module housing(threads=true, logo=true, shackleHoles=true) {
   difference() {
     housingChamfer = 0.45;
     //linear_extrude(housingDepth, convexity=10) {
@@ -786,32 +786,34 @@ module housing(threads=true, logo=true) {
       }
     }
     // shackle holes
-    translates([[-shackleWidth/2,0,shackleLength-shackleLength1],
-                [shackleWidth/2,0,shackleLength-shackleLength2]]) {
-      translate([0,0,shacklePos-bridgeC]) cylinder(r1=shackleDiameter/2+C-(shackleChamfer+bridgeC), r2=shackleDiameter/2+C, h=shackleChamfer+bridgeC);
-      translate([0,0,shacklePos+shackleChamfer]) cylinder(r=shackleDiameter/2+C, h=housingDepth);
-    }
-    // lugs
-    group() {
-      linear_extrude_x(2*(coreR+shackleSpacing+lugOverlap+C),true) {
-        chamfer1 = 1; // chamfer at bottom side for printability
-        chamfer2 = 0.8; // chamfer at bottom side for printability
-        sym_polygon_x([
-          [lugHeight/2+C, lugPos+lugDepth/2+C],
-          [lugHeight/2+C, lugPos-lugDepth/2-C+chamfer1*0.8],
-          [lugHeight/2-chamfer1-chamfer2, lugPos-lugDepth/2-C-chamfer2*0.8]
-        ]);
+    if (shackleHoles) {
+      translates([[-shackleWidth/2,0,shackleLength-shackleLength1],
+                  [shackleWidth/2,0,shackleLength-shackleLength2]]) {
+        translate([0,0,shacklePos-bridgeC]) cylinder(r1=shackleDiameter/2+C-(shackleChamfer+bridgeC), r2=shackleDiameter/2+C, h=shackleChamfer+bridgeC);
+        translate([0,0,shacklePos+shackleChamfer]) cylinder(r=shackleDiameter/2+C, h=housingDepth);
       }
-      intersection() {
-        cylinder(r=coreR+C,h=lots);
-        translate_z(lugPos) cube([lots,lugHeight+2*C,lugDepth+2*C],true);
-      }
-      render() intersection() {
-        chamfer1 = 1; chamfer2 = 0.8;
-        d=0.5;
-        translate_z(lugPos-lugDepth/2-(chamfer2+d)*0.8)
-          cylinder(r1=coreR+C,r2=coreR+C+d,h=d*0.8);
-        cube([100,lugHeight+2*C-2*(chamfer1+chamfer2),100],true);
+      // lugs
+      group() {
+        linear_extrude_x(2*(coreR+shackleSpacing+lugOverlap+C),true) {
+          chamfer1 = 1; // chamfer at bottom side for printability
+          chamfer2 = 0.8; // chamfer at bottom side for printability
+          sym_polygon_x([
+            [lugHeight/2+C, lugPos+lugDepth/2+C],
+            [lugHeight/2+C, lugPos-lugDepth/2-C+chamfer1*0.8],
+            [lugHeight/2-chamfer1-chamfer2, lugPos-lugDepth/2-C-chamfer2*0.8]
+          ]);
+        }
+        intersection() {
+          cylinder(r=coreR+C,h=lots);
+          translate_z(lugPos) cube([lots,lugHeight+2*C,lugDepth+2*C],true);
+        }
+        render() intersection() {
+          chamfer1 = 1; chamfer2 = 0.8;
+          d=0.5;
+          translate_z(lugPos-lugDepth/2-(chamfer2+d)*0.8)
+            cylinder(r1=coreR+C,r2=coreR+C+d,h=d*0.8);
+          cube([100,lugHeight+2*C-2*(chamfer1+chamfer2),100],true);
+        }
       }
     }
     // plug hole
@@ -942,7 +944,7 @@ module wiggle(w,h,r) {
   //polygon([[0,0],[0,ry],[w/2-rx/2,h],[w/2+rx/2,h],[w,ry],[w,0],[w/2,h-ry]]);
   polygon([[rx/2,0],[0,0],[0,ry],[w/2-rx/2,h],[w/2+rx/2,h],[w,ry],[w,0],[w-rx/2,0],[w/2,h-ry]]);
 }
-module sidebar_spring(angle = 0) {
+module sidebar_spring(angle = 0, nub=false) {
   h = sidebarSpringDepth;
   nx = 6;
   r = 0.5;
@@ -960,10 +962,12 @@ module sidebar_spring(angle = 0) {
     }
   }
   // pusher for sidebar
-  p = r;
-  translate_y((sidebarSpringThickness-sidebarThickness)/2)
-  linear_extrude(sidebarSpringDepth) {
-    sym_polygon_y([[0,sidebarThickness/2],[-p,sidebarThickness/2-1.5*p]]);
+  if (nub) {
+    p = r;
+    translate_y((sidebarSpringThickness-sidebarThickness)/2)
+    linear_extrude(sidebarSpringDepth) {
+      sym_polygon_y([[0,sidebarThickness/2],[-p,sidebarThickness/2-1.5*p]]);
+    }
   }
 }
 
@@ -1047,6 +1051,18 @@ module core_limiter_test() {
   }
 }
 //!core_limiter_test();
+
+module housing_sidebar_test() {
+  intersection() {
+    group() {
+      export_housing_sidebar_test();
+      rotate(0.5)
+      color("red") translate([0,0,corePos + C]) core();
+    }
+    translate_z(corePos+coreDepth+coreBack+lugDepth+lugC) negative_z();
+  }
+}
+!housing_sidebar_test();
 
 module test() {
   $fs = 1; $fa = 8;
@@ -1133,7 +1149,7 @@ module test() {
   }
 }
 //!disc_test();
-!test();
+//!test();
 
 //-----------------------------------------------------------------------------
 // Exported parts
@@ -1197,6 +1213,21 @@ module export_housing_lug_test() {
     housing(threads=false, logo=false);
     negative_x();
     translate_z(lugPos-lugDepth/2-3) positive_z();
+  }
+}
+module export_housing_sidebar_test() {
+  //rotate([180])
+  intersection() {
+    housing(threads=false, logo=false, shackleHoles=false);
+    //negative_x();
+    union() {
+      translate_z(corePos+coreDepth) cylinder(r=coreR+2,lots);
+      translate([coreR-2,-5,corePos-2])
+      cube([sidebarSpringDepth-8,8,lots]);
+      translate([coreR-2,-5,corePos+15])
+      cube([sidebarSpringDepth-2.5,8,lots]);
+      //translate_z(lugPos-lugDepth/2-3) positive_z();
+    }
   }
 }
 export_discs();
