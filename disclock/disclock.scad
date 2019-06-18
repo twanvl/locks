@@ -544,7 +544,16 @@ module lug(clear_limiter = coreLimiterFirst || size <= SMALL) {
         if (coreLimiterFirst && clear_limiter) {
           translate_x(-(lugR + lugTravel))
           translate_z(-lugDepth/2)
-          cylinder(r=coreR+1,h=coreLimiter+C+eps);
+          group() {
+            cylinder(r=coreR+coreC+0.5,h=coreLimiter+C+eps);
+            linear_extrude(coreLimiter+C+eps) {
+              translate_x(lugTravel+2*C) {
+                rotate(90) wedge(-10,-10-45,r=coreR+5);
+                polygon([[lugTravel+coreR-lugR-1,0],polar(90-10,coreR),polar(90-10-45,coreR)]);
+                polygon([[lugTravel+coreR-lugR-0.2,-2],polar(90-10,coreR),polar(90-10-45,coreR)]);
+              }
+            }
+          }
         }
       }
       lug_hole(0,0,0);
@@ -1108,14 +1117,15 @@ module test() {
   lugs = true;
   shackle = true;
   sidebar = core;
-  cutHousing = 0;
+  cutHousing = undef;
   cutCore = cutHousing;
   cutShackle = undef;//cutHousing;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
-  //open = max(0,min(1,ts*$t-1));
+  open = max(0,min(1,ts*$t-1));
   //open=1.6;
-  open=0;
+  //open=0;
+  lugOpen = pow(open,3);
   shacklePosT = shacklePos + C + shackleTravel*max(0,min(1,ts*$t-2));
   sidebarSpringPos = sidebarPos+(sidebarDepth-sidebarSpringDepth)/2;
 
@@ -1165,15 +1175,16 @@ module test() {
           if (cutHousing!=undef) translate_y(cutHousing) positive_y();
         }
         if (lugs) {
-          color("pink") translate([-lugR1-(1-open)*lugTravel1,0,lugPos]) mirror([1,0,0]) lug();
-          color("pink") translate([lugR2+(1-open)*lugTravel2,0,lugPos]) lug();
+          color("pink") translate([-lugR1-(1-lugOpen)*lugTravel1,0,lugPos]) rotate(180) lug();
+          color("pink") translate([lugR2+(1-lugOpen)*lugTravel2,0,lugPos]) lug();
         }
         if (threads) color("darkgrey") translate([-(coreR+3),0,setScrewPos]) rotate([0,90]) set_screw();
       }
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
       //translate_z(10) positive_z();
-      //translate_z(housingDepth-housingBack-eps) negative_z();
+      translate_z(housingDepth-housingBack-eps) negative_z();
+      translate_z(housingDepth-housingBack-lugDepth) positive_z();
       //translate_z(corePos+1) positive_z();
     }
     //rotate(-70) color("lightblue") translate([0,coreR+4.5]) cube([3,9,coreDepth*2],true);
