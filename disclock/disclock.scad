@@ -796,15 +796,13 @@ module housing(threads=true, logo=true, shackleHoles=true, lugHoles=true, simple
     translate_z(-eps) cylinder(r=coreR+coreC,h=corePos+coreDepth+coreBack+lugC+2*C);
     translate_z(corePos+coreDepth+coreBack+lugC+C) cylinder(r=lugR+coreC,h=lugDepth+C);
     // sidebar slot
-    // Note: chamfered to still accept sidebar if core is rotated too far closed
     sidebarPosY = sidebarThickness/2+C;
     translate([coreR-1, 0, sidebarPos-bridgeC])
     linear_extrude(sidebarDepth+C+bridgeC) {
       polygon([
         [0,sidebarPosY], [gateHeight+1+C,sidebarPosY],
         [gateHeight+1+C,sidebarPosY-sidebarThickness-2*C],
-        [2,sidebarPosY-sidebarThickness-2*C],
-        [0,sidebarPosY-sidebarThickness-2*C-1.5]]);
+        [0,sidebarPosY-sidebarThickness-2*C]]);
     }
     if (printSidebarSpring) {
       h = sidebarSpringDepth + 2*C + 1;
@@ -981,7 +979,7 @@ module sidebar() {
 }
 
 sidebarSpringWidth = shackleDiameter+shackleSpacing+housingSpacingX-2;
-sidebarSpringPrintWidth = sidebarSpringWidth + 1;
+sidebarSpringPrintWidth = sidebarSpringWidth + 0.5;
 sidebarSpringDepth = sidebarDepth - 6;
 sidebarSpringThickness = sidebarThickness + 2;
 
@@ -1241,6 +1239,7 @@ module export_sidebar() {
   rotate([90]) sidebar();
 }
 module export_sidebar_spring() rotate([90]) sidebar_spring();
+module export_sidebar_spring3() rotate([90]) sidebar_spring(3);
 module export_sidebar_spring5() rotate([90]) sidebar_spring(5);
 module export_sidebar_spring10() rotate([90]) sidebar_spring(10);
 module export_shackle() {
