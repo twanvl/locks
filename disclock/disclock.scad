@@ -48,7 +48,7 @@ firstLayerHeight = size == ORIGINAL ? 0.2 : layerHeight;
 function roundToLayerHeight(z) = round((z-firstLayerHeight)/layerHeight)*layerHeight + firstLayerHeight;
 
 keyR1 = size <= SMALLER ? 3.75 : size <= SMALL ? 4 : 5;
-keyR2 = size <= SMALLER ? 2.7 : size <= SMALL ? 3 : 3.5;
+keyR2 = size <= SMALLER ? 2.8 : size <= SMALL ? 3 : 3.5;
 keyWidth = size <= SMALLER ? 2.1 : size <= SMALL ? 2.75 : size <= MEDIUM ? 2.75 : 3;
 keyWidthCenter = size <= SMALLER ? 1.3 : keyWidth/2 + 0.08;
 keyRot = size <= SMALL ? 0.45*step : size <= MEDIUM ? 0.3*step : 0.5*step;
@@ -138,6 +138,10 @@ shackleTravel = housingBack + lugDepth + 6;
 // key profile
 //-----------------------------------------------------------------------------
 
+function bitStep(bit) = bit == bits ? bits * (step+1) : bit*(step-1);
+//function bitStep(bit) = bit * step;
+maxStep = bitStep(bits);
+
 module key_profile(r=keyR1) {
   //x=3.5/2;y=keyR1;
   //square([3.5,10],true);
@@ -154,11 +158,11 @@ module key_profile(r=keyR1) {
   }
 }
 module keyway_profile() {
-  render() {
-    fillet(keyProfileFillet)
+  fillet(keyProfileFillet)
+  render() union() {
     intersection() {key_profile();circle(keyR1);}
-    fillet(keyProfileFillet)
-    rotate(-2*step) intersection() {key_profile();circle(keyR2);}
+    rotate(-(maxStep-bitStep(bits-1))) intersection() {key_profile();circle(keyR2);}
+    rotate(-(maxStep-bitStep(bits-2))) intersection() {key_profile();circle(keyR2);}
   }
 }
 
@@ -174,7 +178,7 @@ module rotation_limiter() {
       circle(coreR);
       circle(discLimiterR);
     }
-    a = limiterInside ? 270 : 270-bits*step/2;
+    a = limiterInside ? 270 : 270-maxStep/2;
     rotate(a) wedge(limiterAngle,center=true);
   }
 }
@@ -186,8 +190,8 @@ module rotation_limiter_slot(fixed = false) {
       circle(coreR+1);
       circle(discLimiterR-(C-C1));
     }
-    a = limiterInside || fixed ? 270 : 270-bits*step/2;
-    rotate(a) wedge(-limiterAngle/2,(fixed ? 0 : bits*step)+limiterAngle/2,center=true);
+    a = limiterInside || fixed ? 270 : 270-maxStep/2;
+    rotate(a) wedge(-limiterAngle/2,(fixed ? 0 : maxStep)+limiterAngle/2,center=true);
   }
 }
 
@@ -196,11 +200,11 @@ module sidebar_slot(deep,C=C,chamfer=true) {
   h = deep ? gateHeight+C : falseHeight;
   chamferX = chamfer && smoothGates ? falseHeight*1.1 : 0.3;
   chamferY = chamfer && smoothGates ? falseHeight : 0.4;
-  translate([0,discR]) {
-    //sym_polygon_x([[-w/2,0],[-w/2,-h]]);
-    sym_polygon_x([[-w/2-chamferX,0],[-w/2,-chamferY],[-w/2,-h]]);
-    //sym_polygon_x([[-w/2-0.1,0],[-w/2,-0.2],[-w/2-0.1,-1],[-w/2,-h]]);
-  }
+  chamferA = chamferX * 360 / (discR*2*PI);
+  sym_polygon_x(
+    [[0,2*discR],
+    for (i=[0:0.25:1]) rot(-chamferA*(1-i),[-w/2,discR-chamferY*i]),
+    [-w/2,discR-h]]);
 }
 module sidebar_slot_wiggle(deep, chamfer=true) {
   Ca  = smoothGates ? 1.8 : size <= SMALLER ? 1.5 : 1.3;
@@ -215,7 +219,7 @@ module disc_profile(keyway = true, fixed = false) {
     if (keyway) rotate(keywayAngle) offset(keyC) keyway_profile();
     if (limiterInside) rotation_limiter_slot(fixed);
   }
-  if (!limiterInside) rotate(-bits*step) rotation_limiter();
+  if (!limiterInside) rotate(-maxStep) rotation_limiter();
 }
 
 module builtin_spacer() {
@@ -230,7 +234,7 @@ module disc(bit=0) {
       disc_profile();
       // slots
       for (i=[0:bits]) {
-        rotate(i*step) sidebar_slot_wiggle(i == bit);
+        rotate(bitStep(i)) sidebar_slot_wiggle(i == bit);
       }
     }
   }
@@ -263,10 +267,10 @@ module tension_disc() {
       if (false) {
         // gates?
         for (i=[0:bits-2]) {
-          rotate(i*step) sidebar_slot_wiggle(false);
+          rotate(bitStep(i)) sidebar_slot_wiggle(false);
         }
       }
-      rotate(bits*step) {
+      rotate(maxStep) {
         //sidebar_slot_wiggle(true);
         w = sidebarThickness+1*C;
         h = gateHeight+C;
@@ -297,7 +301,7 @@ module spinner_disc() {
     translate([0,0,-C]) linear_extrude(3+2*C)
     if (sidebarInSpinner) {
       rotated(180)
-      rotate(bits*step) {
+      rotate(maxStep) {
         w = sidebarThickness+1*C;
         w2 = 5*w;
         h = gateHeight+C;
@@ -352,7 +356,7 @@ module disc_test() {
   translate([7*coreR,0*coreR,0]) keyway_test();
 }
 //!tension_disc();
-//!disc_test();
+!disc_test();
 
 //-----------------------------------------------------------------------------
 // Key
@@ -361,15 +365,10 @@ module disc_test() {
 module key_bit_profile(bit) {
   intersection() {
     key_profile();
-    rotate((bits-bit)*step) keyway_profile();
+    rotate(maxStep - bitStep(bit)) keyway_profile();
     if (bits-bit >= 2) intersection() {
-      rotate((bits-bit-2)*step) key_profile();
-      if (bits-bit > 2) rotate((bits-bit-2.5)*step) key_profile();
-      if (bits-bit > 3) rotate((bits-bit-3)*step) key_profile();
-      if (bits-bit > 3) rotate((bits-bit-3.5)*step) key_profile();
-      if (bits-bit > 3) rotate((bits-bit-3.5)*step) key_profile();
-      if (bits-bit > 4) rotate((bits-bit-4)*step) key_profile();
-      if (bits-bit > 4) rotate((bits-bit-4.5)*step) key_profile();
+      rotate(bitStep(2)-bitStep(bit)) key_profile();
+      if (bits-bit >= 3) rotate(bitStep(1)-bitStep(bit)) key_profile();
       circle(keyR2);
     }
   }
@@ -1034,16 +1033,16 @@ module keyway_test() {
   for (i=[0:bits]) {
     translate([10+i*10,0]) {
       color("blue") render() key_bit_profile(bits-i);
-      rotate(i*step) {
+      rotate(maxStep-bitStep(bits-i)) {
         translate([0,0,-1]) color("yellow") keyway_profile();
-        translate([0,0,-2]) color("pink") rotate(2) offset(C) keyway_profile();
+        translate([0,0,-2]) color("pink") rotate(2) offset(keyC) keyway_profile();
       }
     }
     translate([10+i*10,-10]) {
       color("blue") render() key_bit_profile(bits-i);
       rotate(0) {
         translate([0,0,-1]) color("yellow") keyway_profile();
-        translate([0,0,-2]) color("pink") rotate(-2) offset(C) keyway_profile();
+        translate([0,0,-2]) color("pink") rotate(-2) offset(keyC) keyway_profile();
       }
     }
   }
@@ -1159,7 +1158,7 @@ module test() {
             //translate_z(0) color("lightyellow") rotate(coreAngle) spinner_disc();
             for (i=[0:len(bitting)-1]) {
               translate_z(i*(discThickness+spacerThickness))
-              rotate(coreAngle + unlocked * bitting[i]*step)
+              rotate(coreAngle + unlocked * bitStep(bitting[i]))
               mirror([1,0,0]) if (i==0) {
                 color("lightgreen") spinner_disc();
               } else if (bitting[i] == bits) {
@@ -1171,7 +1170,7 @@ module test() {
               translate_z(i*(discThickness+spacerThickness)+discThickness) color("lightyellow") rotate(coreAngle) spacer_disc();
             }
           }
-          if (key) translate_z(0) color("magenta") rotate(coreAngle + keywayAngle + unlocked*bits*step) key();
+          if (key) translate_z(0) color("magenta") rotate(coreAngle + keywayAngle + unlocked*maxStep) key();
           if (sidebar) color("green") translate([discR-unlocked*gateHeight+C/2,0,sidebarPos+C/2]) sidebar();
         }
         color("blue") translate([discR-unlocked*gateHeight+C/2+gateHeight+coreWall,(sidebarThickness-sidebarSpringThickness)/2, sidebarSpringPos+C/2])
