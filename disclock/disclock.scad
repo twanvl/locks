@@ -138,7 +138,10 @@ shackleTravel = housingBack + lugDepth + 6;
 // key profile
 //-----------------------------------------------------------------------------
 
-function bitStep(bit) = bit == bits ? bits * (step+1) : bit*(step-1);
+varyingGates = false;
+function bitStep(bit) = !varyingGates
+  ? bit*step
+  : bit == bits ? bits * (step+1) : bit*(step-1);
 //function bitStep(bit) = bit * step;
 maxStep = bitStep(bits);
 
@@ -356,7 +359,7 @@ module disc_test() {
   translate([7*coreR,0*coreR,0]) keyway_test();
 }
 //!tension_disc();
-!disc_test();
+//!disc_test();
 
 //-----------------------------------------------------------------------------
 // Key
@@ -980,7 +983,7 @@ module sidebar() {
 sidebarSpringWidth = shackleDiameter+shackleSpacing+housingSpacingX-2;
 sidebarSpringPrintWidth = sidebarSpringWidth + 0.5;
 sidebarSpringDepth = sidebarDepth - 6;
-sidebarSpringThickness = sidebarThickness + 2;
+sidebarSpringThickness = sidebarThickness + 1;
 
 module wiggle(w,h,r) {
   a = atan2(h,w/2);
@@ -990,21 +993,19 @@ module wiggle(w,h,r) {
   polygon([[rx/2,0],[0,0],[0,ry],[w/2-rx/2,h],[w/2+rx/2,h],[w,ry],[w,0],[w-rx/2,0],[w/2,h-ry]]);
 }
 module sidebar_spring(angle = 0, nub=true) {
-  h = sidebarSpringDepth;
   nx = 6;
   r = 0.5;
   w = (sidebarSpringPrintWidth-r)/nx;
-  h2 = h*cos(angle);
-  w2 = w + h*sin(angle);
+  h = sidebarSpringDepth-(w+r);
+  gon = 80;
+  translate_z(sidebarSpringDepth) mirror([0,0,1])
   linear_extrude_y(sidebarSpringThickness,center=true) {
-    square([r,sidebarSpringDepth]);
-    for (i=[0:nx-1]) {
-      translate([i*w2+r/2,i%2 ? h2-r : 0]) square([w,r]);
-      translate([i*w2+r/2+ (i%2==0 ? w : w2), 0])
-        rotate(i%2==0 ? -angle : angle)
-        translate([-r/2,0])
-        square([r,sidebarSpringDepth]);
-    }
+    square([r,sidebarSpringDepth-(w+r)/2]);
+    translate([r/2,r/2])
+    line(cumsum([for (i=[0:nx])
+        each [polar(i == 0 ? 90 : i%2 ? -90+angle : 90-angle, sidebarSpringDepth - w - r + (i==0||i==nx ? w/2 : 0))
+             ,if (i<nx) for (j=[-90:360/gon:90]) polar((i%2 ? j : -j)*(180-2*angle)/180,w*sin(180/gon)) ]
+      ],[0,0]), r);
   }
   // pusher for sidebar
   if (nub) {
@@ -1016,11 +1017,28 @@ module sidebar_spring(angle = 0, nub=true) {
   }
 }
 
+
+module line(points,r) {
+  n = len(points);
+  angles = [for (i=[0:n-2]) normalize(points[i+1] - points[i])];
+  angles2 = [for (i=[0:n-1]) i==0 ? angles[0] : i==n-1 ? angles[n-2] : (angles[i-1]+angles[i])/2 ];
+  outline = [
+    for (i=[0:n-1])    points[i]+eps/2*rot(90,angles2[i]),
+    for (i=[n-1:-1:0]) points[i]+eps/2*rot(-90,angles2[i])
+  ];
+  offset(r/2)
+  polygon(outline);
+}
+
+
 module sidebar_test() {
   sidebar();
   translate_x(gateHeight+coreWall + 2) sidebar_spring(5);
+  translate_z(sidebarSpringDepth+2) translate_x(gateHeight+coreWall + 2) sidebar_spring(5, nub=false);
+  translate_z(2*(sidebarSpringDepth+2)) translate_x(gateHeight+coreWall + 2) sidebar_spring(0);
 }
-//!sidebar_test();
+!sidebar_spring(3,false);
+!sidebar_test();
 
 //-----------------------------------------------------------------------------
 // Tests
@@ -1238,7 +1256,7 @@ module export_sidebar() {
   rotate([90]) sidebar();
 }
 module export_sidebar_spring() rotate([90]) sidebar_spring();
-module export_sidebar_spring3() rotate([90]) sidebar_spring(3);
+module export_sidebar_spring3() rotate([90]) sidebar_spring(3,nub=false);
 module export_sidebar_spring5() rotate([90]) sidebar_spring(5);
 module export_sidebar_spring10() rotate([90]) sidebar_spring(10);
 module export_shackle() {

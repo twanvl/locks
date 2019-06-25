@@ -18,6 +18,7 @@ function rot(a,p) = [cos(a)*p[0]+sin(a)*p[1], cos(a)*p[1]-sin(a)*p[0]];
 function diagonal(a,b) = sqrt(a*a+b*b);
 function side_given_diagonal(c,b) = sqrt(c*c-b*b);
 function on_circle(r,x) = [x,side_given_diagonal(r,x)];
+function normalize(v) = v / norm(v);
 
 //-----------------------------------------------------------------------------
 // Extruding
@@ -135,6 +136,7 @@ function randi(min,max) = floor(rands(min,max+1-1e-10,1)[0]);
 function randis(min,max,n) = [for (i=rands(0,max-min+1-1e-10,n)) min + floor(i)];
 function drop(n,xs,i=0) = [for (i=[n:len(xs)-1]) xs[i]];
 function insert_at(pos,x,xs) = [for (i=[0:len(xs)]) i < pos ? xs[i] : i == pos ? x : xs[i-1]];
+function cumsum(list,x) = [for (s=x,i=0; i<=len(list); s=s+list[i],i=i+1) s];
 
 module sym_polygon(mul,list) {
   polygon(palindrome(mul,list));
