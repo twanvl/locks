@@ -24,6 +24,7 @@ MEDIUM = 4;
 LARGE = 5;
 ORIGINAL = 6;
 size = SMALLER;
+//size = ORIGINAL;
 
 C = 0.125; // clearance
 keyC = C;
@@ -71,8 +72,8 @@ builtinSpacerThickness2 = layerHeight;
 builtinSpacerR = keyR1 + C + 0.5;
 
 gateHeight = size <= TINY ? 2 : 2.4;
-smoothGates = true;
-falseHeight = size <= TINY ? 0.5 : size <= SMALLER ? 0.7 : smoothGates ? 0.8 : 1;
+smoothGates = false;
+falseHeight = size <= TINY ? 0.5 : smoothGates ? 0.7 : size <= SMALLER ? 0.9 : 1;
 sidebarThickness = roundToLayerHeight(1.85);
 printSidebarSpring = true;
 
@@ -198,22 +199,23 @@ module rotation_limiter_slot(fixed = false) {
   }
 }
 
-module sidebar_slot(deep,C=C,chamfer=true) {
-  w = sidebarThickness+1*C;
+module sidebar_slot(deep,C =C, chamfer=true, wiggle=true) {
+  w = sidebarThickness;
   h = deep ? gateHeight+C : falseHeight;
-  chamferX = chamfer && smoothGates ? falseHeight*1.1 : 0.3;
+  Ca = wiggle ? (smoothGates ? 1.8 : size <= SMALLER ? 2.2 : 1.3) : 0;
+  h2 = deep ? h : falseHeight + 0.2;
+  chamferX = chamfer && smoothGates ? falseHeight*1.1 : 0.8;
   chamferY = chamfer && smoothGates ? falseHeight : 0.4;
   chamferA = chamferX * 360 / (discR*2*PI);
   sym_polygon_x(
     [[0,2*discR],
-    for (i=[0:0.25:1]) rot(-chamferA*(1-i),[-w/2,discR-chamferY*i]),
-    [-w/2,discR-h]]);
+    for (i=[0:0.25:1]) rot(-chamferA*(1-i)-Ca,[-w/2,discR-chamferY*i]),
+    rot(-Ca,[-w/2,discR-(h+h2)/2]),
+    rot(0,[-w/2,discR-h2]),
+    [-w/4,discR-h]]);
 }
 module sidebar_slot_wiggle(deep, chamfer=true) {
-  Ca  = smoothGates ? 1.8 : size <= SMALLER ? 1.5 : 1.3;
-  rotate(-Ca) sidebar_slot(deep,chamfer=chamfer);
   rotate(0) sidebar_slot(deep,chamfer=chamfer);
-  rotate(Ca) sidebar_slot(deep,chamfer=chamfer);
 }
 
 module disc_profile(keyway = true, fixed = false) {
@@ -264,6 +266,14 @@ module spacer_disc_for_spinner() {
   }
 }
 module tension_disc() {
+  w = sidebarThickness+1*C;
+  w2 = w*0.85;
+  h = gateHeight+C;
+  h2 = falseHeight;
+  a = step*0.85;
+  b = 0.8;
+  chamferY = smoothGates ? falseHeight : 0.4;
+  Ca = smoothGates ? 1.8 : size <= SMALLER ? 1.5 : 1.3;
   linear_extrude(discThickness - builtinSpacerThickness, convexity=10) {
     difference() {
       disc_profile();
@@ -273,20 +283,20 @@ module tension_disc() {
           rotate(bitStep(i)) sidebar_slot_wiggle(false);
         }
       }
+      rotate(0) {
+        polygon([
+          rot(Ca,[w/2,discR+10]),
+          rot(Ca,[w/2,discR-h2]),
+          for (i=[0:0.1:1]) rot(-a*0.5*i,[-w2/2,discR-h2*(1-i*(1+b-b*i))])
+          ]);
+      }
       rotate(maxStep) {
         //sidebar_slot_wiggle(true);
-        w = sidebarThickness+1*C;
-        h = gateHeight+C;
-        a = step;
-        b = 0.6;
-        chamferY = smoothGates ? falseHeight : 0.4;
-        Ca = smoothGates ? 1.8 : size <= SMALLER ? 1.5 : 1.3;
         //translate([0,discR]) polygon([[-w/2,0],[-w/2,-h],[w/2,-h],[w*4/2,0]]);
         polygon([
-          rot(-1.3,[-w/2,discR+10]),
-          rot(-1.3,[-w/2,discR-h]),
-          [w/2,discR-h],
-          for (i=[0:0.2:1]) rot(a*i,[w/2,discR-h*(1-i*(1+b-b*i))])
+          rot(-Ca,[-w/2,discR+10]),
+          rot(-Ca,[-w/2,discR-h]),
+          for (i=[0:0.1:1]) rot(a*i,[w2/2,discR-h*(1-i*(1+b-b*i))])
           //for (i=[0:0.2:1]) rot(a*i,[w/2,discR-h*(1-pow(i,0.7))])
           //rot((step-Ca)/2,[0,discR-h/2-chamferY/2]), rot(step-Ca,[-w/2,discR-chamferY]), rot(step+Ca,[w/2,discR])
           ]);
@@ -347,7 +357,7 @@ module disc_test() {
   translate([2*coreR,0,0]) disc(1);
   translate([0,2*coreR,0]) spacer_disc();
   translate([2*coreR,2*coreR,0]) tension_disc();
-  translate([2*coreR,2*coreR,-2]) color("blue") disc(bits-1);
+  translate([2*coreR,2*coreR,-2]) rotate(maxStep-bitStep(bits-1)) color("blue") disc(bits-1);
   translate([2*coreR,2*coreR,-2]) rotate((bits-0.9)*step-90) translate_x(-discR-4.5) color("green") sidebar();
   translate([4*coreR,2*coreR,0]) spinner_disc();
   translate([6*coreR,2*coreR,0]) spacer_disc_for_spinner();
@@ -359,7 +369,7 @@ module disc_test() {
   translate([7*coreR,0*coreR,0]) keyway_test();
 }
 //!tension_disc();
-//!disc_test();
+!disc_test();
 
 //-----------------------------------------------------------------------------
 // Key
