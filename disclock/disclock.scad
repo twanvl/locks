@@ -55,7 +55,7 @@ keyWidthCenter = size <= SMALLER ? 1.3 : keyWidth/2 + 0.08;
 keyRot = size <= SMALL ? 0.45*step : size <= MEDIUM ? 0.3*step : 0.5*step;
 //keyThickness = 2 * rot(keyRot,on_circle(keyR1+1, keyWidth/2))[0];
 keyThickness = 2 * rot(keyRot,on_circle(keyR1, keyWidth/2))[0];
-keyProfileFillet = 0.2;
+keyProfileFillet = 0.0;
 echo("keyThickness", keyThickness);
 keywayAngle = 0;
 
@@ -71,7 +71,7 @@ builtinSpacerThickness = layerHeight;
 builtinSpacerThickness2 = layerHeight;
 builtinSpacerR = keyR1 + C + 0.5;
 
-gateHeight = size <= TINY ? 2 : 2.4;
+gateHeight = size <= SMALLER ? 2.1 : 2.4;
 smoothGates = false;
 falseHeight = size <= TINY ? 0.5 : smoothGates ? 0.7 : size <= SMALLER ? 0.9 : 1;
 sidebarThickness = roundToLayerHeight(1.85);
@@ -210,7 +210,7 @@ module sidebar_slot(deep,C =C, chamfer=true, wiggle=true) {
   sym_polygon_x(
     [[0,2*discR],
     for (i=[0:0.25:1]) rot(-chamferA*(1-i)-Ca,[-w/2,discR-chamferY*i]),
-    rot(-Ca,[-w/2,discR-(h+h2)/2]),
+    rot(-Ca,[-w/2,discR-(h2+h2)/2]),
     rot(0,[-w/2,discR-h2]),
     [-w/4,discR-h]]);
 }
@@ -270,8 +270,8 @@ module tension_disc() {
   w2 = w*0.85;
   h = gateHeight+C;
   h2 = falseHeight;
-  a = step*0.85;
-  b = 0.8;
+  a = step*0.7;
+  b = 0.2;
   chamferY = smoothGates ? falseHeight : 0.4;
   Ca = smoothGates ? 1.8 : size <= SMALLER ? 1.5 : 1.3;
   linear_extrude(discThickness - builtinSpacerThickness, convexity=10) {
