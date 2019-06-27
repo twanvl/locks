@@ -90,10 +90,13 @@ echo("Bitting: ", bitting);
 discs = len(bitting);
 coreDepth = (discs-1) * (discThickness + spacerThickness) + spinnerThickness - spinnerCountersink + C;
 coreAngle = -90;
-coreBack = discThickness;
-coreBackChamfer = 1;
-coreLimiter = 2;
+coreBack = 1.5;
+coreBackChamfer = 0.45;
+coreLimiter = 1.5;
 coreLimiterFirst = true;
+coreLimiterOverlap = 0;
+coreLimiterAngle = -45/2;
+coreBackAndLimiter = coreBack + (coreLimiterFirst ? coreLimiter - coreLimiterOverlap : 0);
 
 discPos = roundToLayerHeight(size <= SMALL ? 6.2 : size <= MEDIUM ? 7 : 8);
 corePos = discPos + spinnerThickness - spinnerCountersink;
@@ -112,8 +115,8 @@ lugRetainOverlap=1;
 lugTravel=lugOverlap+0.5;
 lugDepth = roundToLayerHeight(size <= SMALLER ? 5.0 : size <= SMALL ? 5.7 : 6.6);
 lugSlope = size <= SMALLER ? 0.75 : 0.8; // about 60deg
-lugC = 0.5 + C;
-lugPos = corePos + coreDepth + coreBack + lugDepth/2 + lugC + C;
+lugC = 3*C;
+lugPos = corePos + coreDepth + coreBackAndLimiter + lugDepth/2 + lugC + C;
 
 housingSpacingX = size <= TINY ? 2 : size <= SMALLER ? 2.75 : 3;
 housingSpacingY = size <= TINY ? 2 : size <= SMALLER ? 2 : size <= MEDIUM ? 2.5 : 3;
@@ -121,7 +124,7 @@ housingSpacingY2 = housingSpacingX;
 housingHeight = 2*coreR + 2*housingSpacingY;
 housingWidth = shackleWidth + shackleDiameter + 2*housingSpacingX;
 housingBack = roundToLayerHeight(size <= SMALLER ? 1.5 : 2);
-housingDepth = corePos + coreDepth + coreBack + lugDepth + lugC + housingBack + 2*C;
+housingDepth = corePos + coreDepth + coreBackAndLimiter + lugDepth + lugC + housingBack + 2*C;
 
 sidebarPos = corePos;
 sidebarDepth = (discs-1) * (discThickness + spacerThickness) + spinnerThickness - spinnerCountersink;
@@ -369,7 +372,7 @@ module disc_test() {
   translate([7*coreR,0*coreR,0]) keyway_test();
 }
 //!tension_disc();
-!disc_test();
+//!disc_test();
 
 //-----------------------------------------------------------------------------
 // Key
@@ -569,8 +572,8 @@ module lug(clear_limiter = coreLimiterFirst || size <= SMALL) {
           translate_x(-(lugR + lugTravel))
           translate_z(-lugDepth/2)
           group() {
-            cylinder(r=coreR+coreC+0.5,h=coreLimiter+C+eps);
-            linear_extrude(coreLimiter+C+eps) {
+            cylinder(r=coreR+coreC+0.5,h=coreLimiterOverlap);
+            linear_extrude(coreLimiterOverlap) {
               translate_x(lugTravel+2*C) {
                 rotate(90) wedge(-10,-10-45,r=coreR+5);
                 polygon([[lugTravel+coreR-lugR-1,0],polar(90-10,coreR),polar(90-10-45,coreR)]);
@@ -606,6 +609,24 @@ module core() {
         cylinder(r=coreR,h=coreDepth+coreBack-coreBackChamfer);
         translate_z(coreDepth+coreBack-coreBackChamfer)
           cylinder(r1=coreR,r2=max(lugR,coreR-coreBackChamfer/0.8),h=coreBackChamfer);
+        
+  // rotation limiter
+  if (coreLimiterFirst) {
+    rotate(-coreAngle)
+    translate_z(coreDepth)
+    linear_extrude(coreLimiter+coreBack,convexity=10) {
+      difference() {
+        union() {
+          rotated(180) wedge(coreLimiterAngle,coreLimiterAngle-45,r=coreR);
+          circle(lugR);
+        }
+      }
+      union() {
+        //rotated(180) wedge(-10,-10-45,r=lugR,center=true);
+        rotated(180) polygon([polar(coreLimiterAngle,lugR),polar(coreLimiterAngle-45/2,coreR),polar(coreLimiterAngle-45,lugR),polar(coreLimiterAngle-45/2,lugR*0.75)]);
+      }
+    }
+  }
       }
       translate_z(-eps) cylinder(r=discR+C,h=coreDepth+eps);
       // sidebar slot
@@ -621,24 +642,8 @@ module core() {
       linear_extrude(coreDepth,convexity=10) rotation_limiter();
     }
   }
-  // rotation limiter
-  if (coreLimiterFirst) {
-    translate_z(coreDepth)
-    linear_extrude(coreLimiter+coreBack,convexity=10) {
-      difference() {
-        union() {
-          rotated(180) wedge(-10,-10-45,r=coreR);
-        }
-        circle(lugR);
-      }
-      union() {
-        //rotated(180) wedge(-10,-10-45,r=lugR,center=true);
-        rotated(180) polygon([polar(-10,lugR),polar(-10-45/2,coreR),polar(-10-45,lugR),polar(-10-45/2,lugR*0.75)]);
-      }
-    }
-  }
   rotate(-90)
-  translate_z(coreDepth+coreBack) {
+  translate_z(coreDepth+coreBackAndLimiter) {
     difference() {
       linear_extrude(lugDepth+lugC,convexity=10) {
         actuator_profile();
@@ -806,11 +811,11 @@ module housing(threads=true, logo=true, shackleHoles=true, lugHoles=true, simple
     }
     // core slot
     translate_z(-eps) cylinder(r=coreR+coreC,h=corePos+coreDepth+coreBack+lugC+2*C);
-    translate_z(corePos+coreDepth+coreBack+lugC+C) cylinder(r=lugR+coreC,h=lugDepth+C);
+    translate_z(corePos+coreDepth+coreBack+lugC+C) cylinder(r=lugR+coreC,h=coreLimiter-coreLimiterOverlap+lugDepth+C);
     // sidebar slot
     sidebarPosY = sidebarThickness/2+C;
     translate([coreR-1, 0, sidebarPos-bridgeC])
-    linear_extrude(sidebarDepth+C+bridgeC) {
+    linear_extrude(sidebarDepth+2*C+bridgeC) {
       polygon([
         [0,sidebarPosY], [gateHeight+1+C,sidebarPosY],
         [gateHeight+1+C,sidebarPosY-sidebarThickness-2*C],
@@ -839,9 +844,9 @@ module housing(threads=true, logo=true, shackleHoles=true, lugHoles=true, simple
     // lugs
     if (lugHoles) {
       group() {
+        chamfer1 = 1; // chamfer at bottom side for printability
+        chamfer2 = 0.8; // chamfer at bottom side for printability
         linear_extrude_x(2*(coreR+shackleSpacing+lugOverlap+C),true) {
-          chamfer1 = 1; // chamfer at bottom side for printability
-          chamfer2 = 0.8; // chamfer at bottom side for printability
           sym_polygon_x([
             [lugHeight/2+C, lugPos+lugDepth/2+C],
             [lugHeight/2+C, lugPos-lugDepth/2-C+chamfer1*0.8],
@@ -852,7 +857,19 @@ module housing(threads=true, logo=true, shackleHoles=true, lugHoles=true, simple
           cylinder(r=coreR+C,h=lots);
           translate_z(lugPos) cube([lots,lugHeight+2*C,lugDepth+2*C],true);
         }
-        render() intersection() {
+        // chamfer
+        translate_z(lugPos-lugDepth/2-chamfer2*0.8-C)
+        intersection() {
+          h = lugHeight-2*(chamfer1+chamfer2);
+          rotated(180)
+          linear_extrude_y(h,true) {
+            polygon([[coreR+coreC-2,1],[coreR+coreC-2,-2*0.8],[coreR+coreC,0],[coreR+shackleSpacing-C,0],[coreR+shackleSpacing-C+3,-3*0.8],[coreR+shackleSpacing-C+3,1]]);
+          }
+          linear_extrude_x(lots,true) {
+            polygon([[-h/2-10,10*0.8],[0,-h/2*0.8],[h/2+10,10*0.8]]);
+          }
+        }
+        *render() intersection() {
           chamfer1 = 1; chamfer2 = 0.8;
           d=0.5;
           translate_z(lugPos-lugDepth/2-(chamfer2+d)*0.8)
@@ -900,7 +917,7 @@ module housing(threads=true, logo=true, shackleHoles=true, lugHoles=true, simple
       translate_z(corePos+coreDepth+coreBack+lugC+2*C-2*eps)
       linear_extrude(coreLimiter+2*eps) {
         rotated(180) difference() {
-          wedge(-10+90,-10-45,r=coreR+coreC);
+          wedge(coreLimiterAngle+90,coreLimiterAngle-45,r=coreR+coreC);
           circle(min(1,lugR),$fn=4); // fix manifold issues
         }
       }
@@ -1047,8 +1064,8 @@ module sidebar_test() {
   translate_z(sidebarSpringDepth+2) translate_x(gateHeight+coreWall + 2) sidebar_spring(5, nub=false);
   translate_z(2*(sidebarSpringDepth+2)) translate_x(gateHeight+coreWall + 2) sidebar_spring(0);
 }
-!sidebar_spring(3,false);
-!sidebar_test();
+//!sidebar_spring(3,false);
+//!sidebar_test();
 
 //-----------------------------------------------------------------------------
 // Tests
@@ -1152,10 +1169,10 @@ module test() {
   core = true;
   cut = false;
   lugs = true;
-  shackle = true;
+  shackle = false;
   sidebar = core;
-  cutHousing = undef;
-  cutCore = cutHousing;
+  cutHousing = 0;
+  cutCore = 6;//cutHousing;
   cutShackle = undef;//cutHousing;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
@@ -1219,7 +1236,7 @@ module test() {
       }
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
-      translate_z(8) positive_z();
+      //translate_z(8) positive_z();
       //translate_z(housingDepth-housingBack-eps) negative_z();
       //translate_z(housingDepth-housingBack-lugDepth) positive_z();
       //translate_z(corePos+1) positive_z();
