@@ -156,6 +156,36 @@ module sym_polygon_180(list) {
   polygon(concat(list,mul_vecs([-1,-1],list)));
 }
 
+module line(points,r) {
+  n = len(points);
+  angles = [for (i=[0:n-2]) normalize(points[i+1] - points[i])];
+  angles2 = [for (i=[0:n-1]) i==0 ? angles[0] : i==n-1 ? angles[n-2] : (angles[i-1]+angles[i])/2 ];
+  outline = [
+    for (i=[0:n-1])    points[i]+eps/2*rot(90,angles2[i]),
+    for (i=[n-1:-1:0]) points[i]+eps/2*rot(-90,angles2[i])
+  ];
+  offset(r/2)
+  polygon(outline);
+}
+
+function range_to_list(xs) = [for (x=xs) x];
+
+module prism(polygons,zs,convexity=undef) {
+  n = len(polygons);
+  k = len(polygons[0]);
+  zs2 = zs != undef && !is_num(zs) ? range_to_list(zs) : // convert range to list
+        is_num(zs) ? [for (i=[0:n-2]) zs] : zs; // constant step
+  zs3 = zs2 != undef && !is_num(zs2) && len(zs2) == n-1 ? cumsum(zs2) : zs2;
+  points =
+    len(polygons[0][0]) == 3 ?
+      [for (i=[0:n-1]) each polygons[i] ] :
+      [for (i=[0:n-1]) for (j=[0:k-1]) concat(polygons[i][j],[zs3[i]]) ];
+  sideFaces = [for (i=[0:n-2]) for (j=[0:k-1]) [(i+1)*k+j, (i+1)*k+((j+1)%k), (i)*k+((j+1)%k), (i)*k+j]];
+  topFace = [for (j=[0:k-1]) n*k-1-j];
+  bottomFace = [for (j=[0:k-1]) j];
+  polyhedron(points=points, faces=concat([topFace,bottomFace],sideFaces), convexity=convexity);
+}
+
 //-----------------------------------------------------------------------------
 // Halfspaces
 //-----------------------------------------------------------------------------
@@ -169,6 +199,11 @@ module negative_y(h=lots) { translate([0,-h,0]) cube(2*h,true); }
 module negative_z(h=lots) { translate([0,0,-h]) cube(2*h,true); }
 module everything(h=lots) { cube(2*h,true); }
 module not() { difference() { everything(); children(); }  }
+
+module positive_x2d(h=lots) { translate([h,0]) square(2*h,true); }
+module positive_y2d(h=lots) { translate([0,h]) square(2*h,true); }
+module negative_x2d(h=lots) { translate([-h,0]) square(2*h,true); }
+module negative_y2d(h=lots) { translate([0,-h]) square(2*h,true); }
 
 // a wedge, starting from the positive x, up to rotation of a counter clockwise
 module wedge_space(a, center=false) {
@@ -213,8 +248,12 @@ module mirrored(a) {
 }
 
 module rotated(a) {
-  children();
-  rotate(a) children();
+  if (is_list(a)) {
+    for (x=a) rotate(x) children();
+  } else {
+    children();
+    rotate(a) children();
+  }
 }
 
 //-----------------------------------------------------------------------------

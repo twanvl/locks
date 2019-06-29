@@ -1045,18 +1045,6 @@ module sidebar_spring(angle = 0, nub=true) {
 }
 
 
-module line(points,r) {
-  n = len(points);
-  angles = [for (i=[0:n-2]) normalize(points[i+1] - points[i])];
-  angles2 = [for (i=[0:n-1]) i==0 ? angles[0] : i==n-1 ? angles[n-2] : (angles[i-1]+angles[i])/2 ];
-  outline = [
-    for (i=[0:n-1])    points[i]+eps/2*rot(90,angles2[i]),
-    for (i=[n-1:-1:0]) points[i]+eps/2*rot(-90,angles2[i])
-  ];
-  offset(r/2)
-  polygon(outline);
-}
-
 
 module sidebar_test() {
   sidebar();
