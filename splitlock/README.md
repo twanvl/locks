@@ -8,7 +8,7 @@ The idea comes from this reddit post: https://old.reddit.com/r/lockpicking/comme
 
 Printing instructions
 ------------------
-Designed for 0.15mm layer heights. I used elephant's foot correction for the first layer. Some light sanding was needed to make everything fit together.
+Designed for 0.15mm layer heights. I used elephant's foot correction for the first layer. Some light sanding was needed to make everything fit together. All parts can be printed without support by choosing the right orientation (core2 is split into to parts that lock together).
 
 I designed the key for 4mm disc magnets that I had on hand. Pause the printing of the key at the appropriate layers to insert the magnets.
 

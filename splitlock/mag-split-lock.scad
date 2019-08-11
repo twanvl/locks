@@ -561,7 +561,6 @@ module export_cutaway_lock() {
     positive_x();
   }
 }
-!export_cutaway_lock();
 
 module test() {
   key = true;
