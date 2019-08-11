@@ -86,12 +86,12 @@ module keyHandle() {
       //chamfer_rect(h2,h2,4);
       intersection() {
         //circle(r=11);
-        offset(1) circle(r=11,$fn=6);
+        offset(2) circle(r=11,$fn=6);
         //square([lots,h2],true);
       }
       translate_y(-4) 
       intersection() {
-        offset(1) circle(r=3,$fn=6);
+        offset(1) circle(r=2.5,$fn=6);
         //circle(r=4);
         //square([lots,6],true);
       }
