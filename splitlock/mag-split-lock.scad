@@ -13,6 +13,7 @@ include <../gear.scad>
 //-----------------------------------------------------------------------------
 
 bitting = [0,2,1,3,0,2,1];
+//bitting = [0,1,1,0,3,2,0];
 layerHeight = 0.15;
 function roundToLayerHeight(z) = round(z/layerHeight)*layerHeight;
 
@@ -163,6 +164,9 @@ module core1() {
       }
     }
     translate_z(-eps) cylinder(r=keyR*2/sqrt(3)+C,h=keyD0+keyD1+2*eps,$fn=6);
+    translate_z(-eps) cylinder(r1=keyR*2/sqrt(3)+C+2*layerHeight,r2=keyR*2/sqrt(3)+C,h=2*layerHeight,$fn=6);
+    translate_z(-eps) cylinder(r=keyR+1.5*C,h=keyD0+keyD1+2*eps);
+    translate_z(keyD0+keyD1-0.5) cylinder(r1=keyR+C,r2=keyR*2/sqrt(3)+1.5*C,h=0.5+eps);
   }
 }
 keyEnd = keyD3+roundToLayerHeight(keyR-1);
@@ -241,7 +245,7 @@ module core3() {
       for (i=[0:len(bitting)-1]) {
         translate_z(keyD2b+i*(bitDepth+bitSep)-layerHeight+pinPos) {
           translate_y(core3Ra+C-pinTravel+pinLen)
-          linear_extrude_y(lots) pin_profile(C=C,h=layerHeight+eps);
+          linear_extrude_y(lots) pin_profile(C=C,h=layerHeight+eps,clearance=true);
         }
       }
     }
@@ -251,6 +255,7 @@ module core3() {
 module export_core1() { core1(); }
 module export_core2() { core2(); }
 module export_core3() { core3(); }
+//!export_core1();
 
 module core2Connector() {
   sym_polygon_x([[3,0.5],[5,-0.8],[6,-0.2],[3,5]]);
@@ -279,21 +284,25 @@ module export_core2b() {
 // Housing
 //-----------------------------------------------------------------------------
 
+driverPinLen = 4;
+springLen = 6;
+springPrintDLen = pinTravel+1;
+
 back = roundToLayerHeight(1);
-bible = 10;
+bible = driverPinLen + springLen + 1.2;
 bibleW = pinW2+2*1.2+1;
 
 module housing(a=false,b=true) {
   difference() {
     group() {
       if (a) {
-        translate_z(keyD0+keyD1/2-eps)
-        cylinder(r=housingR, h=keyD1/2+keyD2+keyD+keyD4+layerHeight+back+eps);
+        translate_z(keyD0-eps)
+        cylinder(r=housingR, h=keyD1+keyD2+keyD+keyD4+layerHeight+back+eps);
         translate([-bibleW/2,core3Rb,keyD0+keyD1+keyD2a-2]) cube([bibleW,bible,keyD+keyD2b+keyD4+2+layerHeight+back]);
       }
       if (b) {
         cylinder(r=gear_inner_radius(gearTeeth2,gearPitch,gearPA,gearDR), h=keyD0+keyD1+2*eps);
-        cylinder(r=housingR, h=keyD0+keyD1/2+1-3*eps);
+        cylinder(r=housingR, h=keyD0+roundToLayerHeight(3)-3*eps);
       }
     }
     // gear walls
@@ -301,7 +310,7 @@ module housing(a=false,b=true) {
       translate_z(-eps) translate_y(-axis) {
         cylinder(r=core1R + C, h=keyD0+2*eps);
         translate_z(keyD0-roundToLayerHeight(1)) 
-        cylinder(r=core1R + 1 + C, h=roundToLayerHeight(1));
+        cylinder(r=core1R + 1 + C, h=roundToLayerHeight(1)+1*eps);
       }
       translate_z(keyD0-eps)
       difference() {
@@ -315,39 +324,26 @@ module housing(a=false,b=true) {
     }
     // fancy mating parts
     if (!b) {
-      translate_z(keyD0+keyD1/2-eps) {
-        intersection() {
-          linear_extrude(1) rotated([0,90,180,270]) {
+      translate_z(keyD0-eps) {
+        linear_extrude(roundToLayerHeight(3),convexity=5)
+        rotate(45) rotated([0,90,180,270]) {
+          difference() {
             wedge(45,center=true,r=housingR+1);
+            //circle(core2R);
+            circle(core3Rb-0.4);
           }
-          cylinder(r1=housingR,r2=core2R,h=1);
-        }
-        difference() {
-          translate_z(-eps) linear_extrude(1) rotate(45) rotated([0,90,180,270]) {
-            wedge(45,center=true,r=housingR+1);
-          }
-          cylinder(r2=housingR,r1=core2R,h=1);
+          //circle(core3Rb+0.4);
         }
       }
     } else if (!a) {
-      translate_z(keyD0+keyD1/2-eps) {
-        difference() {
-          linear_extrude(1) rotated([0,90,180,270]) {
-            difference() {
-              wedge(45,center=true,r=housingR+1);
-              circle(core2R);
-            }
+      translate_z(keyD0) {
+        linear_extrude(lots,convexity=5) rotated([0,90,180,270]) {
+          difference() {
+            wedge(45,center=true,r=housingR+1);
+            //circle(core2R);
+            //circle(core3Rb+0.4);
+            circle(core3Rb-0.4);
           }
-          cylinder(r1=housingR,r2=core2R,h=1);
-        }
-        intersection() {
-          translate_z(-eps) linear_extrude(1) rotate(45) rotated([0,90,180,270]) {
-            difference() {
-              wedge(45,center=true,r=housingR+1);
-              circle(core2R);
-            }
-          }
-          cylinder(r2=housingR,r1=core2R,h=1);
         }
       }
     }
@@ -398,6 +394,20 @@ module export_housing_a() { housing(true,false); }
 module export_housing_b() { housing(false,true); }
 module export_bible_cover() { bibleCover(); }
 
+module housing_test() {
+  intersection() {
+    group() {
+      //translate_z(20)
+      translate_y(2)
+      color("red") export_housing_a();
+      color("yellow") export_housing_b();
+    }
+    positive_x();
+  }
+}
+
+//!housing_test();
+
 //-----------------------------------------------------------------------------
 // Springs and pins
 //-----------------------------------------------------------------------------
@@ -406,10 +416,11 @@ module pin_profile(C=0,h=0,clearance=false) {
   dx = 1;
   dy = roundToLayerHeight(0.8);
   l = roundToLayerHeight(0.3);
+  clearanceAmount = roundToLayerHeight(0.7);
   h = bitDepth+bitSep-layerHeight+h;
   w = pinW2;
   sym_polygon_x([
-    clearance ? [-w/2-C+dx+0.6*dx,-0.6*dy] : [-w/2-C+dx,0],
+    clearance ? [-w/2-C+dx+clearanceAmount*dx,-clearanceAmount*dy] : [-w/2-C+dx,0],
     [-w/2-C,dy],[-w/2-C,h-l-dy],[-w/2-C+dx,h-l],[-w/2-C+dx,h]]);
 }
 module keyPin(bit) {
@@ -422,9 +433,9 @@ module keyPin(bit) {
     translate_z(-eps) cylinder(r1=core3Ra+C+d,r2=core3Ra+C,h=d);
     translate_z(bitDepth+bitSep-layerHeight-d+eps) cylinder(r2=core3Ra+C+d,r1=core3Ra+C,h=d);
     // chamfer
-    mirrored([1,0,0])
-    linear_extrude(bitDepth+bitSep,convexity=5)
-    sym_polygon_xy([[pinW1,0],[pinW1,core3Ra+C],[pinW1/2,core3Ra+C+pinLen],[pinW1/2-2,core3Ra+C-2]]);
+    translate_z(-eps)
+    linear_extrude(lots,convexity=5)
+    sym_polygon_x([[pinW1,0],[pinW1,core3Ra+C],[pinW1/2,core3Ra+C+1],[pinW1/2-2,core3Ra+C-2]]);
   }
   intersection() {
     translate([0,core3Ra+C/2 + pinLen,0]) {
@@ -440,15 +451,64 @@ module driverPin(bit) {
   difference() {
     translate([0,core3Rb+C+bitStep*bit-3,0])
       //cube([pinW2,4+3-bitStep*bit,bitDepth+bitSep-layerHeight]);
-      linear_extrude_y(4+3-bitStep*bit) {
+      linear_extrude_y(driverPinLen+3-bitStep*bit) {
         pin_profile();
       }
+    // small recess for spring
+    translate([0,core3Rb+C+driverPinLen,(bitDepth+bitSep-layerHeight) / 2]) {
+      cube([lots,0.5,springThickness+2*C],true);
+    }
     
     translate_y(bitStep*bit)
     translate_z(-eps)
     cylinder(r=core3Rb+C,h=bitDepth+bitSep+2*eps);
   }
 }
+springThickness = bitDepth+bitSep-layerHeight-2*roundToLayerHeight(0.8);
+module spring(angle=0,dw=springPrintDLen) {
+  thickness = springThickness;
+  zPos = (bitDepth+bitSep-layerHeight-thickness) / 2;
+  nx = 4;
+  r = 0.5;
+  l = pinW2;
+  w = (springLen+dw-r)/nx;
+  h = l-(w+r);
+  gon = 80;
+  translate([l/2,core3Rb+driverPinLen+springLen,zPos])
+  mirror([0,1,0])
+  rotate(90)
+  linear_extrude(thickness,convexity=10) {
+    //square([r,sidebarSpringDepth-(w+r)/2]);
+    translate([r/2,r/2])
+    line(cumsum([for (i=[0:nx])
+        each [polar(i == 0 ? 90 : i%2 ? -90+angle : 90-angle, springLen - w - r + (i==0||i==nx ? w/2 : 0))
+             ,if (i<nx) for (j=[-90:360/gon:90]) polar((i%2 ? j : -j)*(180-2*angle)/180,w*sin(180/gon))
+             ]
+      ],[0,0]), r);
+  }
+}
+//!spring();
+
+module export_pins() {
+  sep = 5;
+  for (i=[0:len(bitting)-1]) {
+    translate_x((pinW2+sep)*i) {
+      color("blue") keyPin(bitting[i]);
+      translate_y(sep) color("red") driverPin(bitting[i]);
+    }
+  }
+}
+module export_springs() {
+  sep = 5;
+  angle = 2;
+  for (i=[0:len(bitting)-1]) {
+    translate_x((pinW2+sep)*i) {
+      spring(angle);
+    }
+  }
+}
+//!export_pins();
+//!export_springs();
 
 //-----------------------------------------------------------------------------
 // Test
@@ -458,11 +518,11 @@ pinPos = -(bitSep)/2+layerHeight;
 module test() {
   key = true;
   core = true;
-  pins = false;
+  pins = true;
   housing = true;
   rot = 180-1;
   rot2 = 0;
-  b = 0*max(0,(rot/180)*4-3);
+  b = 1*max(0,(rot/180)*4-3);
   rot1 = -(rot+rot2)*gearTeeth2/gearTeeth1;
   Cy = layerHeight/4;
   intersection() {
@@ -486,13 +546,14 @@ module test() {
           translate_y(-b*bitStep*bitting[i]) {
             color("red") driverPin(bitting[i]);
           }
+          color("green") spring(dw=0.25+b*bitStep*bitting[i]);
         }
       }
       if (housing) {
         color("yellow") housing(true,true);
         *color("yellow") housing(false,true);
         *translate_z(layerHeight) color("green") housing(true,false);
-        color("purple") bibleCover();
+        *color("purple") bibleCover();
       }
     }
     positive_x();
