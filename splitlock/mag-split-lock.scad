@@ -515,11 +515,59 @@ module export_springs() {
 //-----------------------------------------------------------------------------
 pinPos = -(bitSep)/2+layerHeight;
 
-module test() {
+module export_full_lock() {
   key = true;
   core = true;
   pins = true;
   housing = true;
+  rot = 0;
+  rot2 = 0;
+  b = 1*max(0,(rot/180)*4-3);
+  rot1 = -(rot+rot2)*gearTeeth2/gearTeeth1;
+  Cy = layerHeight/4;
+  intersection() {
+    group() {
+      if (key) {
+        translate_y(-axis) rotate(-rot1) color("orange") keyHandle();
+        rotate(rot+rot2) color("pink") translate_y(-axis) translate_z(keyD0+keyD1+2*Cy) keyActuator();
+      }
+      if (core) {
+        translate_z(Cy) translate_y(-axis) rotate(-rot1) color("lightgreen") core1();
+        translate_z(2*Cy) rotate(rot+rot2) color("lightblue") core2();
+        translate_z(3*Cy) rotate(rot2) color("lightsalmon") core3();
+      }
+      if (pins)
+      for (i=[0:len(bitting)-1]) {
+        translate_z(keyD0+keyD1+keyD2+i*(bitDepth+bitSep) + pinPos) {
+          rotate(rot2) translate_y(-b*bitStep*bitting[i]) {
+            color("blue") keyPin(bitting[i]);
+          }
+          translate_y(-b*bitStep*bitting[i]) {
+            color("red") driverPin(bitting[i]);
+          }
+          color("green") spring(dw=0.25+b*bitStep*bitting[i]);
+        }
+      }
+      if (housing) {
+        color("yellow") housing(true,true);
+        color("purple") bibleCover();
+      }
+    }
+  }
+}
+module export_cutaway_lock() {
+  intersection() {
+    export_full_lock();
+    positive_x();
+  }
+}
+!export_cutaway_lock();
+
+module test() {
+  key = true;
+  core = true;
+  pins = false;
+  housing = false;
   rot = 180-1;
   rot2 = 0;
   b = 1*max(0,(rot/180)*4-3);
@@ -553,7 +601,7 @@ module test() {
         color("yellow") housing(true,true);
         *color("yellow") housing(false,true);
         *translate_z(layerHeight) color("green") housing(true,false);
-        *color("purple") bibleCover();
+        color("purple") bibleCover();
       }
     }
     positive_x();
