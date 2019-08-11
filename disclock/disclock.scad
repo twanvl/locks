@@ -128,6 +128,7 @@ housingDepth = corePos + coreDepth + coreBackAndLimiter + lugDepth + lugC + hous
 
 sidebarPos = corePos;
 sidebarDepth = (discs-1) * (discThickness + spacerThickness) + spinnerThickness - spinnerCountersink;
+sidebarChamfer = 0.4;
 sidebarInSpinner = false;
 
 shacklePos = roundToLayerHeight(size <= TINY ? 1.5 : 2);
@@ -190,25 +191,25 @@ module rotation_limiter() {
   }
 }
 module rotation_limiter_slot(fixed = false) {
-  C1 = C * 0.33;
+  C1 = 0;
   offset(delta=C1)
   intersection() {
     difference() {
       circle(coreR+1);
-      circle(discLimiterR-(C-C1));
+      circle(discLimiterR-(fixed ? C/2 : C-C1));
     }
     a = limiterInside || fixed ? 270 : 270-maxStep/2;
     rotate(a) wedge(-limiterAngle/2,(fixed ? 0 : maxStep)+limiterAngle/2,center=true);
   }
 }
 
-module sidebar_slot(deep,C =C, chamfer=true, wiggle=true) {
-  w = sidebarThickness;
-  h = deep ? gateHeight+C : falseHeight;
-  Ca = wiggle ? (smoothGates ? 1.8 : size <= SMALLER ? 2.2 : 1.3) : 0;
+module sidebar_slot(deep,C=C, chamfer=true, wiggle=true) {
+  w = wiggle ? sidebarThickness : sidebarThickness + 1.5*C ;
+  h = deep ? gateHeight+C+(wiggle?0:C) : falseHeight;
+  Ca = wiggle ? (smoothGates ? 1.8 : size <= SMALLER ? 2.2 : 1.3) : 0.0;
   h2 = deep ? h : falseHeight + 0.2;
-  chamferX = chamfer && smoothGates ? falseHeight*1.1 : 0.8;
-  chamferY = chamfer && smoothGates ? falseHeight : 0.4;
+  chamferX = wiggle ? (chamfer && smoothGates ? falseHeight*1.1 : 0.8) : 0;
+  chamferY = wiggle ? (chamfer && smoothGates ? falseHeight : 0.4) : 0;
   chamferA = chamferX * 360 / (discR*2*PI);
   sym_polygon_x(
     [[0,2*discR],
@@ -217,13 +218,10 @@ module sidebar_slot(deep,C =C, chamfer=true, wiggle=true) {
     rot(0,[-w/2,discR-h2]),
     [-w/4,discR-h]]);
 }
-module sidebar_slot_wiggle(deep, chamfer=true) {
-  rotate(0) sidebar_slot(deep,chamfer=chamfer);
-}
 
 module disc_profile(keyway = true, fixed = false) {
   difference() {
-    circle(discR);
+    circle(fixed ? discR+C*0.25 : discR);
     if (keyway) rotate(keywayAngle) offset(keyC) keyway_profile();
     if (limiterInside) rotation_limiter_slot(fixed);
   }
@@ -242,7 +240,7 @@ module disc(bit=0) {
       disc_profile();
       // slots
       for (i=[0:bits]) {
-        rotate(bitStep(i)) sidebar_slot_wiggle(i == bit);
+        rotate(bitStep(i)) sidebar_slot(deep = i == bit);
       }
     }
   }
@@ -253,7 +251,7 @@ module spacer_disc() {
     difference() {
       disc_profile(false,true);
       circle(keyR1+keyC);
-      sidebar_slot_wiggle(true,chamfer=false);
+      sidebar_slot(deep=true,chamfer=false,wiggle=false);
     }
   }
   translate_z(spacerThickness - builtinSpacerThickness) builtin_spacer();
@@ -264,7 +262,7 @@ module spacer_disc_for_spinner() {
     difference() {
       disc_profile(false,true);
       circle(discLimiterR);
-      sidebar_slot_wiggle(true);
+      sidebar_slot(deep=true,chamfer=false,wiggle=false);
     }
   }
 }
@@ -283,7 +281,7 @@ module tension_disc() {
       if (false) {
         // gates?
         for (i=[0:bits-2]) {
-          rotate(bitStep(i)) sidebar_slot_wiggle(false);
+          rotate(bitStep(i)) sidebar_slot(deep=false);
         }
       }
       rotate(0) {
@@ -294,14 +292,10 @@ module tension_disc() {
           ]);
       }
       rotate(maxStep) {
-        //sidebar_slot_wiggle(true);
-        //translate([0,discR]) polygon([[-w/2,0],[-w/2,-h],[w/2,-h],[w*4/2,0]]);
         polygon([
           rot(-Ca,[-w/2,discR+10]),
           rot(-Ca,[-w/2,discR-h]),
           for (i=[0:0.1:1]) rot(a*i,[w2/2,discR-h*(1-i*(1+b-b*i))])
-          //for (i=[0:0.2:1]) rot(a*i,[w/2,discR-h*(1-pow(i,0.7))])
-          //rot((step-Ca)/2,[0,discR-h/2-chamferY/2]), rot(step-Ca,[-w/2,discR-chamferY]), rot(step+Ca,[w/2,discR])
           ]);
       }
     }
@@ -323,15 +317,6 @@ module spinner_disc() {
         h = gateHeight+C;
         polygon([[-w2/2,discR],[-w/2,discR-h],[w/2,discR-h],[w2/2,discR]]);
       }
-    }
-  }
-}
-module spacer_disc1() {
-  linear_extrude(spacerThickness, convexity=10) {
-    difference() {
-      disc_profile(false);
-      circle(keyR1+keyC);
-      sidebar_slot_wiggle(true);
     }
   }
 }
@@ -357,11 +342,13 @@ module disc_sanding_tool() {
 
 module disc_test() {
   disc(0);
+  translate([0,0,-discThickness-spacerThickness]) color("lightsalmon") spacer_disc();
   translate([2*coreR,0,0]) disc(1);
   translate([0,2*coreR,0]) spacer_disc();
   translate([2*coreR,2*coreR,0]) tension_disc();
-  translate([2*coreR,2*coreR,-2]) rotate(maxStep-bitStep(bits-1)) color("blue") disc(bits-1);
-  translate([2*coreR,2*coreR,-2]) rotate((bits-0.9)*step-90) translate_x(-discR-4.5) color("green") sidebar();
+  translate([2*coreR,2*coreR,-discThickness]) rotate(maxStep-bitStep(bits-1)) color("blue") disc(bits-1);
+  translate([2*coreR,2*coreR,-discThickness]) rotate((bits-0.9)*step-90) translate_x(-discR-4.5) color("green") sidebar();
+  translate([2*coreR,2*coreR,-discThickness-spacerThickness]) color("lightsalmon") spacer_disc();
   translate([4*coreR,2*coreR,0]) spinner_disc();
   translate([6*coreR,2*coreR,0]) spacer_disc_for_spinner();
   translate([4*coreR,0*coreR,0]) intersection() {
@@ -371,8 +358,10 @@ module disc_test() {
   //translate([7*coreR,0*coreR,0]) disc_sanding_tool();
   translate([7*coreR,0*coreR,0]) keyway_test();
 }
+!spacer_disc();
+//!spacer_disc_for_spinner();
 //!tension_disc();
-//!disc_test();
+!disc_test();
 
 //-----------------------------------------------------------------------------
 // Key
@@ -995,7 +984,6 @@ module set_screw() {
 //-----------------------------------------------------------------------------
 
 module sidebar() {
-  sidebarChamfer = 0.4;
   difference() {
     translate([(gateHeight+coreWall)/2,0,(sidebarDepth-C)/2])
     chamfer_cube(gateHeight+coreWall,sidebarThickness,sidebarDepth-C,sidebarChamfer,rz=0);
@@ -1004,6 +992,8 @@ module sidebar() {
       //translate([(gateHeight+coreWall)-(coreR-discLimiterR)-lots,-lots/2,-spinnerCountersink])
       cube([lots,lots,discThickness]);
     }
+    *translate([gateHeight-lots/2,-lots/2-sidebarThickness/2*0.5,(sidebarDepth-3.5*discThickness)/2+2.5*discThickness])
+      chamfer_cube(lots,lots,sidebarDepth-3.5*discThickness,0.5);
   }
 }
 
@@ -1151,16 +1141,17 @@ module test() {
   $fs = 1; $fa = 8;
   threads = false;
   logo = false;
-  housing = true;
-  key = true;
-  discs = false;
+  housing = false;
+  key = false;
+  discs = true;
+  spacerDiscs = true;
   core = true;
   cut = false;
   lugs = true;
   shackle = false;
   sidebar = core;
   cutHousing = 0;
-  cutCore = 6;//cutHousing;
+  cutCore = undef;//cutHousing;
   cutShackle = undef;//cutHousing;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
@@ -1199,8 +1190,8 @@ module test() {
               } else {
                 color("lightyellow") disc(bitting[i]);
               }
-              *if (i < len(bitting)-1)
-              translate_z(i*(discThickness+spacerThickness)+discThickness) color("lightyellow") rotate(coreAngle) spacer_disc();
+              if (spacerDiscs && i < len(bitting)-1)
+              translate_z(i*(discThickness+spacerThickness)+discThickness) color("lightsalmon") rotate(coreAngle) spacer_disc();
             }
           }
           if (key) translate_z(0) color("magenta") rotate(coreAngle + keywayAngle + unlocked*maxStep) key();
@@ -1225,6 +1216,7 @@ module test() {
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
       //translate_z(8) positive_z();
+      translate_z(corePos+discThickness) positive_z();
       //translate_z(housingDepth-housingBack-eps) negative_z();
       //translate_z(housingDepth-housingBack-lugDepth) positive_z();
       //translate_z(corePos+1) positive_z();
@@ -1234,6 +1226,7 @@ module test() {
   }
 }
 //!disc_test();
+!spacer_disc_for_spinner();
 !test();
 
 //-----------------------------------------------------------------------------
@@ -1268,7 +1261,7 @@ module export_core() {
   rotate([180]) core();
 }
 module export_sidebar() {
-  rotate([90]) sidebar();
+  rotate([-90]) sidebar();
 }
 module export_sidebar_spring() rotate([90]) sidebar_spring();
 module export_sidebar_spring3() rotate([90]) sidebar_spring(3,nub=false);
