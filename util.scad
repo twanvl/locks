@@ -81,11 +81,16 @@ module chamfer_rect(w,h,r) {
   ]);
 }
 
-module octahedron(r) {
+module double_cone(r,h=undef) {
+  hh = h == undef ? r : h;
   union() {
-    cylinder(r1=r,r2=0,h=r,$fn=4);
-    mirror([0,0,1]) cylinder(r1=r,r2=0,h=r,$fn=4);
+    cylinder(r1=r,r2=0,h=hh);
+    mirror([0,0,1]) cylinder(r1=r,r2=0,h=hh);
   }
+}
+
+module octahedron(r) {
+  double_cone(r,r,$fn=4);
 }
 
 module chamfer_cube(x,y,z, r=1,rx=undef,ry=undef,rz=undef) {
