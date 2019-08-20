@@ -14,11 +14,11 @@ layerHeight = 0.15;
 function roundToLayerHeight(z) = round(z/layerHeight)*layerHeight;
 
 wheelThickness = roundToLayerHeight(5);
-wheelSep = roundToLayerHeight(3);
+wheelSep = roundToLayerHeight(2.5);
 wheelPos = 2;
-wheelR = 7;
+wheelR = 8;
 //innerWheelR = 5.7;
-innerWheelR = wheelR-0.6;
+innerWheelR = wheelR-1.2;
 shaftR = 3;
 shaftR2 = shaftR + 1.5;
 
@@ -86,7 +86,7 @@ module inner_wheel_inner() {
       shaft_profile(C=C, all_pins=false);
     }
     // false gates
-    falseGateDepth = 0.5;
+    falseGateDepth = roundToLayerHeight(0.8);
     intersection() {
       linear_extrude(2+2*eps,convexity=10) {
         shaft_profile(C=C, all_pins=true);
@@ -120,9 +120,11 @@ module inner_wheel() {
 }
 //!inner_wheel();
 
-//module export_inner_wheel() { inner_wheel(); }
-//module export_outer_wheel() { outer_wheel(); }
+module export_inner_wheel() { inner_wheel(); }
+module export_outer_wheel() { outer_wheel(); }
 module export_wheel0() { outer_wheel(for_inner=false,pos=0); }
+
+//!group(){inner_wheel(); outer_wheel(false); }
 
 //-----------------------------------------------------------------------------
 // Shaft
@@ -139,13 +141,51 @@ module shaft_pin_profile(C = 0) {
   *wedge(360/positions * 0.7,r=shaftR2C);
 }
 module shaft_profile(C = 0, all_pins = false) {
-  circle(r=shaftR+C);
+  circle(r=shaftR+C/2);
   pins = all_pins ? [0:positions-1] : [0,3,7];
   //pins = all_pins ? [0:positions-1] : [0,4,6];
-  rotations = [for (i=pins) 360*i/positions + -90];
+  //pins = all_pins ? [0:positions-1] : [0,4,6];
+  //offset = -90;
+  offset = 1*360/10;
+  //offset = 0;
+  rotations = [for (i=pins) 360*i/positions + offset];
   rotated(rotations) shaft_pin_profile(C);
 }
 //!shaft_profile(all_pins=true);
+
+module actuator_profile() {
+  sym_polygon_x([
+    [lugX,shaftLength],
+    [lugX,lugZ-shaftTravel+lugDepth-lugChamfer2+C],
+    [lugX+lugTravel+C,lugZ-shaftTravel+lugDepth-lugChamfer2+lugTravel/1.2+C],
+    [lugX+lugTravel+C,lugZ+1.0],
+    //[lugX+lugTravel-0.5,lugZ+lugDepth/2],
+    [lugX+lugTravel-0.1,actuatorEndZ]]);
+}
+
+springPinWidth = 5;
+module spring_pin_profile() {
+  z = lugZ-shaftTravel;
+  z2 = shackleZ;
+  z3 = min(roundToLayerHeight(z2 - 2));
+  z4 = max(shaftLength, roundToLayerHeight(z - 2));
+  polygon([
+    [lugX,z+1],[lugX+1,z],[shackleX+C,z],
+    //[shackleX-shackleR-C,z],
+    //[shackleX-shackleR-C,z2], [shackleX+C,z2],
+    [shackleX+C,z3], [shackleX-shackleR-1,z3],
+    [shackleX-shackleR-2,z4],[lugX,z4]]);
+}
+module spring_pin_profile2() {
+  z = lugZ-shaftTravel;
+  z2 = shackleZ;
+  z3 = z2 - 2;
+  z4 = max(shaftLength, roundToLayerHeight(z - 2));
+  polygon([
+    [lugX,z+1],[lugX+1,z],[shackleX-shackleR-0.5,z],[shackleX-shackleR+1.2,z-1.5],
+    [shackleX-shackleR+1.2,z3+1],[shackleX-shackleR,z3], [shackleX-shackleR-1,z3],
+    [shackleX-shackleR-2,z4],[lugX,z4]]);
+}
 
 module shaft() {
   h = shaftLength;
@@ -166,29 +206,57 @@ module shaft() {
   }
   intersection() {
     linear_extrude_y(2*(shaftR+0),true) {
-      sym_polygon_x(actuatorShape);
+      actuator_profile();
     }
-    translate_z(shaftLength) cylinder(r1=shaftR,r2=shaftR+100,h=100);
+    translate_z(shaftLength) cylinder(r1=shaftR,r2=shaftR+40,h=100);
   }
-  linear_extrude_y(4,true) {
-    sym_polygon_x([[wheelR+1,h], [wheelR+1,h+1]]);
+  translate_z(shaftLength) cylinder(r1=shaftR,r2=0,h=shaftR);
+  union() {
+    difference() {
+      linear_extrude_y(springPinWidth,true) {
+        spring_pin_profile();
+      }
+      translate([shackleX,0,shackleZ-C]) cylinder(r1=shackleR+C-0.6,r2=shackleR+C+eps,h=0.6);
+      translate([shackleX,0,shackleZ-C+0.6-eps]) cylinder(r=shackleR+C+eps,h=lots);
+      translate([shackleX,0,max(lugZ-shaftTravel-1,shackleZ-C+0.6)]) cylinder(r1=shackleR+C+eps,r2=shackleR+1,h=1);
+    }
+    translate([shackleX,0,roundToLayerHeight(shackleZ-2)+eps]) cylinder(r=shackleR,h=2-C);
+  }
+  mirror([1,0,0])
+  difference() {
+    union() {
+      linear_extrude_y(springPinWidth,true) {
+        spring_pin_profile2();
+      }
+      *translate([shackleX,0,shackleZ-2+eps]) cylinder(r=shackleR,h=2-C);
+    }
+    *translate([shackleX,0,shackleZ-C]) cylinder(r1=shackleR+C-0.6,r2=shackleR+C+eps,h=0.6);
+    *translate([shackleX,0,shackleZ-C+0.6-eps]) cylinder(r=shackleR+C+eps,h=lots);
+    *translate([shackleX,0,max(lugZ-shaftTravel-1,shackleZ-C+0.6)]) cylinder(r1=shackleR+C+eps,r2=shackleR+1,h=1);
+    *translate_x(shackleX-shackleR+2) positive_x();
+    *translate([shackleX,0,shackleZ-C-eps]) cylinder(r=shackleR+C+eps,h=lots);
+    
+    *translate([shackleX,0,shackleZ-C]) cylinder(r1=shackleR+C-0.6,r2=shackleR+C+eps,h=0.6);
+    
+    *translate([shackleX,0,max(lugZ-shaftTravel-1,shackleZ-C+0.6)]) cylinder(r1=shackleR+C+eps,r2=shackleR+1,h=1);
   }
 }
 //!shaft();
 
-shaftTravel = 5.0;
+shaftTravel = roundToLayerHeight(5);
+shaftLength = roundToLayerHeight(wheels*(wheelThickness+wheelSep) + 1.5);
 //shaftTravel = 7;
 
-lugDepth = 4;
+lugDepth = roundToLayerHeight(4.5);
 lugChamfer = 1.2;
+lugChamfer2 = roundToLayerHeight(1.2);
 //lugZ = wheels*(wheelThickness+wheelSep) + max(2, shaftTravel - wheelThickness);
-lugZ = wheels*(wheelThickness+wheelSep) + lugDepth + shaftTravel - lugDepth + lugChamfer + 2;
+lugZ = roundToLayerHeight(shaftLength + lugDepth + shaftTravel - lugDepth + 2);
 lugTravel = 2.5;
-lugX = shaftR-0;
+lugX = shaftR-1;
 //lugX = 0;
 
-shaftLength = wheels*(wheelThickness+wheelSep) + 1;
-actuatorShape = [[lugX,shaftLength], [lugX,lugZ+lugDepth-1-shaftTravel], [lugX+lugTravel+C,lugZ-0.0], [lugX+lugTravel+C,lugZ+0.5], [lugX+lugTravel-0.5,lugZ+lugDepth/2], [lugX+lugTravel-0.5,lugZ+lugDepth]];
+actuatorEndZ = roundToLayerHeight(lugZ+lugDepth - 1);
 
 module export_shaft() { rotate([180]) shaft(); }
 
@@ -200,7 +268,7 @@ module housing() {
   wall = 2;
   floor   = roundToLayerHeight(1.0);
   ceiling = roundToLayerHeight(1.5);
-  h = lugZ + lugDepth + shaftTravel + floor + ceiling;
+  h = actuatorEndZ + shaftTravel + floor + ceiling;
   chamfer = 1;
   difference() {
     //translate_z(h/2-2) {
@@ -212,9 +280,14 @@ module housing() {
       minkowski() {
         linear_extrude(h) {
           hull() {
+          //group() {
             mirrored([1,0,0]) translate([shackleX,0]) circle(r=shackleR+wall-chamfer);
             //circle(r=wheelR+0*wall-chamfer);
-            circle(r=wheelR+-1-chamfer);
+            //circle(r=wheelR+-1-chamfer);
+            *intersection() {
+              circle(r=wheelR+wall-chamfer);
+              positive_y2d();
+            }
           }
         }
         double_cone(chamfer);
@@ -225,8 +298,8 @@ module housing() {
       translate_z(i*(wheelThickness+wheelSep) + wheelSep) {
         cylinder(r=wheelR + 2*C,h=wheelThickness+C);
       }
-      translate([-wheelR-C,0,i*(wheelThickness+wheelSep) + wheelSep]) {
-        cube([wheelR*2+2*C,lots,wheelThickness+C]);
+      translate([-(wheelR+2*C),-lots/2,i*(wheelThickness+wheelSep) + wheelSep]) {
+        cube([2*(wheelR+2*C),lots,wheelThickness+C]);
       }
     }
     *translate_z(wheelSep-1) {
@@ -235,17 +308,27 @@ module housing() {
       }
     }
     // shackle holes
-    translate([shackleX, 0,shackleZ -C]) cylinder(r=shackleR+C,h=lots);
+    translate([shackleX, 0,roundToLayerHeight(shackleZ-2)-C]) cylinder(r=shackleR+C,h=lots);
     translate([-shackleX,0,shackleZ2-C]) cylinder(r=shackleR+C,h=lots);
     //translate([shackleX,0,0]) cylinder(r=shackleR-1+C,h=30);
-    translate([shackleX,0,0]) linear_extrude(shackleZ) square(2*(shackleR-1+C),true);
+    translate([shackleX,0,0]) linear_extrude(shackleZ-2) square(2*(shackleR-1+C),true);
     shackle_retaining_pin(C=C+2*eps);
     // shaft hole
     color("pink") linear_extrude(h-floor-ceiling+C,convexity=5) shaft_profile(C);
     linear_extrude_y(2*(shaftR+C),true) {
       minkowski() {
-        sym_polygon_x(actuatorShape);
-        translate_y(-C) square([eps,shaftTravel+10+2*C]);
+        actuator_profile();
+        translate([-C,-C]) square([2*C,shaftTravel+10+2*C]);
+      }
+      //translate_y(shaftTravel) offset(C) sym_polygon_x(actuatorShape);
+    }
+    linear_extrude_y(springPinWidth+2*C,true) {
+      minkowski() {
+        union() {
+          spring_pin_profile();
+          mirror([1,0,0]) spring_pin_profile2();
+        }
+        translate([-C,-C]) square([2*C,shaftTravel+20+2*C]);
       }
       //translate_y(shaftTravel) offset(C) sym_polygon_x(actuatorShape);
     }
@@ -277,7 +360,7 @@ module export_housing_test() {
     translate_z(-2) cylinder(r=wheelR+2.2,h=20);
   }
 }
-!export_housing_test();
+//!export_housing_test();
 
 //-----------------------------------------------------------------------------
 // Shackle
@@ -287,11 +370,11 @@ shackleX = 15;
 shackleR = 4;
 
 shackleTravel = shaftTravel + 14;
-shackleZ = lugZ-7.5;
+shackleZ = lugZ-6.0;
 shackleZ2 = wheels*(wheelThickness+wheelSep) - wheelThickness - shackleTravel - 1;
 shackleLimiterZ = wheels*(wheelThickness+wheelSep) - wheelThickness/2-1;
 
-shackleWiggle = 4;
+shackleWiggle = 2.8;
 shackleLength = 30;
 
 module shackle_retaining_pin(depth=0,C=0) {
@@ -346,14 +429,15 @@ lugW = 2*(shackleR+1);
 
 module lug(CC=0,extraChamfer=0,dz=0) {
   chamfer = lugChamfer;
+  slope = 1.1;
   x1 = lugX+lugTravel+C;
-  x2 = shackleX - C - max(0,shackleR - (lugTravel-0.2));
+  x2 = shackleX - max(0,shackleR - (lugTravel-0.2));
   linear_extrude_y(lugW+2*CC,true) {
     offset(CC)
     //polygon([[shaftR+lugTravel+C,lugZ], [shaftR+lugTravel+C,lugZ+lugDepth], [shackleX-C,lugZ+lugDepth], [shackleX-C,lugZ]]);
     polygon([
-      [x1+chamfer,lugZ-extraChamfer], [x1,lugZ+chamfer-extraChamfer], [x1,lugZ+lugDepth+dz-chamfer], [x1+chamfer,lugZ+lugDepth+dz],
-      [x2-chamfer-extraChamfer,lugZ+lugDepth+dz+extraChamfer], [x2,lugZ+lugDepth+dz-chamfer], [x2,lugZ+chamfer], [x2-chamfer-extraChamfer,lugZ-extraChamfer]]);
+      [x1+slope*chamfer,lugZ-extraChamfer], [x1,lugZ+chamfer-extraChamfer], [x1,lugZ+lugDepth+dz-lugChamfer2], [x1+slope*lugChamfer2,lugZ+lugDepth+dz],
+      [x2-slope*chamfer-extraChamfer,lugZ+lugDepth+dz+extraChamfer], [x2,lugZ+lugDepth+dz-chamfer], [x2,lugZ+chamfer], [x2-slope*chamfer-extraChamfer,lugZ-extraChamfer]]);
   }
 }
 
@@ -362,15 +446,18 @@ module lug(CC=0,extraChamfer=0,dz=0) {
 //-----------------------------------------------------------------------------
 
 module assembly(cut = false) {
+  $fn = 20;
   labels = false;
-  shaftPos = 1 * shaftTravel;
+  showWheels = true;
+  d=0;
   //shaftPos = 0;
-  lugPos = -0 * lugTravel;
-  shackleDPos = 0*shackleTravel;
+  lugPos = -max(0,min(lugTravel,0.0 * lugTravel + d - shackleWiggle));
+  shackleDPos = 0*shackleTravel + 0*shackleWiggle + d;
+  shaftPos = min(shaftTravel, shackleDPos);
   
   yClip = cut ? 0 : -100;
   
-  color("lightsalmon") intersection() {
+  if (showWheels) color("lightsalmon") intersection() {
     for (i=[0:wheels-1]) {
     //for (i=[0:0]) {
       translate_z(i*(wheelThickness+wheelSep) + wheelSep + layerHeight/2) {
@@ -385,12 +472,12 @@ module assembly(cut = false) {
   }
   color("red") intersection() {
     translate_z(shaftPos) shaft();
-    translate_y(yClip) positive_y();
+    translate_y(yClip-10) positive_y();
   }
 
   color("lightblue") intersection() {
     translate_z(shackleDPos) shackle();
-    translate_y(yClip-10) positive_y();
+    translate_y(yClip-0) positive_y();
   }
   
   color("lightgreen")  intersection() {
@@ -405,9 +492,14 @@ module assembly(cut = false) {
 }
 
 module test() {
-  intersection() {
+  if (1) {
     assembly(true);
-    *positive_y();
+  } else {
+    intersection() {
+      assembly(false);
+      *positive_y();
+      translate_z(wheelPos+10) negative_z();
+    }
   }
 }
 test();
