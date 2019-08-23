@@ -19,6 +19,7 @@ wheelPos = 2;
 wheelR = 8;
 //innerWheelR = 5.7;
 innerWheelR = wheelR-1.2;
+innerWheelDR = 1.0;
 shaftR = 3;
 shaftR2 = shaftR + 1.5;
 
@@ -35,12 +36,12 @@ wheels = 4;
 function pf(x,o=0.0,p=0.25) = sign(-cos(x)+o) * pow(abs(-cos(x)+o),p) - pow(o+1,p);
 module gear_profile(C=0) {
   step = 1;
-  polygon([for (i=[0:step:360-1]) polar(i, innerWheelR + C + 0.5*(pf(i*positions)))]);
-  *union() {
-    circle(innerWheelR - 0.3);
-    for (i=[0:9]) {
-      rotate(360/positions*(i+0.5))
-      translate_x(innerWheelR-0.8) circle(1.3);
+  *polygon([for (i=[0:step:360-1]) polar(i, innerWheelR + C + 0.5*(pf(i*positions)))]);
+  union() {
+    circle(innerWheelR - innerWheelDR);
+    for (i=[0:positions-1]) {
+      rotate((i+0.5)*360/positions)
+      sym_polygon_y([for (j=[0:10/positions:70/positions]) polar(j,innerWheelR), polar(110/positions,innerWheelR-innerWheelDR)]);
     }
   }
 }
@@ -54,7 +55,9 @@ module outer_wheel(labels=true, for_inner=true, pos=0) {
           rotate(360/positions*i)
           translate_x(wheelR*1.06) circle(wheelR * 0.09);
         }
-        if (for_inner) {
+        if ($children) {
+          children();
+        } else if (for_inner) {
           offset(C) gear_profile(0);
         } else {
           circle(shaftR+C);
@@ -111,8 +114,9 @@ module inner_wheel() {
   difference() {
     linear_extrude(wheelThickness,convexity=5) {
       difference() {
+        *circle(innerWheelR);
         gear_profile(0);
-        *circle(shaftR+C);
+        *circle(innerWheelR-innerWheelDR);
       }
     }
     inner_wheel_inner();
@@ -125,6 +129,51 @@ module export_outer_wheel() { outer_wheel(); }
 module export_wheel0() { outer_wheel(for_inner=false,pos=0); }
 
 //!group(){inner_wheel(); outer_wheel(false); }
+
+//-----------------------------------------------------------------------------
+// Alternate wheels
+//-----------------------------------------------------------------------------
+
+altInnerR1 = shaftR + 1.2;
+altInnerR2 = altInnerR1 + 1.2;
+
+module outer_wheel_alt(labels=true) {
+  difference() {
+    outer_wheel(labels) {
+      circle(altInnerR2+2*C);
+    }
+    translate_z(wheelThickness - roundToLayerHeight(1))  {
+      cylinder(r = altInnerR2 + C + 1, h=lots);
+    }
+  }
+}
+module inner_wheel_alt() {
+  linear_extrude(wheelThickness + wheelSep,convexity=5) {
+    difference() {
+      circle(altInnerR1);
+      circle(shaftR+C/2);
+    }
+  }
+}
+
+module inner_pin_alt_profile(C = 0) {
+  shaftR2C = altInnerR2 + 2*C; // note: extra clearance to prevent sideways interaction 
+  w = shaftPinW+2*C;
+  intersection() {
+    circle(shaftR2C);
+    translate([-w/2,0]) square([w,shaftR2C]);
+  }
+  *wedge(360/positions * 0.7,r=shaftR2C);
+}
+module inner_alt_profile(C = 0, all_pins = false) {
+  circle(r=altInnerR+C);
+  pins = all_pins ? [0:positions-1] : [0,3,7];
+  offset = 1*360/10;
+  rotations = [for (i=pins) 360*i/positions + offset];
+  rotated(rotations) inner_pin_alt_profile(C);
+}
+
+//!group(){outer_wheel_alt(false); inner_wheel_alt(); }
 
 //-----------------------------------------------------------------------------
 // Shaft
@@ -162,6 +211,11 @@ module actuator_profile() {
     //[lugX+lugTravel-0.5,lugZ+lugDepth/2],
     [lugX+lugTravel-0.1,actuatorEndZ]]);
 }
+module actuator_center_profile() {
+  sym_polygon_x([
+    [1,shaftLength],
+    [1,actuatorEndZ]]);
+}
 
 springPinWidth = 5;
 module spring_pin_profile() {
@@ -170,10 +224,10 @@ module spring_pin_profile() {
   z3 = min(roundToLayerHeight(z2 - 2));
   z4 = max(shaftLength, roundToLayerHeight(z - 2));
   polygon([
-    [lugX,z+1],[lugX+1,z],[shackleX+C,z],
+    [lugX,z+1],[lugX+1,z],[shackleX+shackleR-1,z],
     //[shackleX-shackleR-C,z],
     //[shackleX-shackleR-C,z2], [shackleX+C,z2],
-    [shackleX+C,z3], [shackleX-shackleR-1,z3],
+    [shackleX+shackleR-1,z3], [shackleX-shackleR-1,z3],
     [shackleX-shackleR-2,z4],[lugX,z4]]);
 }
 module spring_pin_profile2() {
@@ -205,8 +259,13 @@ module shaft() {
     }
   }
   intersection() {
-    linear_extrude_y(2*(shaftR+0),true) {
-      actuator_profile();
+    group() {
+      linear_extrude_y(2*(shaftR+0),true) {
+        actuator_profile();
+      }
+      linear_extrude_y(2*(shaftR+1),true) {
+        actuator_center_profile();
+      }
     }
     translate_z(shaftLength) cylinder(r1=shaftR,r2=shaftR+40,h=100);
   }
@@ -220,7 +279,7 @@ module shaft() {
       translate([shackleX,0,shackleZ-C+0.6-eps]) cylinder(r=shackleR+C+eps,h=lots);
       translate([shackleX,0,max(lugZ-shaftTravel-1,shackleZ-C+0.6)]) cylinder(r1=shackleR+C+eps,r2=shackleR+1,h=1);
     }
-    translate([shackleX,0,roundToLayerHeight(shackleZ-2)+eps]) cylinder(r=shackleR,h=2-C);
+    *translate([shackleX,0,roundToLayerHeight(shackleZ-2)+eps]) cylinder(r=shackleR,h=2-C);
   }
   mirror([1,0,0])
   difference() {
@@ -228,17 +287,7 @@ module shaft() {
       linear_extrude_y(springPinWidth,true) {
         spring_pin_profile2();
       }
-      *translate([shackleX,0,shackleZ-2+eps]) cylinder(r=shackleR,h=2-C);
     }
-    *translate([shackleX,0,shackleZ-C]) cylinder(r1=shackleR+C-0.6,r2=shackleR+C+eps,h=0.6);
-    *translate([shackleX,0,shackleZ-C+0.6-eps]) cylinder(r=shackleR+C+eps,h=lots);
-    *translate([shackleX,0,max(lugZ-shaftTravel-1,shackleZ-C+0.6)]) cylinder(r1=shackleR+C+eps,r2=shackleR+1,h=1);
-    *translate_x(shackleX-shackleR+2) positive_x();
-    *translate([shackleX,0,shackleZ-C-eps]) cylinder(r=shackleR+C+eps,h=lots);
-    
-    *translate([shackleX,0,shackleZ-C]) cylinder(r1=shackleR+C-0.6,r2=shackleR+C+eps,h=0.6);
-    
-    *translate([shackleX,0,max(lugZ-shaftTravel-1,shackleZ-C+0.6)]) cylinder(r1=shackleR+C+eps,r2=shackleR+1,h=1);
   }
 }
 //!shaft();
@@ -264,12 +313,30 @@ module export_shaft() { rotate([180]) shaft(); }
 // Housing
 //-----------------------------------------------------------------------------
 
+housingFloor   = roundToLayerHeight(1.0);
+housingCeiling = roundToLayerHeight(1.5);
+housingWall    = 1.0;
+housingWall2   = 1.8;
+housingChamfer = 1;
+housingInteriorHeight = actuatorEndZ + shaftTravel;
+housingHeight  = housingInteriorHeight + housingFloor + housingCeiling;
+
+module housing_profile(wall=1,C=0) {
+  hull() {
+    mirrored([1,0,0]) translate([shackleX,0]) circle(r=shackleR+C+wall*housingWall2);
+    circle(r=wheelR+2*C+wall*housingWall);
+  }
+}
+module housing_interior_profile() {
+  housing_profile(0,C=C);
+}
+
 module housing() {
-  wall = 2;
-  floor   = roundToLayerHeight(1.0);
-  ceiling = roundToLayerHeight(1.5);
-  h = actuatorEndZ + shaftTravel + floor + ceiling;
-  chamfer = 1;
+  wall = housingWall;
+  floor   = housingFloor;
+  ceiling = housingCeiling;
+  h = housingHeight;
+  chamfer = housingChamfer;
   difference() {
     //translate_z(h/2-2) {
     translate_z(-floor) {
@@ -278,17 +345,8 @@ module housing() {
         chamfer_cube(2*(shackleX+shackleR+2*C),2*(shackleR+2*C),h+2*C-4,1);
       }
       minkowski() {
-        linear_extrude(h) {
-          hull() {
-          //group() {
-            mirrored([1,0,0]) translate([shackleX,0]) circle(r=shackleR+wall-chamfer);
-            //circle(r=wheelR+0*wall-chamfer);
-            //circle(r=wheelR+-1-chamfer);
-            *intersection() {
-              circle(r=wheelR+wall-chamfer);
-              positive_y2d();
-            }
-          }
+        translate_z(chamfer) linear_extrude(h-2*chamfer) {
+          offset(-chamfer) housing_profile();
         }
         double_cone(chamfer);
       }
@@ -296,31 +354,48 @@ module housing() {
     // wheels
     for (i=[0:wheels-1]) {
       translate_z(i*(wheelThickness+wheelSep) + wheelSep) {
-        cylinder(r=wheelR + 2*C,h=wheelThickness+C);
+        cylinder(r=wheelR + 2*C,h=wheelThickness);
       }
-      translate([-(wheelR+2*C),-lots/2,i*(wheelThickness+wheelSep) + wheelSep]) {
+      *translate([-(wheelR+2*C),-lots/2,i*(wheelThickness+wheelSep) + wheelSep]) {
         cube([2*(wheelR+2*C),lots,wheelThickness+C]);
       }
     }
+    windowA = 30;
+    windowA2 = 50;
+    windowZ = 0.5;
+    windowZ2 = 2.0;
+    windowCutout = reverse([polar(90-windowA2,wheelR*2),for (i=[-windowA:5:windowA]) polar(i+90,wheelR-0.5),polar(90+windowA2,wheelR*2)]);
+    windowCutout2 = reverse([polar(90-windowA2,wheelR*2+2),for (i=[-windowA:5:windowA]) polar(i+90,wheelR+1.2),polar(90+windowA2,wheelR*2+2)]);
+    prism([windowCutout2,windowCutout,windowCutout,windowCutout2],
+      [roundToLayerHeight(wheelSep-windowZ2),roundToLayerHeight(wheelSep-windowZ), roundToLayerHeight(wheels * (wheelThickness+wheelSep)+windowZ), roundToLayerHeight(wheels * (wheelThickness+wheelSep)+windowZ2)], convexity=5);
     *translate_z(wheelSep-1) {
       linear_extrude(wheels * (wheelThickness+wheelSep) - wheelSep + 2) {
-        sym_polygon_x([[wheelR+2.2,wheelR+wall],for (i=[60:5:90]) polar(i,wheelR-0.5)]);
+        polygon(windowCutout);
       }
     }
     // shackle holes
-    translate([shackleX, 0,roundToLayerHeight(shackleZ-2)-C]) cylinder(r=shackleR+C,h=lots);
+    translate([shackleX, 0,roundToLayerHeight(shackleZ)-layerHeight]) cylinder(r=shackleR+C,h=lots);
     translate([-shackleX,0,shackleZ2-C]) cylinder(r=shackleR+C,h=lots);
     //translate([shackleX,0,0]) cylinder(r=shackleR-1+C,h=30);
-    translate([shackleX,0,0]) linear_extrude(shackleZ-2) square(2*(shackleR-1+C),true);
-    shackle_retaining_pin(C=C+2*eps);
+    translate([shackleX,0,0]) linear_extrude(shackleZ-2+C) square(2*(shackleR-1.2+C),true);
+    *shackle_retaining_pin(C=C+2*eps);
     // shaft hole
-    color("pink") linear_extrude(h-floor-ceiling+C,convexity=5) shaft_profile(C);
+    *color("pink") minkowski() {
+      shaft();
+      translate([-C,-C,0]) cube([2*C,2*C,shaftTravel+layerHeight + 1]);
+    }
+    color("pink") linear_extrude(shaftLength+shaftTravel+layerHeight,convexity=5) shaft_profile(C);
     linear_extrude_y(2*(shaftR+C),true) {
       minkowski() {
         actuator_profile();
-        translate([-C,-C]) square([2*C,shaftTravel+10+2*C]);
+        translate([-C,0]) square([2*C,shaftTravel+layerHeight]);
       }
-      //translate_y(shaftTravel) offset(C) sym_polygon_x(actuatorShape);
+    }
+    linear_extrude_y(2*(shaftR+1+C),true) {
+      minkowski() {
+        actuator_center_profile();
+        translate([-C,0]) square([2*C,shaftTravel+layerHeight]);
+      }
     }
     linear_extrude_y(springPinWidth+2*C,true) {
       minkowski() {
@@ -328,7 +403,7 @@ module housing() {
           spring_pin_profile();
           mirror([1,0,0]) spring_pin_profile2();
         }
-        translate([-C,-C]) square([2*C,shaftTravel+20+2*C]);
+        translate([-C,0]) square([2*C,shaftTravel+layerHeight + 1]);
       }
       //translate_y(shaftTravel) offset(C) sym_polygon_x(actuatorShape);
     }
@@ -337,22 +412,156 @@ module housing() {
       lug(C);
       translate_x(-lugTravel) lug(C);
       //translate_x(-lugTravel*3) lug(C);
-      linear_extrude_y(lugW+2*C,true) {
+      // holes to get lugs in
+      *linear_extrude_y(lugW+2*C,true) {
         sym_polygon_x([[lugX+2,lugZ-C],[lugX+2,lugZ+lugDepth+C],[lugDepth/2+C+2,lugZ+lugDepth+C],[lugDepth/2+0.5+C,lugZ+lugDepth+2+C],[lugDepth/2+0.5+C,h]]);
       }
     }
     // cap
-    capR = shackleR + 1 + C;
-    z1 = h-ceiling-floor+C - eps;
-    translate_x(-shackleX+shackleR+2) linear_extrude_x(shackleX*2 + eps) {
-      sym_polygon_x([[capR+1,z1],[capR+1,z1+0.3],[capR,z1+1.2],[capR,h]]);
+    if (0) {
+      capR = shackleR + 1 + C;
+      z1 = h-ceiling-floor+C - eps;
+      translate_x(-shackleX+shackleR+2) linear_extrude_x(shackleX*2 + eps) {
+        sym_polygon_x([[capR+1,z1],[capR+1,z1+0.3],[capR,z1+1.2],[capR,h]]);
+      }
+      linear_extrude_y(lots,true) {
+        polygon([[shackleX,z1],[shackleX,h],[lots,h],[lots,z1]]);
+      }
     }
-    linear_extrude_y(lots,true) {
-      polygon([[shackleX,z1],[shackleX,h],[lots,h],[lots,z1]]);
+    // wheel holes
+    *translate_z(wheelSep) {
+      cylinder(r=wheelR + C,h=lots);
     }
   }
 }
 //!intersection(){housing(); positive_y();}
+
+module housing_interior_mask() {
+  linear_extrude(housingInteriorHeight) {
+    housing_interior_profile();
+  }
+}
+innerMaskX = wheelR+2*C+2;
+tightC = 0.05;
+module housing_connector_profile() {
+  intersection() {
+    housing_interior_profile();
+    group() {
+      //square([2*(innerMaskX-1), lugW+2*C],true);
+      chamfer_rect(2*(wheelR+2*C+0.8), lugW+2*C,1.5);
+      difference() {
+        *square([2*innerMaskX, lugW+2*C],true);
+        chamfer_rect(2*(innerMaskX), lugW+2*C,1.5);
+        square([lots, 2],true);
+      }
+    }
+  }
+}
+module housing_wheel_mask(extraC = 0) {
+  translate_z(wheelSep+wheelThickness)
+  //linear_extrude(shaftLength-wheelSep+eps) {
+  linear_extrude(lots,convexity=4) {
+    circle(r=wheelR+2*C-2*eps+extraC);
+    offset(extraC) housing_connector_profile();
+  }
+}
+capTravel = 2.5;
+housingCapHeight = roundToLayerHeight(1);
+module housing_cap_mask() {
+  h = housingCapHeight;
+  *translate_z(housingInteriorHeight-h) linear_extrude(housingCeiling+h+eps) {
+    offset(eps) housing_profile();
+  }
+  *translate_z(housingInteriorHeight-roundToLayerHeight(0.6)) linear_extrude(housingCeiling+eps) {
+    offset(-0.8) housing_profile();
+  }
+  translate_z(housingInteriorHeight-h) positive_z();
+  difference() {
+    translate_z(lugZ+lugDepth+C) {
+      linear_extrude(lots) {
+        translate([-shackleX,-lugW/2-C]) {
+          square([2*shackleX - capTravel - shackleR,lugW+2*C]);
+        }
+        translate([-shackleX,-(lugW-2)/2-C]) {
+          square([2*shackleX - capTravel,lugW-2+2*C]);
+        }
+      }
+    }
+    linear_extrude_y(lots,true) {
+      polygon([[-shackleX-eps,housingInteriorHeight-h], [-shackleX-eps + 1.5,housingInteriorHeight-h], [-shackleX-eps + 1.5,housingInteriorHeight-h - 0.5], [-shackleX-eps,housingInteriorHeight-h - 2]]);
+    }
+  }
+  for (x=[-0.6*shackleX,-capTravel/2,0.6*shackleX-capTravel]) {
+    translate([x,0,lugZ+lugDepth+C]) linear_extrude_x(capTravel) {
+      simple_slot_profile(lugW+2*C+2,1,3);
+    }
+  }
+}
+module housing_cap_mask_negative() {
+  minkowski(convexity=4) {
+    housing_cap_mask();
+    group() {
+      translate([0,-tightC]) cube([capTravel,2*tightC,eps]);
+      translate([capTravel,-tightC]) cube([2*tightC,2*tightC,lots]);
+    }
+  }
+}
+module housing_outer() {
+  difference() {
+    housing();
+    color("pink") housing_wheel_mask(tightC);
+    color("lightyellow") housing_cap_mask_negative();
+  }
+}
+module housing_inner() {
+  intersection() {
+    difference() {
+      housing();
+      housing_cap_mask_negative();
+    }
+    housing_wheel_mask();
+  }
+}
+module housing_inner_part(i) {
+  intersection() {
+    housing_inner();
+    translate_z((wheelSep+wheelThickness)*(i+1)) positive_z();
+    if (i < wheels-1)
+    translate_z((wheelSep+wheelThickness)*(i+2)-eps) negative_z();
+  }
+}
+module housing_cap() {
+  difference() {
+    intersection() {
+      housing();
+      housing_cap_mask();
+    }
+    // room to slide cap
+    linear_extrude_y(2*(shaftR+C),true) {
+      minkowski() {
+        actuator_profile();
+        translate([-C-capTravel,0]) square([capTravel+2*C,shaftTravel+layerHeight]);
+      }
+    }
+    linear_extrude_y(2*(shaftR+1+C),true) {
+      minkowski() {
+        actuator_center_profile();
+        translate([-C-capTravel,0]) square([capTravel+2*C,shaftTravel+layerHeight]);
+      }
+    }
+  }
+}
+*!intersection(){
+  group() {
+    *housing_outer();
+    *housing_inner();
+    housing_inner_part(3);
+    translate_z(5) housing_cap();
+  }
+  translate_y(-1)positive_y();
+  *translate_z(housingHeight-4) negative_z();
+}
+
 
 module export_housing_test() {
   intersection() {
@@ -361,6 +570,17 @@ module export_housing_test() {
   }
 }
 //!export_housing_test();
+
+module export_housing_outer() { housing_outer(); }
+module export_housing_cap() { rotate([180]) housing_cap(); }
+module export_housing_inner() {
+  for (i=[0:wheels-1]) {
+    translate([i*(wheelR*2+10),0,-(wheelSep+wheelThickness)*(i+1)]) {
+      housing_inner_part(i);
+    }
+  }
+}
+!export_housing_inner();
 
 //-----------------------------------------------------------------------------
 // Shackle
@@ -375,7 +595,7 @@ shackleZ2 = wheels*(wheelThickness+wheelSep) - wheelThickness - shackleTravel - 
 shackleLimiterZ = wheels*(wheelThickness+wheelSep) - wheelThickness/2-1;
 
 shackleWiggle = 2.8;
-shackleLength = 30;
+shackleBendZ = housingInteriorHeight + housingCeiling + roundToLayerHeight(10);
 
 module shackle_retaining_pin(depth=0,C=0) {
   z1 = shackleLimiterZ-depth-C;
@@ -390,12 +610,13 @@ module shackle_retaining_pin(depth=0,C=0) {
 module shackle(shackleLabel = true) {
   difference() {
     group() {
+      shackleLength  = shackleBendZ-shackleZ;
+      shackleLength2 = shackleBendZ-shackleZ2;
       translate([shackleX,0,shackleZ+1]) cylinder(r=shackleR,h=shackleLength-1);
       translate([shackleX,0,shackleZ])   cylinder(r1=shackleR-1,r2=shackleR,h=1);
-      shackleLength2 = shackleLength+shackleZ-shackleZ2;
       translate([-shackleX,0,shackleZ2+1]) cylinder(r=shackleR,h=shackleLength2-1);
       translate([-shackleX,0,shackleZ2])   cylinder(r1=shackleR-1,r2=shackleR,h=1);
-      translate_z(shackleZ+shackleLength) intersection() {
+      translate_z(shackleBendZ) intersection() {
         rotate([90,0,0]) rotate_extrude() {
           translate([shackleX,0]) circle(r=shackleR);
         }
@@ -406,20 +627,69 @@ module shackle(shackleLabel = true) {
       translate_z(-shackleWiggle) lug(C,5,shackleWiggle);
     }
     // shackle limiter pin hole
-    z2 = shackleLimiterZ-shackleTravel-C;
-    shackle_retaining_pin(depth=shackleTravel,C=C);
-    translate_x(-shackleX) {
-      difference() {
-        group() {
-          translate_z(z2) cylinder(r=shackleR+1,h=2);
+    if (0) {
+      shackle_retaining_pin(depth=shackleTravel,C=C);
+      z2 = shackleLimiterZ-shackleTravel-C;
+      translate_x(-shackleX) {
+        difference() {
+          group() {
+            translate_z(z2) cylinder(r=shackleR+1,h=2);
+          }
+          translate_z(z2) cylinder(r1=shackleR+eps,r2=shackleR-1,h=0.8);
+          translate_z(z2+0.8) cylinder(r=shackleR-1,h=0.4);
+          translate_z(z2+1.2) cylinder(r1=shackleR-1,r2=shackleR+eps,h=0.8);
         }
-        translate_z(z2) cylinder(r1=shackleR+eps,r2=shackleR-1,h=0.8);
-        translate_z(z2+0.8) cylinder(r=shackleR-1,h=0.4);
-        translate_z(z2+1.2) cylinder(r1=shackleR-1,r2=shackleR+eps,h=0.8);
+      }
+    } else {
+      linear_extrude_y(springPinWidth+2*C,true) {
+        minkowski() {
+          union() {
+            mirror([1,0,0]) spring_pin_profile2();
+          }
+          translate([-C,-shackleTravel-C]) square([2*C,shackleTravel+2*layerHeight]);
+        }
+      }
+      z2 = shackleZ-2-shackleTravel;
+      translate_x(-shackleX) {
+        difference() {
+          group() {
+            translate_z(z2) cylinder(r=shackleR+1,h=2);
+          }
+          translate_z(z2) cylinder(r1=shackleR+eps,r2=shackleR-1,h=0.8);
+          translate_z(z2+0.8) cylinder(r=shackleR-1,h=0.4);
+          translate_z(z2+1.2) cylinder(r1=shackleR-1,r2=shackleR+eps,h=0.8);
+        }
       }
     }
   }
 }
+
+
+module shackle_with_support() {
+  offset = 1*layerHeight;
+  f = sqrt(2)/2;
+  h = f * (shackleX + shackleR);
+  shackleTop = shackleBendZ+shackleX+shackleR;
+  wall = 0.8;
+  rotate([0,180,0])
+  translate_z(-shackleTop) 
+  group() {
+    shackle();
+    color("red")
+    difference() {
+      translate_z(shackleBendZ+h) linear_extrude(shackleTop - (shackleBendZ+h) + 2*layerHeight) {
+        square([2*(f*(shackleR+shackleX)+wall),2*(f*shackleR+wall)],true);
+      }
+      translate_z(shackleBendZ) rotate([90,0,0]) rotate_extrude() {
+        translate([shackleX,0]) circle(r=shackleR + offset);
+        translate([0,-10]) square([shackleX+shackleR*f,20]);
+      }
+    }
+  }
+}
+//!shackle_with_support();
+
+module export_shackle_with_support(){shackle_with_support();}
 
 //-----------------------------------------------------------------------------
 // Locking lugs

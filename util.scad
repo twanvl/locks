@@ -304,6 +304,25 @@ module thread_with_stop(diameter, C = 0, pitch, length, stop, internal = false, 
 }
 
 //-----------------------------------------------------------------------------
+// Sliding
+//-----------------------------------------------------------------------------
+
+// Printable slot profile.
+// Shape:
+//    _______________
+//    |             |
+//   /               \
+//  |_________________|
+//
+// The large width is w, the small width is w-2*dx
+module simple_slot_profile(w, dx, h, slope = 1.2, center=0.5) {
+  dz = dx/slope; // height of sloped part
+  z1 = roundToLayerHeight((h - dz) * center);
+  z2 = roundToLayerHeight((h - dz) * center + dz);
+  sym_polygon_x([[w/2,0],[w/2,z1],[w/2-dx,z2],[w/2-dx,h]]);
+}
+
+//-----------------------------------------------------------------------------
 // Twisting
 //-----------------------------------------------------------------------------
 
