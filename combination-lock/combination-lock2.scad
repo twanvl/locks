@@ -378,7 +378,8 @@ module housing() {
     translate([shackleX, 0,roundToLayerHeight(shackleZ)-layerHeight]) cylinder(r=shackleR+C,h=lots);
     translate([-shackleX,0,shackleZ2-C]) cylinder(r=shackleR+C,h=lots);
     //translate([shackleX,0,0]) cylinder(r=shackleR-1+C,h=30);
-    translate([shackleX,0,0]) linear_extrude(shackleZ-2+C) square(2*(shackleR-1.2+C),true);
+    // spring hole
+    translate([shackleX,0,0]) linear_extrude(shackleZ-2+C) square(2*(springR+C),true);
     *shackle_retaining_pin(C=C+2*eps);
     // shaft hole
     *color("pink") minkowski() {
@@ -680,7 +681,7 @@ module shackle(shackleLabel = true) {
         }
       }
       h2 = h - 3;
-      translate_x(-shackleX) rotate(180) translate_x(shackleX)
+      *translate_x(-shackleX) rotate(180) translate_x(shackleX)
       linear_extrude_y(springPinWidth+2*C,true) {
         minkowski() {
           union() {
@@ -698,6 +699,16 @@ module shackle(shackleLabel = true) {
           translate_z(z2) cylinder(r1=shackleR+eps,r2=shackleR-1.3,h=1.1);
           translate_z(z2+1.1) cylinder(r=shackleR-1.3,h=0.7);
           translate_z(z2+1.8) cylinder(r1=shackleR-1.3,r2=shackleR+eps,h=1.1);
+        }
+      }
+      // shackle removal
+      translate_x(-shackleX) rotate(180) translate_x(shackleX)
+      linear_extrude_y(springPinWidth+2*C,true) {
+        minkowski() {
+          union() {
+            mirror([1,0,0]) spring_pin_profile2();
+          }
+          translate([0,-h-100]) square([1*C,100]);
         }
       }
     }
@@ -754,6 +765,21 @@ module lug(CC=0,extraChamfer=0,dz=0) {
 module export_lug() { lug(); }
 
 //-----------------------------------------------------------------------------
+// Spring
+//-----------------------------------------------------------------------------
+
+springR = shackleR-1.2;
+
+module spring() {
+  translate_x(shackleX)
+  linear_extrude_y(2*springR,center=true) {
+    rotate(90)
+    spring_profile(shackleZ+shaftTravel,2*springR-0.1,turns=12,center=[false,true]);
+  }
+}
+module export_spring() { rotate(90) rotate([90]) spring(); }
+
+//-----------------------------------------------------------------------------
 // Assembly
 //-----------------------------------------------------------------------------
 
@@ -802,6 +828,11 @@ module assembly(cut = false) {
   color("lightyellow") intersection() {
     housing();
     translate_y(yClip+2*eps) positive_y();
+  }
+
+  color("green") intersection() {
+    spring();
+    translate_y(yClip-8*eps) positive_y();
   }
 }
 
