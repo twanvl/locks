@@ -323,6 +323,38 @@ module simple_slot_profile(w, dx, h, slope = 1.2, center=0.5) {
 }
 
 //-----------------------------------------------------------------------------
+// Springs
+//-----------------------------------------------------------------------------
+
+// Generate a 2d spring that can be compressed in the x direction.
+// A spring(w,h) fits exactly into a square([w,h]) if angle=0
+// Parameters
+//   w: width
+//   h: height
+//   turns: number of 180 degree turns the spring makes
+//   line_width: (Default 0.5)
+//   angle: extend/compress the spring. Positive angle extends
+//   left_flat: make left side flat even if angle!=0
+//   right_flat: make right side flat even if angle!=0
+//   center: center around [0,0]? Can be a vector of 2 booleans
+module spring_profile(w, h, turns = 4, line_width=0.5, angle = 0, left_flat = true, right_flat = true, center = false) {
+  nx = turns;
+  r = line_width;
+  width_per_turn = (w - line_width) / turns;
+  gon = 80; // approximate circular turn as an n-gon
+  translate([line_width/2 + (is_bool(center) && center || center[0] ? -w/2 : 0),line_width/2 + (is_bool(center) && center || center[1] ? -h/2 : 0)])
+  line(cumsum([for (i=[0:turns])
+      each [polar( i == 0 && left_flat || i == turns && right_flat ? 90
+                 : i % 2 == 1 ? -90+angle : 90-angle
+                 , h - width_per_turn - line_width + (i == 0 || i == turns ? width_per_turn/2 : 0))
+           ,if (i<turns)
+              for (j=[-90:360/gon:90])
+                polar((i % 2 == 1 ? j : -j) * (180-2*angle)/180, width_per_turn*sin(180/gon))
+           ]
+    ],[0,0]), r);
+}
+
+//-----------------------------------------------------------------------------
 // Twisting
 //-----------------------------------------------------------------------------
 
