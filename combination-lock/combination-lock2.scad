@@ -219,7 +219,7 @@ module actuator_center_profile() {
 
 springPinWidth = 5;
 module spring_pin_profile() {
-  z = lugZ-shaftTravel;
+  z = roundToLayerHeight(lugZ-shaftTravel - 0.3);
   z2 = shackleZ;
   z3 = min(roundToLayerHeight(z2 - 2));
   z4 = max(shaftLength, roundToLayerHeight(z - 2));
@@ -231,7 +231,7 @@ module spring_pin_profile() {
     [shackleX-shackleR-2,z4],[lugX,z4]]);
 }
 module spring_pin_profile2() {
-  z = lugZ-shaftTravel;
+  z = roundToLayerHeight(lugZ-shaftTravel - 0.3);
   z2 = shackleZ;
   z3 = z2 - 2;
   z4 = max(shaftLength, roundToLayerHeight(z - 2));
@@ -656,6 +656,11 @@ module shackle(shackleLabel = true) {
     mirrored([1,0,0]) {
       translate_z(-shackleWiggle) lug(C,5,shackleWiggle);
     }
+    // top cover removal space
+    translate_z(lugZ-shackleWiggle+2) linear_extrude(housingCapHeight+housingCeiling+roundToLayerHeight(0.5)) difference() {
+      translate_x(-shackleX) circle(shackleR+1);
+      translate_x(-shackleX-capTravel) circle(shackleR);
+    }
     // shackle limiter pin hole
     if (0) {
       shackle_retaining_pin(depth=shackleTravel,C=C);
@@ -714,7 +719,7 @@ module shackle(shackleLabel = true) {
     }
   }
 }
-
+*!shackle();
 
 module shackle_with_support() {
   offset = 1*layerHeight;
@@ -769,15 +774,19 @@ module export_lug() { lug(); }
 //-----------------------------------------------------------------------------
 
 springR = shackleR-1.2;
+springC = 0.5;
 
-module spring() {
+module spring(curved = true) {
   translate_x(shackleX)
-  linear_extrude_y(2*springR,center=true) {
+  linear_extrude_y(2*(springR-springC),center=true) {
     rotate(90)
-    spring_profile(shackleZ+shaftTravel,2*springR-0.1,turns=12,center=[false,true]);
+    spring_profile(shackleZ+shaftTravel,2*(springR-springC),turns=24,center=[false,true], curved = curved, line_width=0.45);
   }
 }
 module export_spring() { rotate(90) rotate([90]) spring(); }
+*!group(){spring(curved=true);
+  translate_y(-5)color("red") spring(curved=false);
+}
 
 //-----------------------------------------------------------------------------
 // Assembly
