@@ -9,10 +9,6 @@ include <../util.scad>
 // Model parameters
 //-----------------------------------------------------------------------------
 
-C = 0.125;
-layerHeight = 0.15;
-function roundToLayerHeight(z) = round(z/layerHeight)*layerHeight;
-
 wheelThickness = roundToLayerHeight(5);
 wheelSep = roundToLayerHeight(2.5);
 wheelPos = 2;

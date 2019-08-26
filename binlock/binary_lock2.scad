@@ -104,7 +104,7 @@ module mid_pin(type=0) {
     }
   }
 }
-!mid_pin(0);
+//!mid_pin(0);
 module driver_pin(type=0) {
   intersection() {
     linear_extrude(pinThickness, convexity=5) {
