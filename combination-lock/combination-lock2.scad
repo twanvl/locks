@@ -772,16 +772,38 @@ module export_lug() { lug(); }
 springR = shackleR-1.2;
 springC = 0.5;
 
-module spring(curved = true) {
+module spring(curved = false) {
   translate_x(shackleX)
   linear_extrude_y(2*(springR-springC),center=true) {
     rotate(90)
     spring_profile(shackleZ+shaftTravel,2*(springR-springC),turns=24,center=[false,true], curved = curved, line_width=0.45);
   }
 }
+module spring_cap() {
+  w = 2*(springR-springC);
+  w2 = w * 0.4 + 2*C;
+  translate_x(shackleX) {
+    translate_z((shaftTravel + shackleZ)/2)
+    linear_extrude((shaftTravel + shackleZ)/2) difference() {
+      square(w,true);
+      square([w,w2],true);
+    }
+    translate_z(shaftTravel+shackleZ)
+    linear_extrude(max(0.8,2*layerHeight)) {
+      square(w,true);
+    }
+  }
+}
 module export_spring() { rotate(90) rotate([90]) spring(); }
-*!group(){spring(curved=true);
+module export_small_spring() { rotate(90) rotate([90]) scale([1,0.4,1]) spring(); }
+module export_small_spring_cap() { rotate([0,90]) spring_cap(); }
+!group(){
+  spring(curved=true);
   translate_y(-5)color("red") spring(curved=false);
+  translate_y(-10) {
+    color("lightblue") scale([1,0.4,1]) spring(curved=false);
+    color("lightgreen") spring_cap();
+  }
 }
 
 //-----------------------------------------------------------------------------
