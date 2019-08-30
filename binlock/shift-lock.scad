@@ -14,6 +14,9 @@ include <../util.scad>;
 //  y = height
 //  z = thickness
 
+C = 0.125;
+pinC = 0.2;
+
 wall = 1.2;
 
 waferThickness = roundToLayerHeight(0.9);
@@ -32,6 +35,7 @@ core2Travel = 5;
 keyTravel = core1Travel + core2Travel; // in y direction
 
 pinR = 2.5;
+//pinR = 2.25;
 firstPinY = keyTravel + wall;
 pinRows = 4;
 pinCols = 3;
@@ -78,7 +82,7 @@ pinTravel = wafers * waferThickness; // in z direction
 waferZ = keyThickness + core1Thickness - wafers*waferThickness;
 module key_pin_limiter_profile(C=0,i=0) {
   //rotate(45/2)
-  //square(2*(2.5+C),true);
+  *square(2*(pinR+C),true);
   //rotate(45)
   rotate(i*90) rotated(180) square(pinR+C);
   *intersection() {
@@ -87,12 +91,12 @@ module key_pin_limiter_profile(C=0,i=0) {
   }
   circle(pinR+C);
 }
-keyPinR = 2.5;
+keyPinR = pinR;
 module key_pin(C=0,i=0,h=0) {
   r1 = 0.8;
   z0 = keyThickness-wafers*waferThickness;
   z1 = min(wafers*waferThickness,keyPinR-r1) + z0;
-  z2 = keyThickness + roundToLayerHeight(0.7);
+  z2 = keyThickness + roundToLayerHeight(0.9);
   z3 = waferZ + h;
   translate_z(z0) cylinder(r1=r1+C,r2=keyPinR+C,h=z1-z0+eps);
   if (C>0) translate_z(z0) cylinder(r1=r1+C,r2=keyPinR+4+C,h=z1-z0+eps+4);
@@ -100,25 +104,27 @@ module key_pin(C=0,i=0,h=0) {
   translate_z(z2) linear_extrude(z3-z2,convexity=2) key_pin_limiter_profile(C,i);
 }
 module key_pin_hole(i=0) {
-  z2 = keyThickness + roundToLayerHeight(0.7) - 2*layerHeight;
-  linear_extrude(z2+eps) circle(keyPinR+C);
-  translate_z(z2) linear_extrude(lots,convexity=2) key_pin_limiter_profile(C,i);
+  z2 = keyThickness + roundToLayerHeight(0.9) - 3*layerHeight;
+  linear_extrude(z2+eps) circle(keyPinR+pinC);
+  translate_z(z2) linear_extrude(lots,convexity=2) key_pin_limiter_profile(pinC,i);
 }
 
 module wafer() {
   cylinder(r=pinR,h=waferThickness);
 }
 module wafer_hole() {
-  cylinder(r=pinR+C, h=lots);
+  cylinder(r=pinR+pinC, h=lots);
 }
 module mid_pin(bit) {
   cylinder(r=pinR,h=core2Thickness - bit*waferThickness);
 }
 topPinThickness = roundToLayerHeight(2);
 topPinR = pinR + 2.0;
+topPinW = 2.0;
+//topPinW = 1.7;
 module top_pin_profile(C=0) {
   circle(pinR+C);
-  rotate(90) square([2*(topPinR+C),2],true);
+  rotate(90) square([2*(topPinR+C),topPinW+2*C],true);
 }
 module top_pin(bit) {
   //cylinder(r=2.5,h=2+bit*waferThickness);
@@ -126,13 +132,12 @@ module top_pin(bit) {
   translate_z(bit*waferThickness)
   linear_extrude(topPinThickness) {
     top_pin_profile(0);
-    rotate(90) square([2*(topPinR+C),2],true);
   }
 }
 module top_pin_hole() {
   linear_extrude(lots) {
     //rotate(0) square(2*(pinR+C),true);
-    top_pin_profile(C);
+    top_pin_profile(pinC);
   }
 }
 
@@ -272,8 +277,8 @@ module core1() {
     translate([0,-core1Travel,-coreLimitPinHeight])
     //translate_y(-core1Travel)
     minkowski() {
-      core_limit_pin();
-      cube([2*C,2*C,eps],true);
+      core_limit_pin(true);
+      cube([2*pinC,2*C,eps],true);
       *linear_extrude_x(2*C,eps) {
         polygon([[-C,0],[0,0],[coreLimitPinHeight,coreLimitPinHeight]]);
       }
@@ -305,21 +310,22 @@ module core2() {
     translate(lockPinPos) wafer_hole();
     minkowski() {
       core_limit_pin();
-      cube([2*C,2*C,lots],true);
+      cube([2*pinC,2*pinC,lots],true);
     }
   }
 }
 *!core2();
 
 coreLimitPinHeight = roundToLayerHeight(1.5);
-module core_limit_pin() {
+module core_limit_pin(pointy = false) {
   if (1) {
     h = core2Thickness+coreLimitPinHeight;
+    w = 2*pinR-1;
     translate(lockPinPos2)
     translate_y(core1Travel)
     translate_z(h/2 + keyThickness + core1Thickness)
     linear_extrude_x(2*pinR,true) {
-      chamfer_rect(2*pinR-1,h,1.5);
+      chamfer_rect(w,pointy ? h+(w-2*coreLimitPinHeight) : h,pointy ? w/2 : coreLimitPinHeight);
     }
   } else {
     h = roundToLayerHeight(core2Thickness+coreLimitPinHeight);
@@ -370,7 +376,7 @@ module housing() {
     translate (lockPinPos) rotate(lockPinAngle) top_pin_hole();
     minkowski() {
       core_limit_pin();
-      cube([2*C,2*C,eps],true);
+      cube([2*C,2*pinC,layerHeight],true);
     }
   }
 }
@@ -399,8 +405,8 @@ module visualize_cutout(min_x = undef, min_y = undef, min_z = undef, colors = de
 }
 
 module test() {
-  *assembly(min_x = 0);
-  assembly();
+  assembly(min_x = 0);
+  *assembly();
   *assembly(min_x = -6);
 }
 module assembly(min_x = undef) {
@@ -412,7 +418,7 @@ module assembly(min_x = undef) {
   keyZ = keyPos > 0 ? 1 : max(0,keyPos/5+1);
   
   core2 = true;
-  housing = true;
+  housing = false;
   
   visualize_cutout(min_x = min_x) {
     translate_y(keyPos) key();
