@@ -26,27 +26,32 @@ pinWidth = 4;
 pinHeight = 8;
 
 //keyHeight = 4*5.5 + 10 + 7;
-keyHandleHeight = 20;
+keyHandleHeight = 15;
 keyThickness = roundToLayerHeight(waferThickness * 2.0);
 
 //core1Travel = 5.5;
-core1Travel = 6;
+core1Travel = 5.5;
 core2Travel = 5;
 keyTravel = core1Travel + core2Travel; // in y direction
 
 pinR = 2.5;
+pinH = 5;
+pinW = roundToLayerHeight(1.8);
 //pinR = 2.25;
 firstPinY = keyTravel + wall;
+//firstPinY = core1Travel + pinH/2 + 0.5 + wall;
 pinRows = 4;
 pinCols = 3;
-xSpacing = 6;
+xSpacing = pinW+2*pinC+1.2;
 function pinPos(i,j) = [(j-(pinCols-1)/2)*xSpacing, firstPinY+i*core1Travel];
 function pinParity(i,j) = i%2;
 pinPositions = [for (i=[0:pinRows-1]) for (j=[0:pinCols-1]) if ((i+j)%2 == 0) pinPos(i,j)];
 pinParity = [for (i=[0:pinRows-1]) for (j=[0:pinCols-1]) if ((i+j)%2 == 0) (i%2)];
 
 //keyWidth = 31;
-keyWidth = xSpacing*pinCols+2;
+//keyWidth = xSpacing*pinCols+2;
+keyWidth = xSpacing*pinCols+1;
+echo(keyWidth);
 
 core1Height = firstPinY + pinRows*core1Travel;
 //core2Height = firstPinY + pinRows*core1Travel + 2*pinR;
@@ -54,12 +59,12 @@ core2Height = core1Height + core1Travel;
 keyHeight = firstPinY + (pinRows-1)*core1Travel + pinR + 2;
 
 core1Width = keyWidth + 2*wall;
-core1Thickness = roundToLayerHeight(wafers * waferThickness + 1.5);
-core1Y = 1.2;
+core1Thickness = roundToLayerHeight(wafers * waferThickness + 1.5 + 0.5);
+core1Y = 0;
 
 core2Width = core1Width;
 core2Thickness = roundToLayerHeight(wafers * waferThickness + 1.5);
-core2Y = 1.2;//core1Y + core1Travel + C;
+core2Y = core1Y;//core1Y + core1Travel + C;
 
 // pin positions
 //pinPositions = [[0,35],[8,32],[-8,32], [0,18], [0,35-8]];
@@ -67,7 +72,8 @@ core2Y = 1.2;//core1Y + core1Travel + C;
 //pinPositions = [[0,35],[7,35],[-7,32], [0,35-2*core1Travel]];
 
 //bitting = [0,1,2,2,1,2,0,0,1,0,1,2];
-bitting = [0,1,0,2,1,2,0,0,1,0,1,2];
+//bitting = [0,1,0,2,1,2,0,0,1,0,1,2];
+bitting = [0,1,0,2,1,1,0,0,1,0,1,2];
 
 //=============================================================================
 // Derived parameters
@@ -78,6 +84,8 @@ pinTravel = wafers * waferThickness; // in z direction
 //=============================================================================
 // Pins
 //=============================================================================
+
+waferShape = "rectangle";
 
 waferZ = keyThickness + core1Thickness - wafers*waferThickness;
 module key_pin_limiter_profile(C=0,i=0) {
@@ -92,63 +100,109 @@ module key_pin_limiter_profile(C=0,i=0) {
   circle(pinR+C);
 }
 keyPinR = pinR;
-module key_pin(C=0,i=0,h=0) {
+keyPinLip = roundToLayerHeight(0.6);
+keyPinLipH = 0.8;
+module key_pin(CX=0,CY=0,i=0,h=0) {
   r1 = 0.8;
   z0 = keyThickness-wafers*waferThickness;
   z1 = min(wafers*waferThickness,keyPinR-r1) + z0;
   z2 = keyThickness + roundToLayerHeight(0.9);
   z3 = waferZ + h;
-  translate_z(z0) cylinder(r1=r1+C,r2=keyPinR+C,h=z1-z0+eps);
-  if (C>0) translate_z(z0) cylinder(r1=r1+C,r2=keyPinR+4+C,h=z1-z0+eps+4);
-  translate_z(z1) cylinder(r=keyPinR+C,h=z2-z1);
-  translate_z(z2) linear_extrude(z3-z2,convexity=2) key_pin_limiter_profile(C,i);
+  if (waferShape == "circle") {
+    translate_z(z0) cylinder(r1=r1+C,r2=keyPinR+C,h=z1-z0+eps);
+    if (C>0) translate_z(z0) cylinder(r1=r1+C,r2=keyPinR+4+C,h=z1-z0+eps+4);
+    translate_z(z1) cylinder(r=keyPinR+C,h=z2-z1);
+    translate_z(z2) linear_extrude(z3-z2,convexity=2) key_pin_limiter_profile(CY,i);
+  } else {
+    r1 = 0.6;
+    z1 = min(wafers*waferThickness,keyPinH1/2-r1) + z0;
+    dc = CY>0 ? 2 : 0;
+    linear_extrude_x(pinW+2*CX,true) {
+      sym_polygon_x([[r1+C,z0],[keyPinH1/2+CY+dc,z1+dc],[keyPinH1/2+CY+dc,z2+dc],[keyPinH/2+CY+dc,z2+dc],[keyPinH/2+CY+dc,z3+dc]]);
+    }
+    translate_z(z2) linear_extrude(z3-z2) translate_x(-keyPinLip-eps) square([pinW+2*CX,keyPinLipH+2*CY],true);
+  }
 }
+keyPinH = pinH;
+keyPinH1 = pinH-1.2;
 module key_pin_hole(i=0) {
   z2 = keyThickness + roundToLayerHeight(0.9) - 3*layerHeight;
-  linear_extrude(z2+eps) circle(keyPinR+pinC);
-  translate_z(z2) linear_extrude(lots,convexity=2) key_pin_limiter_profile(pinC,i);
+  if (waferShape == "circle") {
+    linear_extrude(z2+eps) circle(keyPinR+pinC);
+    translate_z(z2) linear_extrude(lots,convexity=2) key_pin_limiter_profile(pinC,i);
+  } else {
+    linear_extrude(lots) square([pinW+2*pinC,keyPinH1+2*pinC],true);
+    translate_z(z2) linear_extrude(lots) square([pinW+2*pinC,keyPinH+2*pinC],true);
+    translate_z(z2) linear_extrude(lots) translate_x(-keyPinLip-eps) square([pinW+2*C,keyPinLipH+2*pinC],true);
+  }
 }
 
-module wafer() {
-  cylinder(r=pinR,h=waferThickness);
+module wafer(C=0,h=waferThickness) {
+  if (waferShape == "circle") {
+    cylinder(r=pinR+C,h=h);
+  } else {
+    linear_extrude(h) {
+      square([pinW+2*C,pinH+2*C],true);
+    }
+  }
 }
 module wafer_hole() {
-  cylinder(r=pinR+pinC, h=lots);
+  wafer(C=pinC,h=lots);
 }
 module mid_pin(bit) {
-  cylinder(r=pinR,h=core2Thickness - bit*waferThickness);
+  wafer(C=0,h=core2Thickness - bit*waferThickness);
 }
-topPinThickness = roundToLayerHeight(2);
-topPinR = pinR + 2.0;
-topPinW = 2.0;
+
+topPinThickness = roundToLayerHeight(1.5) + 2*waferThickness; // note: same as core2 thickness + some wafers so there are fewer different pins
+topPinH = pinH + 3.0;
+topPinW = pinW;
 //topPinW = 1.7;
-module top_pin_profile(C=0) {
-  circle(pinR+C);
-  rotate(90) square([2*(topPinR+C),topPinW+2*C],true);
-}
-module top_pin(bit) {
-  //cylinder(r=2.5,h=2+bit*waferThickness);
-  cylinder(r=pinR,h=bit*waferThickness+topPinThickness);
-  translate_z(bit*waferThickness)
-  linear_extrude(topPinThickness) {
-    top_pin_profile(0);
+module top_pin_profile(C=0,dh=0) {
+  if (waferShape == "circle") {
+    circle(pinR+C);
+    rotate(90) square([topPinH+2*C,topPinW+2*C],true);
+  } else {
+    //translate_y(dh*(topPinH-pinH)/2) square([topPinW+2*C,topPinH+2*C],true);
+    square([pinW+2*C,pinH+2*C],true);
   }
 }
-module top_pin_hole() {
+module top_pin(bit,dh=0) {
+  //cylinder(r=2.5,h=2+bit*waferThickness);
+  //cylinder(r=pinR,h=bit*waferThickness+topPinThickness);
+  wafer(C=0,h=bit*waferThickness+topPinThickness);
+  translate_z(bit*waferThickness)
+  linear_extrude(topPinThickness) {
+    top_pin_profile(0,dh=dh);
+  }
+}
+module top_pin_hole(dh=0) {
   linear_extrude(lots) {
     //rotate(0) square(2*(pinR+C),true);
-    top_pin_profile(pinC);
+    top_pin_profile(pinC,dh=dh);
+  }
+  translate_z(topPinThickness - 3*layerHeight) {
+    linear_extrude(lots) {
+      translate_y(dh*(topPinH-pinH)/2) square([topPinW+2*pinC,topPinH+2*pinC],true);
+    }
   }
 }
 
-module export_wafer() { wafer(); }
-module export_key_pin() { rotate([180]) key_pin(); }
-module export_mid_pin0() { mid_pin(0); }
-module export_top_pin0() { rotate([180]) top_pin(0); }
-module export_mid_pin1() { mid_pin(1); }
-module export_top_pin1() { rotate([180]) top_pin(1); }
-module export_mid_pin2() { mid_pin(2); }
-module export_top_pin2() { rotate([180]) top_pin(2); }
+module rotate_wafer() {
+  if (waferShape == "circle") {
+    children();
+  } else {
+    rotate([0,90]) children();
+  }
+}
+
+module export_wafer() { rotate_wafer() wafer(); }
+module export_key_pin() { rotate_wafer() rotate([180]) key_pin(); }
+module export_mid_pin0() { rotate_wafer() rotate([180]) mid_pin(0); }
+module export_top_pin0() { rotate_wafer() rotate([180]) top_pin(0); }
+module export_mid_pin1() { rotate_wafer() rotate([180]) mid_pin(1); }
+module export_top_pin1() { rotate_wafer() rotate([180]) top_pin(1); }
+module export_mid_pin2() { rotate_wafer() rotate([180]) mid_pin(2); }
+module export_top_pin2() { rotate_wafer() rotate([180]) top_pin(2); }
 module export_core_limit_pin() { rotate([0,90]) core_limit_pin(); }
 
 //=============================================================================
@@ -169,15 +223,45 @@ module key_profile() {
   //polygon([[-keyWidth/2,0], [keyWidth/2,0], [keyWidth/2,keyThickness-chamfer], [keyWidth/2-chamfer,keyThickness], [-keyWidth/2,keyThickness]]);
   sym_polygon_x([[keyWidth/2,0], [keyWidth/2,keyThickness-chamfer], [keyWidth/2-chamfer,keyThickness]]);
 }
-module key_blank() {
-  chamfer = roundToLayerHeight(1.2);
-  round = 5;
+module key_blank(C=0) {
+  //chamfer = roundToLayerHeight(1.2);
+  chamfer = roundToLayerHeight(1.5);
+  //round = 5;
+  round = 3;
   w = keyWidth;
   h = keyHeight + keyTravel + keyHandleHeight;
-  minkowski() {
-    translate([-(w-2*round)/2,round-(keyHandleHeight+keyTravel)])
-      cube([w-2*round,h-2*round,keyThickness-chamfer]);
-    cylinder(r1=round,r2=round-chamfer,h=chamfer);
+  difference() {
+    minkowski() {
+      difference() {
+        translate([-(w-2*round)/2,round-(keyHandleHeight+keyTravel)])
+          cube([w-2*round,h-2*round,keyThickness-chamfer]);
+        *translate([0,-keyHandleHeight/2])
+          cube([2*round+2,2*round-2,lots],true);
+      }
+      //cylinder(r1=round,r2=round-chamfer,h=chamfer);
+      group() {
+        h1=roundToLayerHeight(chamfer/2);
+        cylinder(r1=round-h1,r2=round,h=h1);
+        translate_z(h1) cylinder(r1=round,r2=round-h1,h=h1);
+      }
+    }
+    translate_y(-keyTravel-C) linear_extrude_y(lots) {
+      for (i=[0:pinCols-2]) {
+        h = 4*layerHeight-C;
+        w = xSpacing-pinW-C;
+        translate([(i-(pinCols-2)/2)*xSpacing-w/2,keyThickness-h]) square([w,h+eps]);
+      }
+    }
+    minkowski() {
+      translate([0,-keyTravel-keyHandleHeight+round+3,(keyThickness-chamfer)/2+eps])
+        cube([2,2,keyThickness-chamfer+2*eps],true);
+      group() {
+        cylinder(r=round-1,h=lots,center=true);
+        //h1=roundToLayerHeight(chamfer/2);
+        //cylinder(r2=round-h1,r1=round,h=h1);
+        //translate_z(h1) cylinder(r2=round,r1=round-h1,h=h1);
+      }
+    }
   }
   *translate_y(-(keyHandleHeight+keyTravel))
   *intersection() {
@@ -201,27 +285,28 @@ module key_blank() {
 
 module key_hole(CY = 0) {
   translate_z(-eps) minkowski() {
-    key_blank();
+    key_blank(C=layerHeight);
     cylinder(r=C,h=CY + 2*eps);
   }
 }
 
 //lockPinPos = pinPos(pinRows-1,0);
-lockPinPos = [-(pinCols-1)/2*xSpacing,keyHeight-1.2*2];
+lockPinPos = (waferShape == "circle") ? [-(pinCols-1)/2*xSpacing,keyHeight-1.2*2] : [-(pinCols-1)/2*xSpacing,keyHeight-keyPinH1/2+C-pinC];
 lockPinBit = wafers;
-lockPinAngle = -45;
+lockPinAngle = (waferShape == "circle") ? -45 : 0;
 lockPinPos2 = pinPos(pinRows-1,pinCols-1);
 
 module key() {
+  keyC = 4*C;
   difference() {
     key_blank();
     for (i=[0:len(pinPositions)-1]) {
       translate(pinPositions[i]) {
-        translate_z(bitting[i] * waferThickness-2*eps) key_pin(C);
+        translate_z(bitting[i] * waferThickness-1*eps) key_pin(CX=pinC,CY=1);
       }
     }
     // core retainer pin
-    translate(lockPinPos) translate_z(lockPinBit * waferThickness-2*eps) key_pin(C);
+    *translate(lockPinPos) translate_z(lockPinBit * waferThickness-2*eps) key_pin(CX=0.5,CY=1);
   }
 }
 
@@ -310,22 +395,26 @@ module core2() {
     translate(lockPinPos) wafer_hole();
     minkowski() {
       core_limit_pin();
-      cube([2*pinC,2*pinC,lots],true);
+      cube([2*pinC,2*C,lots],true);
     }
   }
 }
 *!core2();
 
-coreLimitPinHeight = roundToLayerHeight(1.5);
+coreLimitPinHeight = roundToLayerHeight(1.6);
 module core_limit_pin(pointy = false) {
   if (1) {
     h = core2Thickness+coreLimitPinHeight;
-    w = 2*pinR-1;
+    w = min(pinH,h);
     translate(lockPinPos2)
     translate_y(core1Travel)
     translate_z(h/2 + keyThickness + core1Thickness)
-    linear_extrude_x(2*pinR,true) {
-      chamfer_rect(w,pointy ? h+(w-2*coreLimitPinHeight) : h,pointy ? w/2 : coreLimitPinHeight);
+    linear_extrude_x(pinW,true) {
+      *chamfer_rect(w,pointy ? h+(w-2*coreLimitPinHeight) : h,pointy ? w/2 : coreLimitPinHeight);
+      circle(w/2);
+      if (pointy) {
+        rotate(180+45) square(w/2);
+      }
     }
   } else {
     h = roundToLayerHeight(core2Thickness+coreLimitPinHeight);
@@ -347,17 +436,19 @@ module export_housing() { rotate([180]) housing(); }
 //=============================================================================
 
 housingWidth = core2Width + 0*0.8;
-housingHeight = keyHeight + core1Travel + core2Travel;
+housingHeight = core2Y + core2Height + core2Travel;
 housingFloor = roundToLayerHeight(1.2);
 housingDepth = housingFloor + keyThickness + core1Thickness + core2Thickness + 5;
 module housing() {
-  h = roundToLayerHeight(2 + wafers*waferThickness + 6);
+  //h = roundToLayerHeight(2 + wafers*waferThickness + 6);
+  h = roundToLayerHeight(2 + wafers*waferThickness + 2);
   difference() {
     group() {
       *translate([-housingWidth/2, -1.2, -housingFloor])
         cube([housingWidth,housingHeight,housingDepth]);
-      translate([-housingWidth/2, 0, 0])
-        cube([housingWidth,1.2,core1Thickness+core2Thickness+5]);
+      if (core1Y>0)
+        translate([-housingWidth/2, 0, 0])
+          cube([housingWidth,1.2,core1Thickness+core2Thickness+5]);
       translate([-housingWidth/2, 0, keyThickness+core1Thickness+core2Thickness])
         cube([housingWidth,housingHeight,h]);
       translate_y(core2Y+connectorY+core2Travel) linear_extrude_y(connectorHeight) {
@@ -370,13 +461,13 @@ module housing() {
       cube([core1Width+2*C,keyHeight+keyTravel+2*C,core1Thickness+core2Thickness+1*layerHeight]);
     for (i=[0:len(pinPositions)-1]) {
       translate (pinPositions[i]) {
-        top_pin_hole();
+        translate_z(keyThickness+core1Thickness+core2Thickness-eps) top_pin_hole();
       }
     }
-    translate (lockPinPos) rotate(lockPinAngle) top_pin_hole();
+    translate (lockPinPos) translate_z(keyThickness+core1Thickness+core2Thickness-eps)  rotate(lockPinAngle) top_pin_hole(dh=1);
     minkowski() {
       core_limit_pin();
-      cube([2*C,2*pinC,layerHeight],true);
+      cube([2*pinC,2*C,layerHeight],true);
     }
   }
 }
@@ -407,7 +498,10 @@ module visualize_cutout(min_x = undef, min_y = undef, min_z = undef, colors = de
 module test() {
   assembly(min_x = 0);
   *assembly();
-  *assembly(min_x = -6);
+  *assembly(min_x = -xSpacing);
+  *assembly(min_x = xSpacing);
+  //assembly();
+  *translate_z(0.9) mirror([0,0,1]) assembly();
 }
 module assembly(min_x = undef) {
   pos = 1*core1Travel + 1*core2Travel;
@@ -418,7 +512,7 @@ module assembly(min_x = undef) {
   keyZ = keyPos > 0 ? 1 : max(0,keyPos/5+1);
   
   core2 = true;
-  housing = false;
+  housing = true;
   
   visualize_cutout(min_x = min_x) {
     translate_y(keyPos) key();
@@ -462,7 +556,7 @@ module assembly(min_x = undef) {
         z = keyZ * bitting[i]*waferThickness - bitting[i]*waferThickness + keyThickness + core1Thickness + core2Thickness + layerHeight*4/6;
         translate_y(0+0.1) translate_z(z) top_pin(bitting[i]);
       }
-      z = (keyZ) * lockPinBit * waferThickness + keyThickness + core1Thickness + layerHeight*3/6;
+      z = (keyZ * lockPinBit - lockPinBit) * waferThickness + keyThickness + core1Thickness + core2Thickness + layerHeight*4/6;
       translate(lockPinPos) translate_y(core2Pos-0.1) translate_z(z) rotate(lockPinAngle) top_pin(wafers);
     }
   }
