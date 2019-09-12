@@ -358,10 +358,10 @@ module disc_test() {
   //translate([7*coreR,0*coreR,0]) disc_sanding_tool();
   translate([7*coreR,0*coreR,0]) keyway_test();
 }
-!spacer_disc();
+*!spacer_disc();
 //!spacer_disc_for_spinner();
 //!tension_disc();
-!disc_test();
+*!disc_test();
 
 //-----------------------------------------------------------------------------
 // Key
@@ -1226,7 +1226,7 @@ module test() {
   }
 }
 //!disc_test();
-!spacer_disc_for_spinner();
+*!spacer_disc_for_spinner();
 !test();
 
 //-----------------------------------------------------------------------------
