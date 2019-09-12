@@ -261,6 +261,15 @@ module mirrored(a) {
   mirror(a) children();
 }
 
+module translated(a) {
+  if (is_list(a)) {
+    for (x=a) translate(x) children();
+  } else {
+    children();
+    translate(a) children();
+  }
+}
+
 module rotated(a) {
   if (is_list(a)) {
     for (x=a) rotate(x) children();

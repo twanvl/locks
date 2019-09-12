@@ -314,10 +314,14 @@ module key_hole(CY = 0) {
 }
 
 //lockPinPos = pinPos(pinRows-1,0);
-lockPinPos = (waferShape == "circle") ? [-(pinCols-1)/2*xSpacing,keyHeight-1.2*2] : [-(pinCols-1)/2*xSpacing-0.45, keyHeight-keyPinH1/2+C-pinC];
+lockPinPos = (waferShape == "circle")
+  ? [[-(pinCols-1)/2*xSpacing,keyHeight-1.2*2]]
+  : [[-(pinCols-1)/2*xSpacing-0.45, keyHeight-keyPinH1/2+C-pinC]];
 lockPinBit = wafers;
 lockPinAngle = (waferShape == "circle") ? -45 : 0;
-lockPinPos2 = pinPos(pinRows-1,pinCols-1) + [0,0.2];
+lockPinPos2 =
+  [pinPos(pinRows-1,pinCols-1) + [0,0.2]
+  ,[0,pinH/2+0.8]];
 
 module key() {
   keyC = 4*C;
@@ -344,7 +348,7 @@ module key() {
   }
 }
 
-!key();
+*!key();
 module export_key() { key(); }
 
 //=============================================================================
@@ -391,7 +395,7 @@ module core1() {
       }
     }
     // core retainer pin
-    translate(lockPinPos) key_pin_hole(0);
+    translated(lockPinPos) key_pin_hole(0);
     // limiter
     translate([0,-core1Travel,-coreLimitPinHeight])
     //translate_y(-core1Travel)
@@ -402,7 +406,7 @@ module core1() {
         polygon([[-C,0],[0,0],[coreLimitPinHeight,coreLimitPinHeight]]);
       }
     }
-    *translate(lockPinPos2) translate_z(keyThickness+core1Thickness-1) key_pin(C);
+    *translated(lockPinPos2) translate_z(keyThickness+core1Thickness-1) key_pin(C);
   }
 }
 *!core1();
@@ -433,7 +437,7 @@ module core2() {
         wafer_hole();
       }
     }
-    translate(lockPinPos) wafer_hole();
+    translated(lockPinPos) wafer_hole();
     minkowski() {
       core_limit_pin();
       cube([2*pinC,2*C,lots],true);
@@ -449,7 +453,7 @@ module core_limit_pin(pointy = false) {
     h = core2Thickness+coreLimitPinHeight;
     //w = min(pinH,h);
     w = h;
-    translate(lockPinPos2)
+    translated(lockPinPos2)
     translate_y(core1Travel)
     translate_z(h/2 + keyThickness + core1Thickness)
     linear_extrude_x(pinW,true) {
@@ -511,7 +515,7 @@ module housing() {
         translate_z(keyThickness+core1Thickness+core2Thickness-eps) top_pin_hole();
       }
     }
-    translate (lockPinPos) translate_z(keyThickness+core1Thickness+core2Thickness-eps)  rotate(lockPinAngle) top_pin_hole(dh=1);
+    translated(lockPinPos) translate_z(keyThickness+core1Thickness+core2Thickness-eps)  rotate(lockPinAngle) top_pin_hole(dh=1);
     minkowski() {
       core_limit_pin();
       cube([2*pinC,1*C,layerHeight],true);
@@ -543,15 +547,15 @@ module visualize_cutout(min_x = undef, min_y = undef, min_z = undef, colors = de
 }
 
 module test() {
-  *assembly(min_x = 0);
+  assembly(min_x = 0);
   *assembly();
   *assembly(min_x = -xSpacing);
-  assembly(min_x = xSpacing);
+  *assembly(min_x = xSpacing);
   //assembly();
   *translate_z(0.9) mirror([0,0,1]) assembly();
 }
 module assembly(min_x = undef) {
-  pos = 0*core1Travel + 0*core2Travel;
+  pos = 1*core1Travel + 1*core2Travel;
   keyPos = pos;
   core1Pos = max(0,pos);
   core2Pos = max(0,pos-core1Travel);
@@ -576,7 +580,7 @@ module assembly(min_x = undef) {
           translate_z(z) key_pin(i=pinParity[i]);
         }
       }
-      translate(lockPinPos) translate_z(keyZ * lockPinBit * waferThickness) key_pin(h=(wafers-lockPinBit)*waferThickness);
+      translated(lockPinPos) translate_z(keyZ * lockPinBit * waferThickness) key_pin(h=(wafers-lockPinBit)*waferThickness);
     }
     for (i=[0:len(pinPositions)-1]) {
       translate (pinPositions[i]) {
@@ -596,7 +600,7 @@ module assembly(min_x = undef) {
         translate_y(core2Pos-0.1) translate_z(z) mid_pin(bitting[i]);
       }
       z = (keyZ-1) * waferThickness + keyThickness + core1Thickness + layerHeight*3/6;
-      translate(lockPinPos) translate_y(core2Pos-0.1) translate_z(z) mid_pin(0);
+      translated(lockPinPos) translate_y(core2Pos-0.1) translate_z(z) mid_pin(0);
     }
     for (i=[0:len(pinPositions)-1]) {
       translate (pinPositions[i]) {
@@ -604,7 +608,7 @@ module assembly(min_x = undef) {
         translate_y(0+0.1) translate_z(z) top_pin(bitting[i]);
       }
       z = (keyZ * lockPinBit - lockPinBit) * waferThickness + keyThickness + core1Thickness + core2Thickness + layerHeight*4/6;
-      translate(lockPinPos) translate_y(core2Pos-0.1) translate_z(z) rotate(lockPinAngle) top_pin(wafers);
+      translated(lockPinPos) translate_y(core2Pos-0.1) translate_z(z) rotate(lockPinAngle) top_pin(wafers);
     }
   }
 }
