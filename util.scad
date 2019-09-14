@@ -77,16 +77,20 @@ module fillet(r) {
   offset(r=r) offset(delta=-r) children();
 }
 
-module chamfer_rect(w,h,r) {
+module chamfer_rect(w,h,r, r_tr=undef,r_tl=undef,r_bl=undef,r_br=undef) {
+  r_tr = r_tr==undef ? r : r_tr;
+  r_tl = r_tl==undef ? r : r_tl;
+  r_bl = r_bl==undef ? r : r_bl;
+  r_br = r_br==undef ? r : r_br;
   polygon([
-    [-w/2+r,-h/2],
-    [-w/2,-h/2+r],
-    [-w/2,h/2-r],
-    [-w/2+r,h/2],
-    [w/2-r,h/2],
-    [w/2,h/2-r],
-    [w/2,-h/2+r],
-    [w/2-r,-h/2],
+    [-w/2+r_bl,-h/2],
+    [-w/2,-h/2+r_bl],
+    [-w/2,h/2-r_tl],
+    [-w/2+r_tl,h/2],
+    [w/2-r_tr,h/2],
+    [w/2,h/2-r_tr],
+    [w/2,-h/2+r_br],
+    [w/2-r_br,-h/2],
   ]);
 }
 

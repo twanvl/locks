@@ -18,7 +18,8 @@ keyHeight1 = roundToLayerHeight(2.2);
 keyHeight2 = roundToLayerHeight(keyHeight1 + 0.3);
 keyHeight3 = keyHeight1+0;
 //keyHeight2 = keyHeight1;
-keyChamfer = 0.35;
+keyChamfer  = 0.3;
+keyChamfer2 = 0.4;
 step = keyWidth/2-keyHeight3/2;
 
 //-----------------------------------------------------------------------------
@@ -26,8 +27,39 @@ step = keyWidth/2-keyHeight3/2;
 //-----------------------------------------------------------------------------
 
 module key_profile(C=0) {
-  translate_x(-(keyHeight1-2*keyChamfer)/2) chamfer_rect(keyWidth+2*C-(keyHeight1-2*keyChamfer),keyHeight1+2*C,keyChamfer);
-  translate_x((keyWidth-keyHeight1)/2) offset(delta=C) key_bit_profile();
+  if (0) {
+    translate_x(-(keyHeight1-2*keyChamfer)/2) chamfer_rect(keyWidth+2*C-(keyHeight1-2*keyChamfer),keyHeight1+2*C,keyChamfer);
+    translate_x((keyWidth-keyHeight1)/2) offset(delta=C) key_bit_profile();
+  } else render() union() {
+    chamfer_rect(keyWidth+2*C,keyHeight1+2*C,keyChamfer, r_bl=keyChamfer2, r_tr=1.5);
+    // make room for rotating the bitting prongs at the edges of the key
+    // shape traced out by key_bit_profile at -bit*step and bit*step, rotated around (0,0),
+    // but shifted so that vertical height remains constant, i.e. by sin(a)*x+dy(a)
+    // the points traced out are
+    for (bit=[-1,1]) {
+      for (a=[0:2:90]) {
+        translate_y(-bit*step*sin(a) - dy(a))
+        rotate(a) key_bit_profile(bit);
+      }
+    }
+    //key_bit_profile(-1);
+    // trace corners of key_bit_profile
+    for (x=[-step,step]) {
+      //p=[x+keyHeight1/2,-keyHeight1/2];
+      dc=(keyHeight1-diagonal(keyHeight1/2,keyHeight1/2-keyChamfer2)) / sqrt(2);
+      corners=[
+        [x-keyHeight1/2,keyHeight1/2-keyChamfer],
+        [x-keyHeight1/2+keyChamfer,keyHeight1/2],
+        [x+keyHeight1/2-keyChamfer2,-keyHeight1/2],
+        [x+keyHeight1/2,-keyHeight1/2+keyChamfer2],
+        // point at distance keyHeight1 from both bottom left corners
+        [x+dc,dc]
+      ];
+      for (p=corners) {
+        polygon([for (a=[0:2:90]) rot(-a,p) + [0,-x*sin(a) - dy(a)]]);
+      }
+    }
+  }
 }
 *!key_profile();
 
@@ -38,12 +70,12 @@ module key_bit_profile(bit=0) {
     intersection() {
       h = keyHeight1;
       w = keyHeight3;
-      chamfer_rect(w,h,keyChamfer);
+      chamfer_rect(w,h,keyChamfer,r_bl=keyChamfer2);
       // make sure that the shape can be rotated
       //translate([w/2,-h/2+keyChamfer]) scale([w/h,1]) circle(r=h);
       //translate([w/2-keyChamfer,-h/2]) scale([w/h,1]) circle(r=h);
-      translate([-w/2,-h/2+keyChamfer]) scale([w/h,1]) circle(r=h);
-      translate([-w/2+keyChamfer,-h/2]) scale([w/h,1]) circle(r=h);
+      translate([-w/2,-h/2+keyChamfer2]) scale([w/h,1]) circle(r=h);
+      translate([-w/2+keyChamfer2,-h/2]) scale([w/h,1]) circle(r=h);
     }
   }
 }
@@ -58,6 +90,7 @@ module key_profile_test_wafer() {
       }
       //translate_y(-(keyHeight2-keyHeight1)*0.5)
       key_profile(C=eps);
+      translate_y(keyHeight2*1.2) key_profile(C=eps);
     }
   }
 }
@@ -65,21 +98,21 @@ module key_profile_test_wafer() {
 // point where bottom of keyway touches key at given angle
 //function dy(a) = -1*sin(a) * (keyHeight2/2 - keyChamfer);
 function dy(a) = min(-keyHeight1/2,min(
-  rot(a, [keyHeight3/2 - keyChamfer, -keyHeight1/2])[1],
-  rot(a, [keyHeight3/2, -keyHeight1/2 + keyChamfer])[1]))
+  rot(a, [keyHeight3/2 - keyChamfer2, -keyHeight1/2])[1],
+  rot(a, [keyHeight3/2, -keyHeight1/2 + keyChamfer2])[1]))
   + keyHeight1/2;
 module key_profile_test() {
   bit = 1;
   a = 10;
   rotate(a) linear_extrude(sepThickness) key_profile();
   translate_y(bit*step * sin(a)) {
-  translate_x(bit*step * cos(a))
-  rotate(a) color("red") linear_extrude(10) key_bit_profile();
-  //color("yellow") rotate(0) key_profile_test_wafer();
-  translate_z(3) color("yellow") translate_y(dy(a)) key_profile_test_wafer();
+    translate_x(bit*step * cos(a))
+    rotate(a) color("green") linear_extrude(10) key_bit_profile();
+    //color("yellow") rotate(0) key_profile_test_wafer();
+    translate_z(3) color("yellow") translate_y(dy(a)) key_profile_test_wafer();
   }
 }
-!key_profile_test();
+*!key_profile_test();
 
 module key() {
   for (i=[0:len(bitting)-1]) {
@@ -93,10 +126,10 @@ module key() {
     key_profile();
   }
   translate_z(-(h1+4)) {
-    linear_extrude(h1+4-C/2) {
+    linear_extrude(h1+4+eps) {
       intersection() {
         circle(r = keyHoleR);
-        chamfer_rect(2*keyHoleR,keyHeight1,keyChamfer);
+        chamfer_rect(2*keyHoleR,keyHeight1,keyChamfer+0.1);
       }
     }
   }
@@ -123,7 +156,7 @@ module key_handle() {
   }
 }
 
-*!key();
+!key();
 
 module export_key() { rotate([90]) key(); }
 *!export_key();
@@ -309,7 +342,7 @@ module export_sidebar() { rotate([90]) sidebar(); }
 // Housing
 //-----------------------------------------------------------------------------
 
-keyHoleR = diagonal(keyWidth/2,keyHeight1/2-keyChamfer) + 0.0;
+keyHoleR = diagonal(keyWidth/2,keyHeight1/2-keyChamfer) + 0.1;
 module housing() {
   t = roundToLayerHeight(1.5);
   w = (coreR+C+0.8);
