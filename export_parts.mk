@@ -11,7 +11,8 @@ all: ${TARGETS}
 
 out/%.scad: $(BASE)
 	@mkdir -p out
-	echo -ne 'use <../$(BASE)>\nexport_$*();' > $@
+	echo 'use <../$(BASE)>' > $@
+	echo 'export_$*();' >> $@
 
 %.stl: %.scad
 	$(OPENSCAD) -o $@ $<
