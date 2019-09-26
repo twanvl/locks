@@ -162,13 +162,15 @@ module sym_polygon(mul,list) {
 // a polygon that is symmetric in the y direction
 module sym_polygon_y(list) sym_polygon([1,-1],list);
 module sym_polygon_x(list) sym_polygon([-1,1],list);
-module sym_polygon_xy(list) {
-  polygon(concat(
+function sym_polygon_xy_coords(list) =
+  concat(
     list,
     mul_vecs([1,-1],reverse(list)),
     mul_vecs([-1,-1],list),
     mul_vecs([-1,1],reverse(list))
-  ));
+  );
+module sym_polygon_xy(list) {
+  polygon(sym_polygon_xy_coords(list));
 }
 module sym_polygon_180(list) {
   polygon(concat(list,mul_vecs([-1,-1],list)));
