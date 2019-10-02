@@ -28,6 +28,7 @@ function diagonal(a,b) = sqrt(a*a+b*b);
 function side_given_diagonal(c,b) = sqrt(c*c-b*b);
 function on_circle(r,x) = [x,side_given_diagonal(r,x)];
 function normalize(v) = v / norm(v);
+function lerp(a,b,t) = (1-t) * a + t * b;
 
 //-----------------------------------------------------------------------------
 // Extruding
