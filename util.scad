@@ -300,11 +300,17 @@ function coarse_pitch(d) =
   d == 20 ? 2.5 :
   "unknown pitch for thread " + str(d);
 
+module standard_thread(d,length,C=0,internal=false,leadin=0) {
+  metric_thread(diameter=d+2*C,pitch=coarse_pitch(d),length=length,internal=internal,leadin=leadin);
+}
 module m3_thread(length,C=0,internal=false) {
-  metric_thread(diameter=3+2*C,pitch=0.5,length=length,internal=internal);
+  standard_thread(3,length=length,internal=internal,leadin=leadin);
 }
 module m4_thread(length,C=0,internal=false,leadin=0) {
-  metric_thread(diameter=4+2*C,pitch=0.7,length=length,internal=internal,leadin=leadin);
+  standard_thread(4,length=length,internal=internal,leadin=leadin);
+}
+module m5_thread(length,C=0,internal=false,leadin=0) {
+  standard_thread(5,length=length,internal=internal,leadin=leadin);
 }
 
 module thread_with_stop(diameter, C = 0, pitch, length, stop, internal = false, angle=30) {
