@@ -435,7 +435,7 @@ module core_spacer_holders(C=C) {
 }
 *!core();
 
-module export_core() { rotate([180]) core(); }
+module export_core() { rotate([180]) translate_z(-(coreThickness+coreBackThickness)) core(); }
 
 //-----------------------------------------------------------------------------
 // Sidebar
@@ -530,9 +530,9 @@ frontThickness = roundToLayerHeight(1.5);
 backThickness = roundToLayerHeight(1.5);
 housingOnly = false;
 
-coreAngle = 20;
+coreAngle = 0;
 
-module housing_profile(connector=1, coreHole=false) {
+module housing_profile(connector=1, coreHole=false, sidebar=true) {
   chamfer = 3;
   difference() {
     group() {
@@ -547,18 +547,18 @@ module housing_profile(connector=1, coreHole=false) {
           translate_x(-shackleX) circle(r=shackleR+chamfer);
           h = shackleR+chamfer-0;
           translate([-shackleX,-h]) square([shackleX,2*h]);
-          offset(gateCHousing+housingWall+chamfer) sidebar_profile(1);
+          if (sidebar) offset(gateCHousing+housingWall+chamfer) sidebar_profile(1);
         }
       } else {
         offset(-chamfer)offset(chamfer) {
           circle(r=housingR);
-          offset(gateCHousing+housingWall) sidebar_profile(1);
+          if (sidebar) offset(gateCHousing+housingWall) sidebar_profile(1);
         }
       }
     }
     if (coreHole) {
       circle(r=coreR+C);
-      offset(gateCHousing) sidebar_profile(1, extraY=C);
+      if (sidebar) offset(gateCHousing) sidebar_profile(1, extraY=C);
     }
   }
 }
@@ -614,22 +614,104 @@ module export_housing() { housing(); }
 //-----------------------------------------------------------------------------
 
 lugZ = coreThickness + coreBackThickness + layerHeight;
+lugThickness = roundToLayerHeight(2.5);
 
-shackleR = 7.5/2;
-shackleX = coreR + shackleR + 2.5;
-shackleZ = roundToLayerHeight(lugZ - 3);
+bodyThickness = frontThickness + lugZ + lugThickness + backThickness;
+
+shackleR = 8/2;
+shackleSep = 2.5;
+shackleX = coreR + shackleR + 2*C + shackleSep;
+shackleZ = roundToLayerHeight(lugZ - 3.5);
+shackleClearance = roundToLayerHeight(2);
+shackleTravel = bodyThickness - frontThickness - shackleZ + shackleClearance;
+//shackleZ2 = shackleZ - shackleTravel - roundToLayerHeight(4);
+shackleZ2 = 0;
+shackleBaseLength = 10; // length of shackle above body
+shackleBendZ = roundToLayerHeight(shackleBaseLength + bodyThickness - frontThickness);
+shackleLength1 = shackleBendZ - shackleZ;
+shackleLength2 = shackleBendZ - shackleZ2;
 
 module shackle() {
   difference() {
     group() {
-      translate([shackleX,0,shackleZ])    cylinder(r1=shackleR-1,r2=shackleR,h=1+eps);
-      translate([shackleX,0,shackleZ+1])  cylinder(r=shackleR,h=20);
       translate([-shackleX,0,shackleZ])   cylinder(r1=shackleR-1,r2=shackleR,h=1+eps);
-      translate([-shackleX,0,shackleZ+1]) cylinder(r=shackleR,h=20);
+      translate([-shackleX,0,shackleZ+1]) cylinder(r=shackleR,h=shackleLength1-1+eps);
+      translate([shackleX,0,shackleZ2])   cylinder(r1=shackleR-1,r2=shackleR,h=1+eps);
+      translate([shackleX,0,shackleZ2+1]) cylinder(r=shackleR,h=shackleLength2-1+eps);
+      translate_z(shackleBendZ) intersection() {
+        rotate([90,0,0]) rotate_extrude() {
+          translate([shackleX,0]) circle(r=shackleR);
+        }
+        positive_z();
+      }
     }
     lug_holes();
+    // hole for shackle retaining pin
+    shackle_retaining_pin(C=C, h=shackleTravel);
+    translate([shackleX,0,shackleRetainPinZ-shackleTravel-C])
+    difference() {
+      cylinder(r=shackleR+eps,h=shackleRetainPinThickness+3*C);
+      cylinder(r=shackleR-shackleRetainPinOverlap-C,h=shackleRetainPinThickness+3*C);
+    }
+    /*
+    // hole for shackle spring
+    shackleSpringWidth = 2;
+    translate([shackleX,0,shackleZ2-eps])
+    linear_extrude(lugZ-lugTravel-2) {
+      square([shackleSpringWidth,2*shackleR+1],true);
+    }
+    */
   }
 }
+
+shackleRetainPinZ = roundToLayerHeight(shackleZ2 + shackleTravel + 3);
+shackleRetainPinThickness = roundToLayerHeight(2);
+shackleRetainPinOverlap = 1;
+module shackle_retaining_pin(C=0, h=0) {
+  pinH = 4;
+  translate_z(shackleRetainPinZ-h)
+  linear_extrude(shackleRetainPinThickness+h+roundToLayerHeight(C)) {
+    difference() {
+      translate([0,-pinH/2]) offset(C) square([shackleX-shackleR+shackleRetainPinOverlap,pinH]);
+      circle(r=housingR+tightC-eps);
+    }
+  }
+}
+
+module shackle_with_support() {
+  offset = 1*layerHeight;
+  f = sqrt(2)/2;
+  h = f * (shackleX + shackleR);
+  shackleTop = shackleBendZ+shackleX+shackleR;
+  wall = 0.8;
+  base = 3 * layerHeight;
+  rotate([0,180,0])
+  translate_z(-(shackleTop+base)) 
+  group() {
+    shackle();
+    // support holes
+    color("blue")
+    translate_z(lugZ-layerHeight) linear_extrude(lugThickness-layerHeight) {
+      w = 0.8;
+      translate_x(-(shackleX-shackleR+w/2)) square([w,2*shackleR*0.8],true);
+    }
+    // support bottom
+    color("red")
+    difference() {
+      translate_z(shackleBendZ+h) linear_extrude(shackleTop - (shackleBendZ+h) + base) {
+        square([2*(f*(shackleR+shackleX)+wall),2*(f*shackleR+wall)],true);
+      }
+      translate_z(shackleBendZ) rotate([90,0,0]) rotate_extrude() {
+        translate([shackleX,0]) circle(r=shackleR + offset);
+        translate([0,-10]) square([shackleX+shackleR*f,20]);
+      }
+    }
+  }
+}
+*!shackle_with_support();
+
+module export_shackle_retaining_pin(){shackle_retaining_pin();}
+module export_shackle_with_support(){shackle_with_support();}
 
 //-----------------------------------------------------------------------------
 // Locking lugs
@@ -637,11 +719,7 @@ module shackle() {
 
 lugTravel = 3.5;
 lugOverlap = lugTravel - 0.6;
-lugThickness = roundToLayerHeight(2.5);
-//lugPinR = 2.8;
 lugPinR = lugTravel - 0.8;
-//lugPinR = lugTravel + 0.3;
-//lugPinR = lugTravel-C/2;
 lugPinA = 0;
 // rotation from lugPinA to lugPinA+90 should result in a horizontal travel of lugTravel
 // travel = lugPinP*(cos(lugPinA)-cos(lugPinA+90))
@@ -650,7 +728,6 @@ lugPinP = lugTravel / (cos(lugPinA)-cos(lugPinA+90));
 lugPinPos = polar(lugPinA,lugPinP);
 lugPinThickness = roundToLayerHeight(2);
 lugOverlapMax = lugOverlap + lugPinP * (1 - cos(lugPinA));
-echo(lugOverlapMax);
 module lug_profile() {
   w = shackleX-shackleR+lugOverlap;
   daMax = asin(lugPinP*(sin(lugPinA+90)-sin(lugPinA)) / (w-lugPinP));
@@ -712,8 +789,9 @@ module lugs_hole_profile() {
 }
 module lug_holes() {
   // lug holes
-  translate_z(lugZ-layerHeight)
-  linear_extrude(lugThickness+layerHeight) {
+  clearance = 2*layerHeight;
+  translate_z(lugZ-clearance)
+  linear_extrude(lugThickness+clearance, convexity=2) {
     lugs_hole_profile();
     square([2*(shackleX-shackleR+lugOverlap+C),2*shackleR],true);
   }
@@ -806,8 +884,7 @@ tightC = 0.08;
 bodyWall = 1.2;
 bodyWall2 = 1.6;
 bodyShape = "smooth";
-
-bodyThickness = frontThickness + lugZ + lugThickness + backThickness;
+bodyChamfer = 2*layerHeight;
 
 module lock_body_profile() {
   r1 = housingR+tightC+bodyWall;
@@ -840,7 +917,7 @@ module lock_body_profile() {
 module lock_body() {
   difference() {
     translate_z(-frontThickness)
-    linear_extrude(bodyThickness) {
+    linear_extrude_cone_chamfer(bodyThickness,bodyChamfer,bodyChamfer) {
       lock_body_profile();
     }
     // hole for housing
@@ -852,30 +929,36 @@ module lock_body() {
       offset(tightC) housing_profile(1);
     }
     translate_z(housingThickness1)
-    linear_extrude(lugZ+eps-housingThickness1,convexity=2) {
+    linear_extrude(housingThickness+eps-housingThickness1,convexity=2) {
       offset(tightC) housing_profile(0);
     }
-    // screw hole
+    translate_z(housingThickness)
+    linear_extrude(lugZ+eps-housingThickness,convexity=2) {
+      offset(tightC) housing_profile(0,sidebar=false);
+    }
+    // shackle/screw holes
     group() {
       translate_x(-shackleX) cylinder(r=screwDiameter/2+C, h=lots);
       z1 = housingThickness1 + screwShankThickness;
       h1 = screwHeadThickness1 + C;
       translate([-shackleX,0,z1])     cylinder(r1=screwDiameter/2, r2=shackleR+C, h=h1);
       translate([-shackleX,0,z1+h1])  cylinder(r=shackleR+C, h=lots);
+      translate([shackleX,0,shackleZ2])   cylinder(r1=shackleR-1+C, r2=shackleR+C, h=1);
+      translate([shackleX,0,shackleZ2+1]) cylinder(r=shackleR+C, h=lots);
+      // chamfer
+      chamfer = 2*layerHeight;
+      translate([-shackleX,0,bodyThickness-frontThickness-chamfer]) cylinder(r1=shackleR+C,r2=shackleR+C+chamfer+eps, h=chamfer+eps);
+      translate([shackleX,0,bodyThickness-frontThickness-chamfer]) cylinder(r1=shackleR+C,r2=shackleR+C+chamfer+eps, h=chamfer+eps);
     }
-    // shackle holes
-    translate([shackleX,0,shackleZ])   cylinder(r1=shackleR-1+C, r2=shackleR+C, h=1);
-    translate([shackleX,0,shackleZ+1]) cylinder(r=shackleR+C, h=lots);
+    // shackle retaining pin
+    shackle_retaining_pin(C=tightC);
     // lug holes
     group() {
       lug_holes();
       // printing overhang for lug holes
       chamfer = 1.5;
-      z1 = lugZ - layerHeight;
+      z1 = lugZ - 2*layerHeight;
       z2 = z1 - chamfer*0.8;
-      *linear_extrude_y(2*shackleR+2*C,true) {
-        //polygon([lugZ])
-      }
       render() intersection() {
         rotated(180)
         group() {
@@ -897,11 +980,13 @@ module lock_body() {
 }
 *!lock_body();
 
+module export_lock_body() { rotate([180]) translate_z(-(bodyThickness-frontThickness)) lock_body(); }
+
 //-----------------------------------------------------------------------------
 // Test
 //-----------------------------------------------------------------------------
 
-!group() {
+module back_test() {
   rotate([180]) translate_z(-(bodyThickness-frontThickness)) intersection() {
     lock_body();
     translate_z(coreThickness) positive_z();
@@ -928,8 +1013,8 @@ module lock_body() {
 //-----------------------------------------------------------------------------
 
 colors = [
-  "lightgreen", "lightblue", "Aquamarine", "lightsalmon", "lightyellow",
-  "pink", "MediumSlateBlue", "DarkOrchid", "Orchid"
+  "lightgreen", "lightblue", "Aquamarine", "Orchid", "lightsalmon", "lightyellow",
+  "pink", "MediumSlateBlue", "DarkOrchid"
 ];
 
 module visualize_cutout(colors, min_x = undef, min_y = undef, min_z = undef, max_x = undef, max_y = undef, max_z = undef) {
@@ -948,8 +1033,6 @@ module visualize_cutout(colors, min_x = undef, min_y = undef, min_z = undef, max
   }
 }
 
-shackleTravel = bodyThickness - shackleZ;
-
 module assembly() {
   anim = 180;
   angle = min(90,anim);
@@ -957,11 +1040,12 @@ module assembly() {
   sidebarPos = 1 - min(1,max(0,anim-80)/10);
   springPos = min(1,anim/7);
   lugPos = coreExtraAngle/90;
-  shacklePos = shackleTravel;
+  shacklePos = 0*shackleTravel;
   
   body = true;
   housing = true;
   shackle = true;
+  shacklePin = true;
   screw = true;
   lugs = false;
   core = true;
@@ -977,6 +1061,7 @@ module assembly() {
     if (body) lock_body();
     if (housing) translate_z(-layerHeight/3) housing(threads=threads);
     if (shackle) translate_z(shacklePos) shackle();
+    if (shacklePin) shackle_retaining_pin();
     if (screw) screw(threads=threads);
     if (lugs) lugs(lugPos);
     if (core) rotate(coreAngle+coreExtraAngle) core();

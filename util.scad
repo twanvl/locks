@@ -70,6 +70,21 @@ module linear_extrude_chamfer(height,chamfer1,chamfer2,center=false,convexity=4,
   }
 }
 
+module linear_extrude_cone_chamfer(height,chamfer1,chamfer2,center=false,convexity=undef) {
+  maxChamfer = max(chamfer1,chamfer2);
+  translate_z(center ? -height/2 : 0)
+  minkowski() {
+    linear_extrude(height-chamfer1-chamfer2, convexity=convexity) {
+      offset(-maxChamfer) children();
+    }
+    union() {
+      cylinder(r1=maxChamfer-chamfer1,r2=maxChamfer,h=chamfer1);
+      translate_z(chamfer1)
+      cylinder(r1=maxChamfer,r2=maxChamfer-chamfer2,h=chamfer2);
+    }
+  }
+}
+
 //-----------------------------------------------------------------------------
 // Chamfering
 //-----------------------------------------------------------------------------
