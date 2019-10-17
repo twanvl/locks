@@ -73,37 +73,23 @@ step = keyWidth/2-keyHeight3/2;
 //-----------------------------------------------------------------------------
 
 module key_profile() {
-  if (0) {
-    C=0;
-    translate_x(-(keyHeight1-2*keyChamfer)/2) chamfer_rect(keyWidth+2*C-(keyHeight1-2*keyChamfer),keyHeight1+2*C,keyChamfer);
-    translate_x((keyWidth-keyHeight1)/2) offset(delta=C) key_bit_profile();
-  } else render() union() {
-    chamfer_rect(keyWidth,keyHeight1,keyChamfer, r_bl=keyChamfer2, r_tr=1.5);
+  render() union() {
+    // base rectangle (not really needed)
+    dw = 0.2;
+    chamfer_rect(keyWidth-dw,keyHeight1,keyChamfer, r_bl=keyChamfer2, r_tr=1.5);
     // make room for rotating the bitting prongs at the edges of the key
     // shape traced out by key_bit_profile at -bit*step and bit*step, rotated around (0,0),
     // but shifted so that vertical height remains constant, i.e. by sin(a)*x+dy(a)
-    // the points traced out are
-    for (bit=[-1,1]) {
-      for (a=[0:2:90]) {
-        translate_y(-bit*step*sin(a) - dy(a))
-        rotate(a) key_bit_profile(bit);
-      }
-    }
-    //key_bit_profile(-1);
-    // trace corners of key_bit_profile
-    for (x=[-step,step]) {
-      //p=[x+keyHeight1/2,-keyHeight1/2];
-      dc=(keyHeight1-diagonal(keyHeight1/2,keyHeight1/2-keyChamfer2)) / sqrt(2);
-      corners=[
-        [x-keyHeight1/2,keyHeight1/2-keyChamfer],
-        [x-keyHeight1/2+keyChamfer,keyHeight1/2],
-        [x+keyHeight1/2-keyChamfer,-keyHeight1/2],
-        [x+keyHeight1/2,-keyHeight1/2+keyChamfer],
-        // point at distance keyHeight1 from both bottom left corners
-        [x+dc,dc]
-      ];
-      for (p=corners) {
-        polygon([for (a=[0:2:90]) rot(-a,p) + [0,-x*sin(a) - dy(a)]]);
+    // we use a pairwise convex hull to get the traced shape
+    steps = 5;
+    for (a=[0:steps:90-steps-eps]) {
+    //for (a=[40]) {
+      hull() {
+        for (bit=[-1,1]) {
+          b=a+steps;
+          translate_y(-bit*step*sin(a) - dy(a)) rotate(a) key_bit_profile(bit);
+          translate_y(-bit*step*sin(b) - dy(b)) rotate(b) key_bit_profile(bit);
+        }
       }
     }
   }
@@ -111,6 +97,7 @@ module key_profile() {
 *!key_profile();
 
 module key_bit_profile(bit=0) {
+  $fn = 60;
   translate_x(bit*step) {
     //square([keyHeight1,keyHeight1],true);
     //circle(keyHeight1/2);
@@ -136,8 +123,8 @@ module key_profile_test_wafer() {
         square([waferWidth,lots],true);
       }
       //translate_y(-(keyHeight2-keyHeight1)*0.5)
-      key_profile(C=eps);
-      translate_y(keyHeight2*1.2) key_profile(C=eps);
+      key_profile();
+      translate_y(keyHeight2*1.2) key_profile();
     }
   }
 }
@@ -148,9 +135,10 @@ function dy(a) = min(-keyHeight1/2,min(
   rot(a, [keyHeight3/2 - keyChamfer2, -keyHeight1/2])[1],
   rot(a, [keyHeight3/2, -keyHeight1/2 + keyChamfer2])[1]))
   + keyHeight1/2;
+
 module key_profile_test() {
   bit = 1;
-  a = 10;
+  a = 0;
   rotate(a) linear_extrude(sepThickness) key_profile();
   translate_y(bit*step * sin(a)) {
     translate_x(bit*step * cos(a))
@@ -213,7 +201,7 @@ module linear_extrude_scale_chamfer(height,xsize,ysize,chamfer1,chamfer2,center=
 }
 
 
-module linear_extrude_cone_chamfer2(height,chamfer1,chamfer2,center=false,convexity=undef) {
+module linear_extrude_cone_chamfer2(height,chamfer1,chamfer2,center=false,convexity=undef,slope=1, resolution=8) {
   maxChamfer = max(chamfer1,chamfer2);
   translate_z(center ? -height/2 : 0)
   difference() {
@@ -225,14 +213,14 @@ module linear_extrude_cone_chamfer2(height,chamfer1,chamfer2,center=false,convex
         square(lots,true);
         children();
       }
-      cylinder(r1=chamfer1,r2=0,h=chamfer1);
+      cylinder(r1=chamfer1,r2=chamfer1*(slope-1),h=chamfer1, $fn=resolution);
     }
     if (chamfer2 > 0) translate_z(height-chamfer2+eps) minkowski() {
       linear_extrude(chamfer2, convexity=convexity+1) difference() {
         square(lots,true);
         children();
       }
-      cylinder(r1=0,r2=chamfer2,h=chamfer2);
+      cylinder(r1=chamfer2*(slope-1),r2=chamfer2,h=chamfer2, $fn=resolution);
     }
   }
 }
@@ -309,7 +297,8 @@ falseGate = 0.5;
 module keyway(height) {
   chamfer = roundToLayerHeight(0.4);
   translate_z(-eps)
-  linear_extrude_scale_chamfer(height+2*eps, 2*keyWidth,keyHeight1, chamfer,chamfer, slope=-1) {
+  //linear_extrude_scale_chamfer(height+2*eps, 2*keyWidth,keyHeight1, chamfer,chamfer, slope=-1) {
+  linear_extrude_chamfer_hole(height+2*eps, chamfer,chamfer, convexity=4) {
     offset(delta=C) key_profile();
   }
 }
@@ -323,8 +312,6 @@ module wafer(bit) {
           translate_y(-step) circle(r = coreR);
           square([waferWidth,lots],true);
         }
-        *translate_y(-(keyHeight3-keyHeight1)*0.5)
-          offset(delta=C) key_profile();
         // gate
         translate_y(-bit*step) offset(delta=gateC) sidebar_profile();
         for (i=[-1:0.5:1]) {
@@ -339,7 +326,7 @@ module wafer(bit) {
     keyway(waferThickness);
   }
 }
-!wafer(-1);
+*!wafer(-1);
 
 spacerR = waferWidth/2 + 0.15;
 limiterThickness = roundToLayerHeight(sepThickness/2);
@@ -945,7 +932,7 @@ module lock_body_profile() {
 module lock_body() {
   difference() {
     translate_z(-frontThickness)
-    linear_extrude_cone_chamfer(bodyThickness,bodyChamfer,bodyChamfer) {
+    linear_extrude_cone_chamfer(bodyThickness,bodyChamfer,bodyChamfer,resolution=30) {
       lock_body_profile();
     }
     // hole for housing

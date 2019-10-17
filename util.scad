@@ -5,7 +5,7 @@
 // Resolution defaults
 
 $fs = 0.1;
-$fa = 1;
+$fa = 2;
 
 eps = 1e-3;
 
@@ -70,7 +70,7 @@ module linear_extrude_chamfer(height,chamfer1,chamfer2,center=false,convexity=4,
   }
 }
 
-module linear_extrude_cone_chamfer(height,chamfer1,chamfer2,center=false,convexity=undef) {
+module linear_extrude_cone_chamfer(height,chamfer1,chamfer2,center=false,convexity=undef, resolution=30) {
   maxChamfer = max(chamfer1,chamfer2);
   translate_z(center ? -height/2 : 0)
   minkowski() {
@@ -78,9 +78,26 @@ module linear_extrude_cone_chamfer(height,chamfer1,chamfer2,center=false,convexi
       offset(-maxChamfer) children();
     }
     union() {
+      $fn = resolution;
       cylinder(r1=maxChamfer-chamfer1,r2=maxChamfer,h=chamfer1);
       translate_z(chamfer1)
       cylinder(r1=maxChamfer,r2=maxChamfer-chamfer2,h=chamfer2);
+    }
+  }
+}
+
+module linear_extrude_chamfer_hole(height, chamfer1, chamfer2, center=false, convexity=undef, resolution=8) {
+  translate_z(center ? -height/2 : 0)
+  minkowski() {
+    linear_extrude(1e-5, convexity=convexity) {
+      children();
+    }
+    union() {
+      $fn = resolution;
+      e = 1e-5;
+      cylinder(r1=chamfer1,r2=e,h=chamfer1);
+      translate_z(chamfer1) cylinder(r1=e,r2=e,h=height-chamfer1-chamfer2);
+      translate_z(height-chamfer2) cylinder(r1=e,r2=chamfer2,h=chamfer2);
     }
   }
 }
