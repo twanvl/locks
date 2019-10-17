@@ -609,12 +609,14 @@ module housing(threads = true) {
       translate_z(-frontThickness-eps)
       cylinder(r1=keyHoleR+C+chamfer,r2=keyHoleR+C,h=chamfer);
       // screw hole
-      h = housingThickness1-screwZ+2*eps;
-      translate([-shackleX,0,screwZ])
+      screwZ2 = max(0,screwZ-2*coarse_pitch(screwDiameter));
+      h = housingThickness1-screwZ2+2*eps;
+      screwC = 0.2;
+      translate([-shackleX,0,screwZ2])
       if (threads) {
-        standard_thread(screwDiameter,h,C=C*2,internal=true);
+        standard_thread(screwDiameter,h,C=screwC,internal=true);
       } else {
-        cylinder(d=screwDiameter+2*C,h);
+        cylinder(d=screwDiameter+screwC,h);
       }
     }
   }
