@@ -261,8 +261,8 @@ module wedge_space(a, center=false) {
 module wedge(a1=undef, a2=undef, center=false, r=lots) {
   b1 = a2==undef ? (center ? -a1/2 : 0) : a1;
   b2 = a2==undef ? (center ? a1/2 : a1) : a2;
-  n = abs(b1-b2);
-  points = [for (i=[0:n]) polar(b1+(b2-b1)*i/n, r)];
+  n = max(1,ceil(abs(b1-b2)));
+  points = [for (i=[0:n]) polar(lerp(b1,b2,i/n), r)];
   polygon(concat([[0,0]],points));
 }
 

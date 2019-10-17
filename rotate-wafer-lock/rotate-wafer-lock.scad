@@ -193,7 +193,7 @@ module linear_extrude_chamfer2(height,chamfer1,chamfer2,center=false,convexity=4
 module linear_extrude_scale_chamfer(height,xsize,ysize,chamfer1,chamfer2,center=false,slope=1,convexity=4) {
   translate_z(center ? -height/2 : 0) {
     if (chamfer1 > 0) {
-      scale([1-2*slope*chamfer1/xsize,1-2*slope*chamfer1/ysize])
+      scale([1-2*slope*chamfer1/xsize,1-2*slope*chamfer1/ysize,1])
       linear_extrude(chamfer1+eps, scale=[1/(1-2*slope*chamfer1/xsize),1/(1-2*slope*chamfer1/ysize)]) children();
     }
     translate_z(chamfer1)
@@ -212,11 +212,39 @@ module linear_extrude_scale_chamfer(height,xsize,ysize,chamfer1,chamfer2,center=
   key_profile();
 }
 
+
+module linear_extrude_cone_chamfer2(height,chamfer1,chamfer2,center=false,convexity=undef) {
+  maxChamfer = max(chamfer1,chamfer2);
+  translate_z(center ? -height/2 : 0)
+  difference() {
+    linear_extrude(height, convexity=convexity) {
+      children();
+    }
+    if (chamfer1 > 0) translate_z(-eps) minkowski() {
+      linear_extrude(chamfer1, convexity=convexity+1) difference() {
+        square(lots,true);
+        children();
+      }
+      cylinder(r1=chamfer1,r2=0,h=chamfer1);
+    }
+    if (chamfer2 > 0) translate_z(height-chamfer2+eps) minkowski() {
+      linear_extrude(chamfer2, convexity=convexity+1) difference() {
+        square(lots,true);
+        children();
+      }
+      cylinder(r1=0,r2=chamfer2,h=chamfer2);
+    }
+  }
+}
+
 module key() {
+  crossC = C/2;
   for (i=[0:len(bitting)-1]) {
     chamfer=0.3;
-    translate_z(i*(waferThickness+sepThickness) + (i>0 ? C : -2))
-    linear_extrude_scale_chamfer(sepThickness - C - (i>0 ? C : -2), 2*keyWidth,keyHeight1, chamfer,chamfer) {
+    translate_z(i*(waferThickness+sepThickness) + (i>0 ? crossC : -2))
+    linear_extrude_scale_chamfer(sepThickness - crossC - (i>0 ? crossC : -2) + eps, 2*keyWidth,keyHeight1, chamfer,chamfer) {
+    //linear_extrude_cone_chamfer(sepThickness - crossC - (i>0 ? crossC : -2) + eps, chamfer,chamfer) {
+    //linear_extrude_cone_chamfer2(sepThickness - crossC - (i>0 ? crossC : -2) + eps, chamfer,chamfer) {
       key_profile();
     }
     translate_z(i*(waferThickness+sepThickness) + sepThickness/2-eps)
@@ -244,8 +272,8 @@ module key() {
   translate_z(-h1) key_handle();
 }
 module key_handle() {
-  w = 16; // handle
-  r = 2.5; // hole
+  w = 20; // handle
+  r = 2.75; // hole
   translate_z(-w/2)
   rotate([90]) {
     difference() {
@@ -254,7 +282,7 @@ module key_handle() {
         mirrored([0,0,1]) translate_z(keyHeight1/2-keyChamfer)
         cylinder(r1=w/2,r2=w/2-keyChamfer,h=keyChamfer);
       }
-      translate_y(-3.5)
+      translate_y(-w/2+r+r)
       group() {
         cylinder(r=r,h=keyHeight1-2*keyChamfer+2*eps,center=true);
         mirrored([0,0,1]) translate_z(keyHeight1/2-keyChamfer)
@@ -311,7 +339,7 @@ module wafer(bit) {
     keyway(waferThickness);
   }
 }
-*!wafer(-1);
+!wafer(-1);
 
 spacerR = waferWidth/2 + 0.15;
 limiterThickness = roundToLayerHeight(sepThickness/2);
@@ -597,7 +625,7 @@ module housing(threads = true) {
       h = housingThickness1-screwZ+2*eps;
       translate([-shackleX,0,screwZ])
       if (threads) {
-        standard_thread(screwDiameter,h,C=C,internal=true);
+        standard_thread(screwDiameter,h,C=C*2,internal=true);
       } else {
         cylinder(d=screwDiameter+2*C,h);
       }
@@ -1051,7 +1079,8 @@ module assembly() {
   core = true;
   wafers = false;
   spacers = wafers;
-  threads = false;
+
+  threads = true;
   
   min_y = 0;
   max_z = undef;//is_undef(min_y) ? coreThickness/2 : undef;
