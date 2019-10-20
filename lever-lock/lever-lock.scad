@@ -107,11 +107,12 @@ module key() {
 module shroud() {
 }
 
-leverBottomY=keyHeight-4*step;
+leverBottomY = keyHeight-4*step;
 gateY = leverBottomY + 9;
 gateHeight = 2.5;
 gateC = 0.2;
 leverR = 25;
+leverTopY = max(gateY + gateHeight + 4, leverPivot[1]+leverPivotR+3);
 
 // angle of lever, when moved by key of given cut
 function lever_angle(bit) =
@@ -130,7 +131,7 @@ module lever_profile(bit) {
     x2 = 10;
     r1 = leverR;
     y1 = leverBottomY;
-    y2 = max(gateY + gateHeight + 4, leverPivot[1]+leverPivotR+3);
+    y2 = leverTopY;
     //yGate = y2 - 3*0.8-3;
     yGate = gateY;
     group() {
@@ -218,9 +219,43 @@ module lever(bit=0, pos=0) {
   linear_extrude(leverThickness) lever_profile(bit);
 }
 
+module spacer_profile(ward = false) {
+  x1 = leverPivot[0] - leverR;
+  x2 = 10;
+  r1 = leverR;
+  y1 = ward ? 0 : leverBottomY;
+  y2 = leverTopY;
+  difference() {
+    hull() {
+      intersection() {
+        translate([x1,y1]) square([x2-x1,y2-y1]);
+        translate(leverPivot) circle(r1);
+      }
+      rotate_around(leverPivot,lever_angle(0))
+      intersection() {
+        translate([x1,y1]) square([x2-x1,y2-y1]);
+        translate(leverPivot) circle(r1);
+      }
+      translate(leverPivot) circle(leverPivotR+3);
+    }
+    translate(leverPivot) circle(leverPivotR+C);
+    if (ward) {
+      circle(r=keyHeight-maxBit*step+C);
+    } else {
+      circle(r=keyHeight+C);
+    }
+  }
+}
+module warded_spacer() {
+  linear_extrude(leverThickness) spacer_profile(ward=true);
+}
+module spacer() {
+  linear_extrude(spacerThickness) spacer_profile();
+}
+
 //leverBottomY=keyR+1.2;
 //leverBottomY=0;
-echo(lever_angle(5));
+//echo(lever_angle(5));
 
 //-----------------------------------------------------------------------------
 // Bolt
@@ -232,13 +267,15 @@ boltThickness = roundToLayerHeight(2);
 
 module bolt(pos = 1) {
   x1 = leverPivot[0] - leverR;
-  linear_extrude(boltThickness) {
-    translate([x1,4])
-    square(10);
-  }
-  linear_extrude(10) {
-    translate([-boltWidth/2,gateHeight/2])
-    translate([x1 + pos*boltTravel,gateY]) chamfer_rect(boltWidth,gateHeight,0.5);
+  translate_x(pos*boltTravel) {
+    linear_extrude(boltThickness) {
+      translate([x1-10,keyHeight])
+      square([20,10]);
+    }
+    linear_extrude(10) {
+      translate([-boltWidth/2,gateHeight/2])
+      translate([x1,gateY]) chamfer_rect(boltWidth,gateHeight,0.5);
+    }
   }
 }
 
@@ -305,4 +342,11 @@ for (i=[0:len(bitting)-1]) {
 //for (i=[4]) {
   translate_z(boltThickness + i*leverStep)
   color("red") lever(bitting[i], pos=lever_angle(bitting[i]));
+}
+
+for (i=[0:len(bitting)-1]) {
+  translate_z(boltThickness + i*leverStep+20)
+  color("lightblue") {
+    if (i==0) warded_spacer(); else spacer();
+  }
 }
