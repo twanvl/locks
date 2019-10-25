@@ -127,6 +127,10 @@ module chamfer_rect(w,h,r, r_tr=undef,r_tl=undef,r_bl=undef,r_br=undef) {
   ]);
 }
 
+module rounded_rect(w,h,r) {
+  offset(r) square([w-2*r,h-2*r],true);
+}
+
 module double_cone(r,h=undef) {
   hh = h == undef ? r : h;
   union() {
@@ -257,6 +261,8 @@ module positive_x2d(h=lots) { translate([h,0]) square(2*h,true); }
 module positive_y2d(h=lots) { translate([0,h]) square(2*h,true); }
 module negative_x2d(h=lots) { translate([-h,0]) square(2*h,true); }
 module negative_y2d(h=lots) { translate([0,-h]) square(2*h,true); }
+module everything2d(h=lots) { square(2*h,true); }
+module not2d() { difference() { everything2d(); children(); }  }
 
 // a wedge, starting from the positive x, up to rotation of a counter clockwise
 module wedge_space(a, center=false) {
