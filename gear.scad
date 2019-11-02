@@ -132,7 +132,7 @@ module halftooth(pitch_angle, base_radius, min_radius, outer_radius, half_thick_
 
 function gear_radius(number_of_teeth, circular_pitch) =
   number_of_teeth * circular_pitch / (2*PI);
-function gear_avg_radius(number_of_teeth, circular_pitch, pressure_angle, depth_ratio, clearance=0) =
+function gear_avg_radius(number_of_teeth, circular_pitch, pressure_angle=28, depth_ratio=0, clearance=0) =
   number_of_teeth * circular_pitch / (2*PI) - clearance;
 function gear_inner_radius(number_of_teeth, circular_pitch, pressure_angle, depth_ratio, clearance=0) =
   number_of_teeth * circular_pitch / (2*PI) - depth_ratio*circular_pitch/2-clearance/2;
