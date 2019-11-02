@@ -334,6 +334,10 @@ function coarse_pitch(d) =
   d == 3 ? 0.5 :
   d == 4 ? 0.7 :
   d == 5 ? 0.8 :
+  d == 6 ? 1.0 :
+  d == 7 ? 1.0 :
+  d == 8 ? 1.25 :
+  d == 9 ? 1.25 :
   d == 10 ? 1.5 :
   d == 20 ? 2.5 :
   "unknown pitch for thread " + str(d);
