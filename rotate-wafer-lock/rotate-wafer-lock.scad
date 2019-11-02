@@ -132,8 +132,8 @@ module key_profile_test_wafer() {
 // point where bottom of keyway touches key at given angle
 //function dy(a) = -1*sin(a) * (keyHeight2/2 - keyChamfer);
 function dy(a) = min(-keyHeight1/2,min(
-  rot(a, [keyHeight3/2 - keyChamfer2, -keyHeight1/2])[1],
-  rot(a, [keyHeight3/2, -keyHeight1/2 + keyChamfer2])[1]))
+  rot(-a, [keyHeight3/2 - keyChamfer2, -keyHeight1/2])[1],
+  rot(-a, [keyHeight3/2, -keyHeight1/2 + keyChamfer2])[1]))
   + keyHeight1/2;
 
 module key_profile_test() {
@@ -147,7 +147,7 @@ module key_profile_test() {
     translate_z(3) color("yellow") translate_y(dy(a)) key_profile_test_wafer();
   }
 }
-*!key_profile_test();
+!key_profile_test();
 
 module linear_extrude_z_chamfer_y(height,chamfer) {
   intersect_offset_y(chamfer)

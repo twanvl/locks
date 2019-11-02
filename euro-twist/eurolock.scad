@@ -69,10 +69,10 @@ module housing_profile() {
       } else {
         sym_polygon_x(concat(
           [[0,0],
-           rot(-bibleExtend,[-bibleWidth/2,0]),
-           rot(-bibleExtend,[-bibleWidth/2,bibleHeight-bibleWidth/2])],
-          [for (a=[0:step:90]) rot(-bibleExtend,[0,bibleHeight-bibleWidth/2] + bibleWidth/2*polar(180-a)) ],
-          [for (a=[-bibleExtend:step:0]) rot(a,[0,bibleHeight]) ]
+           rot(bibleExtend,[-bibleWidth/2,0]),
+           rot(bibleExtend,[-bibleWidth/2,bibleHeight-bibleWidth/2])],
+          [for (a=[0:step:90]) rot(bibleExtend,[0,bibleHeight-bibleWidth/2] + bibleWidth/2*polar(180-a)) ],
+          [for (a=[-bibleExtend:step:0]) rot(-a,[0,bibleHeight]) ]
         ));
         }
     }

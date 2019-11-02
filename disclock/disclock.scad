@@ -54,7 +54,7 @@ keyWidth = size <= SMALLER ? 2.1 : size <= SMALL ? 2.75 : size <= MEDIUM ? 2.75 
 keyWidthCenter = size <= SMALLER ? 1.3 : keyWidth/2 + 0.08;
 keyRot = size <= SMALL ? 0.45*step : size <= MEDIUM ? 0.3*step : 0.5*step;
 //keyThickness = 2 * rot(keyRot,on_circle(keyR1+1, keyWidth/2))[0];
-keyThickness = 2 * rot(keyRot,on_circle(keyR1, keyWidth/2))[0];
+keyThickness = 2 * rot(-keyRot,on_circle(keyR1, keyWidth/2))[0];
 keyProfileFillet = 0.0;
 echo("keyThickness", keyThickness);
 keywayAngle = 0;
@@ -213,8 +213,8 @@ module sidebar_slot(deep,C=C, chamfer=true, wiggle=true) {
   chamferA = chamferX * 360 / (discR*2*PI);
   sym_polygon_x(
     [[0,2*discR],
-    for (i=[0:0.25:1]) rot(-chamferA*(1-i)-Ca,[-w/2,discR-chamferY*i]),
-    rot(-Ca,[-w/2,discR-(h2+h2)/2]),
+    for (i=[0:0.25:1]) rot(chamferA*(1-i)+Ca,[-w/2,discR-chamferY*i]),
+    rot(Ca,[-w/2,discR-(h2+h2)/2]),
     rot(0,[-w/2,discR-h2]),
     [-w/4,discR-h]]);
 }
@@ -286,16 +286,16 @@ module tension_disc() {
       }
       rotate(0) {
         polygon([
-          rot(Ca,[w/2,discR+10]),
-          rot(Ca,[w/2,discR-h2]),
-          for (i=[0:0.1:1]) rot(-a*0.5*i,[-w2/2,discR-h2*(1-i*(1+b-b*i))])
+          rot(-Ca,[w/2,discR+10]),
+          rot(-Ca,[w/2,discR-h2]),
+          for (i=[0:0.1:1]) rot(a*0.5*i,[-w2/2,discR-h2*(1-i*(1+b-b*i))])
           ]);
       }
       rotate(maxStep) {
         polygon([
-          rot(-Ca,[-w/2,discR+10]),
-          rot(-Ca,[-w/2,discR-h]),
-          for (i=[0:0.1:1]) rot(a*i,[w2/2,discR-h*(1-i*(1+b-b*i))])
+          rot(Ca,[-w/2,discR+10]),
+          rot(Ca,[-w/2,discR-h]),
+          for (i=[0:0.1:1]) rot(-a*i,[w2/2,discR-h*(1-i*(1+b-b*i))])
           ]);
       }
     }

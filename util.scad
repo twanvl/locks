@@ -23,7 +23,7 @@ function roundToLayerHeight(z) = roundTo(z,layerHeight);
 //-----------------------------------------------------------------------------
 
 function polar(a,r) = r == undef ? [cos(a),sin(a)] : [r*cos(a),r*sin(a)];
-function rot(a,p) = [cos(a)*p[0]+sin(a)*p[1], cos(a)*p[1]-sin(a)*p[0]];
+function rot(a,p) = [cos(a)*p[0]-sin(a)*p[1], cos(a)*p[1]+sin(a)*p[0]];
 function diagonal(a,b) = sqrt(a*a+b*b);
 function side_given_diagonal(c,b) = sqrt(c*c-b*b);
 function on_circle(r,x) = [x,side_given_diagonal(r,x)];
@@ -218,8 +218,8 @@ module line(points,r) {
   angles = [for (i=[0:n-2]) normalize(points[i+1] - points[i])];
   angles2 = [for (i=[0:n-1]) i==0 ? angles[0] : i==n-1 ? angles[n-2] : (angles[i-1]+angles[i])/2 ];
   outline = [
-    for (i=[0:n-1])    points[i]+eps/2*rot(90,angles2[i]),
-    for (i=[n-1:-1:0]) points[i]+eps/2*rot(-90,angles2[i])
+    for (i=[0:n-1])    points[i]+eps/2*rot(-90,angles2[i]),
+    for (i=[n-1:-1:0]) points[i]+eps/2*rot(90,angles2[i])
   ];
   offset(r/2)
   polygon(outline);
