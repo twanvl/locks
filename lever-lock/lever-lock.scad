@@ -32,10 +32,11 @@ leverPivot = [10,13];
 leverPivotR = 2.5;
 
 // difference in lever angle between cuts
-//stepA = -4.5; // step between cuts in terms of lever angle
-stepA = -6; // step between cuts in terms of lever angle
+//stepA = -6; // step between cuts in terms of lever angle
+stepA = -3; // step between cuts in terms of lever angle
 // maximum bitting
-maxBit = 4;
+//maxBit = 4;
+maxBit = 8;
 
 //gateY = leverBottomY + 8;
 gateHeight = 2.3;
@@ -59,7 +60,8 @@ bottomLeverAngle = 20;
 
 //bitting = [0,1,2,3,4];
 //bitting = [4,3,2,1,0];
-bitting = [4,1,2,0,3];
+//bitting = [4,1,2,0,3];
+bitting = [8,3,5,1,4];
 
 //-----------------------------------------------------------------------------
 // Vertical (z) positions
@@ -77,7 +79,7 @@ function ward_after_lever(i) = i == 2;
 
 actuatorZ   = 0;
 firstLeverZ = housingThickness;
-wardZ       = firstLeverZ + leverThickness + C;
+wardZ       = firstLeverZ + roundToLayerHeight(2) + C;
 leverZ      = [for(i=0,z=firstLeverZ; i<=len(bitting); i=i+1, z=z + leverThickness + (ward_after_lever(i-1) ? wardedSpacerThickness : spacerThickness)) z];
 boltZ       = leverZ[len(bitting)];
 keyBottomZ  = firstLeverZ - 2*layerHeight;
@@ -208,20 +210,23 @@ module key() {
           key_profile(bitting[i]);
         }
       }
+      // blade base
+      translate_z(keyBottomZ) {
+        linear_extrude(leverZ[len(bitting)]-keyBottomZ) {
+          key_profile(0);
+        }
+      }
     }
     // warding
     translate_z(wardZ - C) {
       linear_extrude(lots,convexity=2) {
-        difference() {
-          circle(r=wardR+C);
-          circle(r=keyR);
-        }
+        circle(r=wardR+C);
       }
     }
   }
-  // rest of key
+  // shaft of key
   translate_z(keyBottomZ) {
-    keyLength = 30;
+    keyLength = 32;
     intersection() {
       linear_extrude(keyLength) {
         intersection() {
@@ -230,23 +235,38 @@ module key() {
         }
       }
       // chamfer top
-      cylinder(r1=keyWidth/2+keyLength*0.5,r2=keyWidth/2,h=keyLength);
+      cylinder(r1=1+keyLength*0.5,r2=1,h=keyLength);
     }
     // handle
-    handleHeight = 16;
-    handleWidth = 20;
-    t = 8;
-    translate_z(keyLength+handleHeight/2-2) {
-      linear_extrude_x(keyWidth,center=true, convexity=2) {
+    translate_z(keyLength+handleHeight/2 - 0.5 - (keyR-1)/0.5) {
+      translate_x(-keyWidth/2)
+      linear_extrude_x(keyWidth, convexity=2) {
         difference() {
-          scale([1,handleHeight/handleWidth]) circle(d=handleWidth);
-          scale([1,(handleHeight-t)/(handleWidth-t)]) circle(d=handleWidth-t);
+          key_handle_profile();
+          offset(-0.5) key_handle_profile();
         }
+        translate([0,handleHeight/2-2]) {
+          offset(0.1)
+          text("L L 1",2,font="Ubuntu",halign="center",valign="center");
+        }
+      }
+      translate_x(-keyWidth/2)
+      linear_extrude_x(keyWidth-roundToLayerHeight(0.5), convexity=2) {
+        key_handle_profile();
       }
     }
   }
 }
-*!key();
+handleHeight = 16;
+handleWidth = 20;
+module key_handle_profile() {
+  t = 8;
+  difference() {
+    scale([1,handleHeight/handleWidth]) circle(d=handleWidth);
+    scale([1,(handleHeight-t)/(handleWidth-t)]) circle(d=handleWidth-t);
+  }
+}
+!key();
 
 module key_profile_test() {
   for (bit=[0:maxBit]) {
@@ -300,21 +320,20 @@ module base_lever_profile(hole = false) {
 }
 *!base_lever_profile();
 
-falseGateTravel = 3;
+falseGateTravel = 3.5;
 falseGateTravel2 = 1;
 
 //gateHeight2 = 0.89;
 gateHeight2 = gateHeight - 0.8;
+gateSkip = abs(stepA) > 5 ? 1 : 2; 
 
 module lever_profile(bit) {
   difference() {
     base_lever_profile(hole = true);
     // gates
-    //badBit = (bit+3) % (maxBit+1);
-    badBits = [4,3,0,0,1];
-    //badBit = bit<maxBit/2 ? maxBit : 0;
-    badBit = badBits[bit];
+    badBit = (bit+round(maxBit/2)) % (maxBit+1);
     for (j=[0:maxBit]) {
+      if ((bit-j)%gateSkip == 0)
       rotate_around(leverPivot, -lever_angle(j)) {
         gate_profile(j == bit, shallowFalseGate = j != badBit, includeDrop=j>0);
       }
