@@ -80,7 +80,7 @@ firstLeverZ = housingThickness;
 wardZ       = firstLeverZ + leverThickness + C;
 leverZ      = [for(i=0,z=firstLeverZ; i<=len(bitting); i=i+1, z=z + leverThickness + (ward_after_lever(i-1) ? wardedSpacerThickness : spacerThickness)) z];
 boltZ       = leverZ[len(bitting)];
-keyBottomZ  = firstLeverZ;
+keyBottomZ  = firstLeverZ - 2*layerHeight;
 curtainZ    = boltZ + boltThickness;
 
 //-----------------------------------------------------------------------------
@@ -567,6 +567,19 @@ module curtain() {
       translate([-keyWidth/2-C,-keyHeight]) square([keyWidth+2*C,keyHeight]);
     }
   }
+  // close below warding
+  difference() {
+    translate_z(keyBottomZ)
+    linear_extrude(wardZ-layerHeight-keyBottomZ, convexity=2) {
+      difference() {
+        circle(r=curtainR);
+        offset(C) key_profile();
+      }
+    }
+    h = wardZ-layerHeight-keyBottomZ;
+    translate_z(keyBottomZ-2*eps)
+    cylinder(r1=wardR+C-h*1.5,r2=wardR+C,h=h+3*eps);
+  }
   // bump for snapping curtain when lock is closed
   intersection() {
     group() {
@@ -843,18 +856,16 @@ module housing_innards(down, threads = true) {
     gate_profile(trueGate=true,includeDrop=false);
     translate_x(-boltStumpWidth-2*C) gate_profile(trueGate=true,includeDrop=false);
   }
+  // curtain countersink
+  translate_z(keyBottomZ + dz)
+  linear_extrude(curtainZ-keyBottomZ + lots, convexity=2) {
+    circle(r=curtainR+C);
+  }
   // screws
   for (l=screwLocations) {
     translate(l) screw_hole(threads=threads);
   }
 }
-
-//translate_z(1)
-translate_x(housingLeftX-housingRightX)
-color("yellow") housing_lip();
-
-translate_x(2*(housingLeftX-housingRightX))
-color("LightYellow") housing(threads=false);
 
 module screw_hole(threads=true) {
   screw(threads=threads,internal=true);
@@ -918,10 +929,18 @@ module assembly() {
   boltPos = bolt_pos(keyAngle);
   threads = false;
 
-  *rotate(keyAngle) key();
+  color("white") rotate(keyAngle) key();
 
-  color("LightYellow") housing(threads=threads);
+  *color("LightYellow") housing(threads=threads);
+  color("Yellow") housing_lip();
   *color("LightYellow") pivot_pin();
+  if (1) {
+    translate_x(housingLeftX-housingRightX)
+    color("yellow") housing_lip();
+
+    translate_x(2*(housingLeftX-housingRightX))
+    color("LightYellow") housing(threads=false);
+  }
 
   *color("green") translate_x(boltPos) translate_z(layerHeight*0.5) bolt();
 
