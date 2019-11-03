@@ -266,7 +266,7 @@ module key_handle_profile() {
     scale([1,(handleHeight-t)/(handleWidth-t)]) circle(d=handleWidth-t);
   }
 }
-!key();
+*!key();
 
 module key_profile_test() {
   for (bit=[0:maxBit]) {
@@ -323,19 +323,20 @@ module base_lever_profile(hole = false) {
 falseGateTravel = 3.5;
 falseGateTravel2 = 1;
 
-//gateHeight2 = 0.89;
+//gateHeight2 = 0.87;
 gateHeight2 = gateHeight - 0.8;
 gateSkip = abs(stepA) > 5 ? 1 : 2; 
+
+function bad_bit(bit) = (bit+floor((maxBit+1)/2)) % roundTo(maxBit+1,gateSkip);
 
 module lever_profile(bit) {
   difference() {
     base_lever_profile(hole = true);
     // gates
-    badBit = (bit+round(maxBit/2)) % (maxBit+1);
     for (j=[0:maxBit]) {
       if ((bit-j)%gateSkip == 0)
       rotate_around(leverPivot, -lever_angle(j)) {
-        gate_profile(j == bit, shallowFalseGate = j != badBit, includeDrop=j>0);
+        gate_profile(j == bit, shallowFalseGate = j != bad_bit(bit), includeDrop=j>0);
       }
     }
   }
@@ -428,6 +429,7 @@ module export_levers() {
   }
 }
 *!export_levers();
+*echo("bitting", bitting, [for(bit=bitting)bad_bit(bit)]);
 
 //-----------------------------------------------------------------------------
 // Bolt
@@ -573,7 +575,7 @@ module export_bolt() { rotate([180]) translate_z(-(boltZ+boltThickness)) bolt();
 // Curtain
 //-----------------------------------------------------------------------------
 
-curtainTopR = keyHeight+0.89;
+curtainTopR = keyHeight+0.87;
 
 // curtain + bolt actuator
 module curtain() {
@@ -668,13 +670,12 @@ springAngle = springRestAngle+10; // preload angle
 springLength = (springPivot[1] - leverTopY) / sin(springRestAngle); // touching lever top
 springHeightZ = leverZ[len(bitting)] - spacerThickness - leverZ[0] - C;
 springRetainThickness = springThickness + 4 * layerHeight;
-springRetainWidth = 0.89;
+springRetainWidth = 0.87;
 springRetainShift = 2;
 // angle by which spring is rotated when lever is not raised
 //springRestAngle = asin((springPivot[1] - leverTopY) / springLength);
 // angle by which spring is rotated when lever is fully raised
 springFlexedAngle = asin((rot_around(leverPivot, -stepA*maxBit, springPivot)[1] - leverTopY) / springLength) + stepA*maxBit;
-echo("spring angle", springAngle, springRestAngle, springFlexedAngle);
 
 module spring_profile(angle=0, retainingHole=true) {
   translate(springPivot) rotate(springAngle) {
@@ -759,8 +760,6 @@ screwLocations = [
   //[housingLeftX+screwOffset,housingBottomY+screwOffset],
   [housingLeftX+screwOffset,(housingBottomY+boltBottomY)/2],
   [housingRightX-screwOffset,housingTopY-screwOffset]];
-
-echo(leverPivot+polar(topLeverAngle,leverR));
 
 
 module housing_outer_profile() {
