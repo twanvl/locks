@@ -18,16 +18,7 @@ keyWidth = roundToLayerHeight(keyR*sqrt(2));
 
 
 // Location of lever pivot point
-//leverPivot = [15,15];
-//leverPivot = [15,12];
-//leverPivot = [12,18];
-//leverPivot = [12,15];
-//leverPivot = [10,18];
 leverPivot = [10,13];
-//leverPivot = [14,12];
-//leverPivot = [10,13];
-//leverPivot = [12,17];
-//leverPivot = [-15,5];
 // Radius of lever pivot pin
 leverPivotR = 2.5;
 
@@ -359,7 +350,7 @@ module gate_profile(trueGate=true,shallowFalseGate=false,includeDrop=true) {
 
 module lever(bit=0, pos=0) {
   rotate_around(leverPivot,pos)
-  linear_extrude(leverThickness) lever_profile(bit);
+  linear_extrude(leverThickness,convexity=2) lever_profile(bit);
 }
 
 module spacer_profile(ward = false, full_ward = false) {
@@ -377,17 +368,30 @@ module spacer_profile(ward = false, full_ward = false) {
         }
       }
     }
+    // slightly oversized hole
+    translate(leverPivot) circle(leverPivotR+0.1+C);
+    // gates + wiggle room
     gate_profile(includeDrop = false);
+    rotate_around(leverPivot,1) gate_profile(includeDrop = false);
+    rotate_around(leverPivot,-1) gate_profile(includeDrop = false);
+    // spring
     spring_hole_profile();
     if (ward) {
       circle(r=curtainR+C);
+      translate([-(curtainR+C),-(curtainR+C)])
+        square([(curtainR+C)*2,curtainR+C]);
     } else {
       circle(r=keyHeight+C);
     }
   }
 }
 module warded_spacer() {
-  linear_extrude(wardedSpacerThickness) spacer_profile(ward=true);
+  difference() {
+    linear_extrude(wardedSpacerThickness, convexity=2) spacer_profile(ward=true);
+    h=2*layerHeight;
+    translate_z(-eps) cylinder(r1=curtainR+C+h,r2=curtainR+C,h=h);
+    translate_z(wardedSpacerThickness+eps-h) cylinder(r1=curtainR+C,r2=curtainR+C+h,h=h);
+  }
 }
 module spacer() {
   linear_extrude(spacerThickness) spacer_profile();
@@ -420,8 +424,6 @@ module export_levers() {
       rotate_around(leverPivot,i%2?0:180)
       if (ward_after_lever(i)) {
         warded_spacer();
-      } else if (i == len(bitting)-1) {
-        end_spacer();
       } else {
         spacer();
       }
@@ -782,7 +784,10 @@ module housing(threads=true) {
     // lip
     translate_z(housingSeamZ - lipThickness)
     linear_extrude(lots,convexity=2) {
-      offset(-housingWall) housing_outer_profile();
+      difference() {
+        offset(-housingWall) housing_outer_profile();
+        circle(r=curtainTopR);
+      }
     }
   }
   *linear_extrude(boltThickness) {
@@ -803,7 +808,10 @@ module housing_lip() {
       }
       translate_z(housingSeamZ-lipThickness)
       linear_extrude(housingTopZ-(housingSeamZ-lipThickness)-eps,convexity=2) {
-        offset(-(housingWall+tightC)) housing_outer_profile();
+        difference() {
+          offset(-(housingWall+tightC)) housing_outer_profile();
+          circle(r=curtainTopR+tightC);
+        }
       }
       // press down on spring hole
       translate_z(boltZ-spacerThickness+layerHeight)
@@ -858,15 +866,23 @@ module housing_innards(down, threads = true) {
     spring_hole_profile();
   }
   // lip for curtain
-  translate_z(boltZ-spacerThickness + dz)
-  linear_extrude(curtainZ+curtainThickness+layerHeight-(boltZ-spacerThickness) + lots) {
+  translate_z(curtainZ + dz)
+  linear_extrude(curtainThickness+layerHeight + lots) {
     circle(r=curtainTopR+C);
+  }
+  // bolt plate
+  translate_z(boltZ + dz)
+  linear_extrude(boltThickness+layerHeight + lots, convexity=2) {
+    offset(C) bolt_base_profile(holes=false);
+    translate_x(boltTravel) offset(C) bolt_base_profile(holes=false);
   }
   // bolt
   translate_z(firstLeverZ + dz)
   linear_extrude(boltZ+boltThickness+layerHeight-firstLeverZ + lots, convexity=2) {
-    offset(C) bolt_base_profile(holes=false);
-    translate_x(boltTravel) offset(C) bolt_base_profile(holes=false);
+    intersection() {
+      offset(C) bolt_base_profile(holes=false);
+      positive_x(); // TODO: do this properly
+    }
   }
   // bolt stump countersink
   translate_z(firstLeverZ-boltStumpCountersink + dz)
@@ -944,23 +960,30 @@ module export_screw() { rotate([180]) translate_z(-housingTopZ) screw(); }
 // Assembly
 //-----------------------------------------------------------------------------
 
+module assembly_cut(e) {
+  intersection() {
+    children();
+    *translate_x(e*eps) positive_x();
+  }
+}
+
 module assembly() {
   $fn = 60;
   //keyAngle = -180 - 45;
   //keyAngle = -180 + 30;
   //keyAngle = boltStartMoveAngle;
-  //keyAngle = -180 - 80;
-  keyAngle = 0;
+  keyAngle = -180 - 0;
+  //keyAngle = 0;
   leverPos = 1;
   boltPos = bolt_pos(keyAngle);
   threads = false;
 
-  color("white") rotate(keyAngle) key();
+  color("white") assembly_cut(1) rotate(keyAngle) key();
 
-  color("LightYellow") housing(threads=threads);
-  color("Yellow") housing_lip();
-  *color("LightYellow") pivot_pin();
-  if (0) {
+  color("LightYellow") assembly_cut(2) housing(threads=threads);
+  *color("Yellow") assembly_cut(3) housing_lip();
+  *color("LightYellow") assembly_cut(4) pivot_pin();
+  if (1) {
     translate_x(housingLeftX-housingRightX)
     color("yellow") housing_lip();
 
@@ -968,9 +991,9 @@ module assembly() {
     color("LightYellow") housing(threads=false);
   }
 
-  *color("green") translate_x(boltPos) translate_z(layerHeight*0.5) bolt();
+  color("green") assembly_cut(5) translate_x(boltPos) translate_z(layerHeight*0.8) bolt();
 
-  color("salmon") rotate(keyAngle) translate_z(layerHeight*0.8) curtain();
+  *color("salmon") assembly_cut(6) rotate(keyAngle) translate_z(layerHeight*0.9) curtain();
 
   // spring
   color("blue") translate_z(firstLeverZ) linear_extrude(boltZ - firstLeverZ) {
@@ -981,17 +1004,15 @@ module assembly() {
   function lever_color(i) = [1-0.0*i,(i%2)*0.4+i*0.1,(i%2)*0.4+i*0.1];
   for (i=[0:len(bitting)-1]) {
     translate_z(leverZ[i])
-    color(lever_color(i)) lever(bitting[i], pos=leverPos*lever_angle(bitting[i]));
+    color(lever_color(i)) assembly_cut(8+i) lever(bitting[i], pos=leverPos*lever_angle(bitting[i]));
   }
 
   // spacers
   for (i=[0:len(bitting)-1]) {
     translate_z(leverZ[i] + leverThickness)
-    color("lightblue") {
+    color("lightblue") assembly_cut(30+i) {
       if (ward_after_lever(i)) {
         warded_spacer();
-      } else if (i == len(bitting)-1) {
-        end_spacer();
       } else {
         spacer();
       }
@@ -1000,4 +1021,3 @@ module assembly() {
 }
 
 assembly();
-*intersection() { assembly(); positive_x(); }
