@@ -916,12 +916,20 @@ module screw(threads=true, internal=false) {
     }
     // screw head
     if (!internal) {
-      slotD = 4;
-      translate_z(housingTopZ-roundToLayerHeight(2.5)) {
-        cylinder(d=slotD*2/sqrt(3)+C, h=lots, $fn=6);
-      }
-      translate_z(housingTopZ-1) {
-        cylinder(d1=slotD*2/sqrt(3)+2*C-1,d2=slotD*2/sqrt(3)+2*C, h=1+eps);
+      slot_type = "hex";
+      if (slot_type == "hex") {
+        slotD = 4;
+        d = (slotD+2*C)*2/sqrt(3);
+        depth = roundToLayerHeight(2.0);
+        translate_z(housingTopZ-depth) {
+          cylinder(d=d, h=lots, $fn=6);
+        }
+        translate_z(housingTopZ-depth-1) {
+          cylinder(d1=d-2, d2=d, h=1+eps, $fn=6);
+        }
+        translate_z(housingTopZ-1) {
+          cylinder(d1=d-2,d2=d+2, h=1+1);
+        }
       }
     }
   }
@@ -949,10 +957,10 @@ module assembly() {
 
   color("white") rotate(keyAngle) key();
 
-  *color("LightYellow") housing(threads=threads);
+  color("LightYellow") housing(threads=threads);
   color("Yellow") housing_lip();
   *color("LightYellow") pivot_pin();
-  if (1) {
+  if (0) {
     translate_x(housingLeftX-housingRightX)
     color("yellow") housing_lip();
 
@@ -992,3 +1000,4 @@ module assembly() {
 }
 
 assembly();
+*intersection() { assembly(); positive_x(); }
