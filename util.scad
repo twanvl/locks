@@ -410,7 +410,7 @@ module simple_slot_profile(w, dx, h, slope = 1.2, center=0.5) {
 //   left_flat: make left side flat even if angle!=0
 //   right_flat: make right side flat even if angle!=0
 //   center: center around [0,0]? Can be a vector of 2 booleans
-module spring_profile(w, h, turns = 4, line_width=0.5, angle = 0, left_flat = true, right_flat = true, center = false, curved = true) {
+module spring_profile(w, h, turns = 4, line_width=0.5, angle = 0, left_flat = true, right_flat = true, center = false, curved = false) {
   nx = turns;
   r = line_width;
   width_per_turn = (w - line_width) / turns;
