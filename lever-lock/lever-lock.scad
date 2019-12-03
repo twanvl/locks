@@ -514,6 +514,10 @@ module bolt_base_profile(holes = true) {
             translate_x(-bolt_pos(a+5))  rotate(a+5) actuator_profile();
           }
           hull() {
+            translate_x(-bolt_pos(a)) rotate(a) actuator_profile2();
+            translate_x(-bolt_pos(a+5))  rotate(a+5) actuator_profile2();
+          }
+          hull() {
             translate_x(-bolt_pos(a)) circle(r=curtainR+C);
             translate_x(-bolt_pos(a+5)) circle(r=curtainR+C);
           }
@@ -569,6 +573,11 @@ module actuator_profile() {
     }
     offset(C) key_profile();
   }
+}
+module actuator_profile2() {
+  r=1.1;
+  *rotate(-24) translate_y(curtainTopR-r) circle(r);
+  //rotate(-10) translate_y(curtainTopR+1-r) circle(r);
 }
 
 module export_bolt() { rotate([180]) translate_z(-(boltZ+boltThickness)) bolt(); }
@@ -643,6 +652,7 @@ module curtain() {
   translate_z(boltZ+layerHeight)
   linear_extrude(boltThickness-layerHeight+eps) {
     actuator_profile();
+    actuator_profile2();
   }
   // curtain top
   translate_z(curtainZ) 
@@ -660,6 +670,10 @@ module export_curtain() { rotate([180]) translate_z(-(curtainZ+curtainThickness)
 //-----------------------------------------------------------------------------
 // Spring
 //-----------------------------------------------------------------------------
+
+//spring_type = "flat";
+spring_type = "flat_circle";
+//spring_type = "wiggle";
 
 springThickness = 2*layerHeight;
 //springPivot = leverPivot + [-4,14];
@@ -681,8 +695,7 @@ springFlexedAngle = asin((rot_around(leverPivot, -stepA*maxBit, springPivot)[1] 
 
 
 
-/*
-module spring_profile_old(angle=0, retainingHole=true) {
+module spring_profile_flat(angle=0, retainingHole=true) {
   translate(springPivot) rotate(springAngle) {
     if (retainingHole) {
       translate([springRetainShift-springRetainWidth,springThickness-springRetainThickness])
@@ -701,13 +714,13 @@ module spring_profile_old(angle=0, retainingHole=true) {
     }
   }
 }
-module spring_hole_profile() {
+module spring_hole_profile_flat() {
   extraLength = 1;
   intersection() {
     group() {
-      offset(C) spring_profile();
+      offset(C) spring_profile_flat();
       rotate_around(springPivot,springFlexedAngle-springAngle) {
-        offset(C) spring_profile(retainingHole=false);
+        offset(C) spring_profile_flat(retainingHole=false);
       }
       offset(C)
       translate(springPivot) {
@@ -719,7 +732,7 @@ module spring_hole_profile() {
     translate_y(leverTopY) positive_y2d();
   }
 }
-*/
+
 module export_spring() {
   linear_extrude(springThickness) square([springLength + springRetainShift,springHeightZ]);
   linear_extrude(springRetainThickness) square([springRetainWidth,springHeightZ]);
@@ -966,7 +979,7 @@ module export_screw() { rotate([180]) translate_z(-housingTopZ) screw(); }
 
 springWidth = 4;
 springHeight = housingTopY - housingWall - C - leverTopY;
-springX = 0;
+springX = -springWidth/2;
 /*module spring_profile(angle=0, retainingHole=true) {
   translate([0,leverTopY]) {
     square([springWidth,springHeight]);
@@ -977,7 +990,7 @@ module base_spring_hole_profile() {
     square([springWidth+2*C,springHeight+2*C]);
   }
 }
-module spring_hole_profile() {
+module spring_hole_profile_wiggle() {
   base_spring_hole_profile();
   // some clearance where levers meet the housing
   r = 1;
@@ -987,13 +1000,72 @@ module spring_hole_profile() {
   }
 }
 
-module spring() {
-springThickness = leverZ[len(bitting)] - leverZ[0] - 2*C;
+module spring_wiggle() {
+  springThickness = leverZ[len(bitting)] - leverZ[0] - 2*C;
   translate([springX,leverTopY,firstLeverZ])
   linear_extrude_x(springWidth) {
     spring_profile(springHeight, springThickness, turns=6);
   }
 }
+
+module spring_hole_profile() {
+  if (spring_type == "wiggle") {
+    spring_hole_profile_wiggle();
+  } else if (spring_type == "flat_circle") {
+    spring_hole_profile_flat_circle();
+  } else {
+    spring_hole_profile_flat();
+  }
+}
+module spring(pos = 0) {
+  if (spring_type == "wiggle") {
+    spring_wiggle();
+  } else if (spring_type == "flat_circle") {
+  } else {
+    translate_z(firstLeverZ) linear_extrude(boltZ - firstLeverZ) {
+      rotate_around(springPivot,lerp(springRestAngle,springFlexedAngle,pos)-springAngle)
+      spring_profile_flat();
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+// Spring v3
+//-----------------------------------------------------------------------------
+
+spring3_pos = [housingRightX-screwD*2-2,housingTopY - housingWall - C - 5];
+spring3R = 3;
+
+module spring_hole_profile_flat_circle() {
+  springTopY = housingTopY - housingWall - C;
+  translate(spring3_pos+[spring3R,0]) {
+    square([springThickness,springTopY-spring3_pos[1]]);
+  }
+  translate(spring3_pos) difference() {
+    wedge(a1=0,a2=-90,r=spring3R+springThickness);
+    wedge(a1=0,a2=-90,r=spring3R);
+  }
+}
+
+//-----------------------------------------------------------------------------
+// Test
+//-----------------------------------------------------------------------------
+
+module housing_test() {
+  color("LightYellow")
+  intersection() {
+    housing(threads = false);
+    translate_z(firstLeverZ-5*layerHeight)
+    linear_extrude(lots, convexity=2) {
+      offset(C + 0.89) {
+        base_lever_profile();
+        rotate_around(leverPivot,stepA*maxBit) base_lever_profile();
+        spring_hole_profile();
+      }
+    }
+  }
+}
+*!housing_test();
 
 //-----------------------------------------------------------------------------
 // Assembly
@@ -1022,7 +1094,7 @@ module assembly() {
   color("LightYellow") assembly_cut(2) housing(threads=threads);
   *color("Yellow") assembly_cut(3) housing_lip();
   *color("LightYellow") assembly_cut(4) pivot_pin();
-  if (1) {
+  if (0) {
     translate_x(housingLeftX-housingRightX)
     color("yellow") housing_lip();
 
@@ -1030,14 +1102,11 @@ module assembly() {
     color("LightYellow") housing(threads=false);
   }
 
-  color("green") assembly_cut(5) translate_x(boltPos) translate_z(layerHeight*0.8) bolt();
+  *color("green") assembly_cut(5) translate_x(boltPos) translate_z(layerHeight*0.8) bolt();
 
   color("salmon") assembly_cut(6) rotate(keyAngle) translate_z(layerHeight*0.9) curtain();
 
   // spring
-  *color("blue") translate_z(firstLeverZ) linear_extrude(boltZ - firstLeverZ) {
-    rotate_around(springPivot,lerp(springRestAngle,springFlexedAngle,leverPos)-springAngle) spring_profile();
-  }
   color("blue") spring();
   
   // levers

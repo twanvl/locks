@@ -34,14 +34,14 @@ function lerp(a,b,t) = (1-t) * a + t * b;
 // Extruding
 //-----------------------------------------------------------------------------
 
-module linear_extrude_y(height,center=false,convexity=4) {
+module linear_extrude_y(height,center=false,scale=1,convexity=4) {
   translate([0,center?0:height,0])
   rotate([90,0,0])
-  linear_extrude(height=height,center=center,convexity=convexity) children();
+  linear_extrude(height=height,center=center,scale=scale,convexity=convexity) children();
 }
-module linear_extrude_x(height,center=false,convexity=4) {
+module linear_extrude_x(height,center=false,scale=1,convexity=4) {
   rotate([0,0,90]) rotate([90,0,0])
-  linear_extrude(height=height,center=center,convexity=convexity) children();
+  linear_extrude(height=height,center=center,scale=scale,convexity=convexity) children();
 }
 
 module linear_extrude_chamfer(height,chamfer1,chamfer2,center=false,convexity=4,step=0.05) {
