@@ -18,6 +18,7 @@ front_thickness = roundToLayerHeight(2);
 
 pin_diameter = 3;
 pin_height = 3;
+pin_sphere = false;
 
 /*
 button_step_x = 16;
@@ -159,17 +160,20 @@ module export_button() { button(); }
 // Pins
 //-----------------------------------------------------------------------------
 
-//pin_height = button_height;
-//pin_z = roundToLayerHeight(-3);
 pin_y = button_height/2-pin_height-C;
 
 module pin_profile() {
   circle(r=pin_diameter/2);
 }
 module pin() {
-  translate_y(pin_y)
-  linear_extrude_y(pin_height) {
-    pin_profile();
+  if (pin_sphere) {
+    translate_y(pin_y + pin_diameter/2)
+    sphere(d=pin_diameter);
+  } else {
+    translate_y(pin_y)
+    linear_extrude_y(pin_height) {
+      pin_profile();
+    }
   }
 }
 
@@ -193,21 +197,6 @@ bolt_thickness = roundToLayerHeight(2+1);
 lock_height = bolt_travel-C;
 //lock_height = 3;
 lock_y = -button_height/2 - C - lock_height;
-
-module bolt_pin_slot() {
-  translate_y(pin_y-C)
-  linear_extrude_y(pin_height+2*C) {
-    group() {
-      translate([-button_travel/2,0]) circle(r=pin_diameter/2+C);
-      translate([button_travel/2,0]) circle(r=pin_diameter/2+C);
-    }
-    hull() {
-      bump = 1*layerHeight;
-      translate([-button_travel/2,0]) circle(r=pin_diameter/2+C-bump);
-      translate([button_travel/2,0]) circle(r=pin_diameter/2+C-bump);
-    }
-  }
-}
 
 module bolt_profile() {
   difference() {
@@ -251,6 +240,37 @@ module bolt_deep_profile() {
     mirrored([1,0,0])
     translate([shackle_x - shackle_diameter/2 - lug_diameter - C, lug_y-lug_diameter/2 + 2.0])
     square([lots,lots]);
+  }
+}
+
+module bolt_pin_slot() {
+  if (pin_sphere) {
+    translate_y(pin_y+pin_diameter/2) {
+      group() {
+        translate([-button_travel/2,0]) sphere(r=pin_diameter/2+C);
+        translate([button_travel/2,0]) sphere(r=pin_diameter/2+C);
+      }
+      bump = 1*layerHeight;
+      s = (pin_diameter/2+C-bump) / (pin_diameter/2+C);
+      scale([1,1,s])
+      hull() {
+        translate([-button_travel/2,0]) sphere(r=pin_diameter/2+C);
+        translate([button_travel/2,0]) sphere(r=pin_diameter/2+C);
+      }
+    }
+  } else {
+    translate_y(pin_y-C)
+    linear_extrude_y(pin_height+2*C) {
+      group() {
+        translate([-button_travel/2,0]) circle(r=pin_diameter/2+C);
+        translate([button_travel/2,0]) circle(r=pin_diameter/2+C);
+      }
+      hull() {
+        bump = 1*layerHeight;
+        translate([-button_travel/2,0]) circle(r=pin_diameter/2+C-bump);
+        translate([button_travel/2,0]) circle(r=pin_diameter/2+C-bump);
+      }
+    }
   }
 }
 
@@ -372,15 +392,21 @@ module button_hole() {
   }
 }
 module pin_hole(bit) {
-  translate([-button_travel/2,button_height/2,0])
-  rotate(1)
-  linear_extrude_y(bit == 0 ? bolt_travel : false_travel) {
-    circle(r=pin_diameter/2+C);
-  }
-  translate([button_travel/2,button_height/2,0])
-  rotate(-1)
-  linear_extrude_y(bit == 1 ? bolt_travel : false_travel) {
-    circle(r=pin_diameter/2+C);
+  for (b=[0,1]) {
+    x = (b-0.5)*button_travel;
+    translate([x,button_height/2,0])
+    if (pin_sphere) {
+      hull() {
+        sphere(r=pin_diameter/2+C);
+        translate_y((bit == b ? bolt_travel : false_travel) - pin_diameter/2)
+        sphere(r=pin_diameter/2+C);
+      }
+    } else {
+      rotate(-2*(b-0.5))
+      linear_extrude_y(bit == b ? bolt_travel : false_travel) {
+        circle(r=pin_diameter/2+C);
+      }
+    }
   }
 }
 module lock_hole() {
@@ -400,7 +426,7 @@ module bolt_button_hole() {
   }
 }
 
-retain_pin_diameter = 2;
+retain_pin_diameter = roundToLayerHeight(2);
 retain_pin_x = bolt_width/2 + C + retain_pin_diameter/2 + 1;
 
 housing_wall = 2;
@@ -491,7 +517,10 @@ module housing() {
     // retaining pin holes
     translate_y(bolt_y-bolt_travel+2)
     linear_extrude_y(lots) {
-      mirrored([1,0,0]) offset(C) retain_pin_profile();
+      mirrored([1,0,0]) minkowski() {
+        retain_pin_profile();
+        square([3*C,2*layerHeight],true);
+      }
     }
     *translate_y(shackle_y-4) {
       linear_extrude_y(5) {
@@ -654,7 +683,7 @@ module export_housing_bottom() { housing_bottom(); }
 // Housing retaining/connecting pin
 //-----------------------------------------------------------------------------
 
-retain_pin_thickness = 4.8;
+retain_pin_thickness = roundTo(4.8,layerHeight*2);
 module retain_pin_profile() {
   translate([retain_pin_x,shackle_z])
   chamfer_rect(retain_pin_diameter,retain_pin_thickness,retain_pin_diameter/2);
@@ -818,8 +847,11 @@ module assembly() {
   color("lightyellow") assembly_cut(8) assembly_cut_x2(8) translate_z(1*layerHeight) {
     housing_top();
   }
-  color("yellow") assembly_cut(9) assembly_cut_x2(9) translate_z(0*layerHeight) {
+  *color("yellow") assembly_cut(9) assembly_cut_x2(9) translate_z(0*layerHeight) {
     housing_bottom();
+  }
+  color("blue") assembly_cut(12) translate_z(0.5*layerHeight) {
+    mirrored([1,0,0]) retain_pin();
   }
   *translate_x(-housing_width)
   color("yellow") assembly_cut(9) translate_z(0*layerHeight) {
