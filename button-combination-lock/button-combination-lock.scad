@@ -13,6 +13,8 @@ button_height = 4.5;
 button_lip = 0.5;
 button_travel = 3;
 button_thickness = roundToLayerHeight(4);
+button_stickout = 1*layerHeight;
+button_hole_chamfer = 1.2;
 
 front_thickness = roundToLayerHeight(2);
 
@@ -103,7 +105,7 @@ slider_width = button_width+2*button_travel;
 slider_hole_width = slider_width+button_travel;
 module button() {
   translate_z(button_thickness)
-  linear_extrude(front_thickness+layerHeight) {
+  linear_extrude(front_thickness+button_stickout) {
     button_top_profile();
   }
   difference() {
@@ -384,7 +386,7 @@ module button_hole() {
     translate([-w/2,0-eps]) square([w,button_thickness+2*eps]);
   }
   translate_z(button_thickness-eps)
-  linear_extrude_chamfer_hole(front_thickness+2*eps,0,0.5,resolution=12) {
+  linear_extrude_chamfer_hole(front_thickness+2*eps,0,button_hole_chamfer,resolution=12) {
     offset(C) hull() {
       translate_x(-button_travel/2) button_top_profile();
       translate_x(button_travel/2) button_top_profile();
@@ -418,7 +420,7 @@ module lock_hole() {
 
 module bolt_button_hole() {
   translate_z(-bolt_thickness-front_thickness-eps)
-  linear_extrude_chamfer_hole(front_thickness+2*eps,0.5,0,resolution=12) {
+  linear_extrude_chamfer_hole(front_thickness+2*eps,button_hole_chamfer,0,resolution=12) {
     offset(C) hull() {
       bolt_button_profile();
       translate_y(-bolt_travel) bolt_button_profile();
@@ -789,8 +791,8 @@ module assembly_cut(e) {
     children();
     *translate_x(e*eps) positive_x();
     cut_y = 0;
-    translate_y(e*0.01+cut_y) positive_y();
-    translate_y(e*0.01+cut_y+2) negative_y();
+    *translate_y(e*0.01+cut_y) positive_y();
+    *translate_y(e*0.01+cut_y+2) negative_y();
   }
 }
 module assembly_cut_x(e) {
@@ -836,11 +838,11 @@ module assembly() {
       in_bolt_direction() pin();
     }
   }
-  color("green") assembly_cut(3) assembly_cut_x(3) {
+  *color("green") assembly_cut(3) assembly_cut_x(3) {
     translate_y(travel)
     bolt();
   }
-  color("lightgreen") assembly_cut(4) assembly_cut_x(4) translate_z(0.3*layerHeight) {
+  *color("lightgreen") assembly_cut(4) assembly_cut_x(4) translate_z(0.3*layerHeight) {
     translate_y(travel)
     bolt_button();
   }
