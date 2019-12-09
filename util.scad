@@ -328,6 +328,8 @@ module rotated(a) {
 // Threads
 //-----------------------------------------------------------------------------
 
+use <threads.scad>
+
 function coarse_pitch(d) =
   d == 1 ? 0.25 :
   d == 2 ? 0.4 :
@@ -370,6 +372,65 @@ module thread_with_stop(diameter, C = 0, pitch, length, stop, internal = false, 
         difference() {
           wedge(i-step/2,i+step/2+0.1);
           circle(r=inner_r);
+        }
+      }
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+// Screws
+//-----------------------------------------------------------------------------
+
+// Make a screw that runs from z1 to z3,
+// with an unthreaded shaft from z2 to z3
+// with a triangular head at the top (z3) and a hex slot
+module make_screw(
+  diameter, z1, z2, z3,
+  slot_diameter, slot_depth, slot_type="hex",
+  head_thickness = roundToLayerHeight(1.5), head_straight_thickness=roundToLayerHeight(0.5),
+  point_chamfer = 1, point_clearance = roundToLayerHeight(1),
+  threads=true, internal=false
+) {
+  c = internal ? C : 0;
+  z2_ = internal ? z2 : z2 + 2*layerHeight;
+  difference() {
+    intersection() {
+      union() {
+        // threads
+        translate_z(z1-(internal?eps:0)) if(threads) {
+          standard_thread(d=screw_diameter,length=z2_-z1+eps+(internal?eps:0),internal=internal,C=c);
+        } else {
+          cylinder(d=screw_diameter+2*c,h=z2_-z1+eps+(internal?eps:0));
+        }
+        // shaft
+        translate_z(z2_) {
+          cylinder(d=screw_diameter+2*c,h=z3-z2_-eps);
+        }
+        // head
+        h1 = head_thickness;
+        h2 = head_straight_thickness;
+        translate_z(z3-h1-h2) cylinder(d1=screw_diameter+2*c,d2=screw_diameter+2*c+2*h1,h=h1);
+        translate_z(z3-h2-eps) cylinder(d=screw_diameter+2*c+2*h1,h=h2+eps+(internal?eps:0));
+      }
+      // chamfer the point, add some clearance to the bottom
+      if (!internal) {
+        translate_z(z1+point_clearance)
+        cylinder(d1=screw_diameter-2*point_chamfer,d2=screw_diameter+2*lots,h=lots,$fn=90);
+      }
+    }
+    // slot
+    if (!internal) {
+      if (slot_type == "hex") {
+        d = (slot_diameter+2*C)*2/sqrt(3);
+        translate_z(z3-slot_depth) {
+          cylinder(d=d, h=lots, $fn=6);
+        }
+        translate_z(z3-slot_depth-slot_diameter/2) {
+          cylinder(d1=0, d2=d, h=slot_diameter/2+eps, $fn=6);
+        }
+        translate_z(z3-1) {
+          cylinder(d1=d-2,d2=d+2, h=2);
         }
       }
     }
