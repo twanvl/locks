@@ -27,12 +27,14 @@ wheel_thickness = roundToLayerHeight(6);
 sep_thickness = roundToLayerHeight(3);
 wheel_housing_thickness = wheel_thickness + sep_thickness;
 wheel_cover_thickness = roundToLayerHeight(3);
+wheel_z = roundToLayerHeight(-1);
+//wheel_z = 0;
 // moving parts
 encoder_sleeve_thickness = roundToLayerHeight(3);
 encoder_mesh_thickness = roundToLayerHeight(2);
 fixer_sleeve_thickness = roundToLayerHeight(5.5);
 // travel
-sleeve_z = roundToLayerHeight(0.5);
+sleeve_z = roundToLayerHeight(0.3);
 change_travel = -encoder_mesh_thickness - sleeve_z - 2*layerHeight;
 false_travel = encoder_mesh_thickness + roundToLayerHeight(0.5);
 max_travel = wheel_housing_thickness - encoder_sleeve_thickness - sleeve_z - roundToLayerHeight(0.5);
@@ -100,21 +102,24 @@ module wheel_profile() {
 }
 
 module wheel(labels = true) {
+  linear_extrude(layerHeight+eps, convexity=2) {
+    // glide ring
+    difference() {
+      //d = (sleeve_outer_diameter+4*C + wheel_diameter)/2;
+      d = wheel_z < 0 ? sleeve_outer_diameter+4*C : (sleeve_outer_diameter+4*C + wheel_diameter)/2;
+      circle(d=d+2*0.5);
+      circle(d=d);
+    }
+  }
   difference() {
     union() {
-      linear_extrude(layerHeight+eps, convexity=2) {
-        difference() {
-          d = (sleeve_outer_diameter+4*C + wheel_diameter)/2;
-          circle(d=d+2*0.5);
-          circle(d=d);
-        }
-      }
-      translate_z(layerHeight)
+      // label background
+      translate_z(layerHeight+wheel_z)
       linear_extrude(wheel_thickness - layerHeight, convexity=5) {
         circle(d=wheel_diameter-2*0.3);
       }
       difference() {
-        translate_z(layerHeight)
+        translate_z(layerHeight+wheel_z)
         linear_extrude(wheel_thickness - layerHeight, convexity=5) {
           wheel_outer_profile();
         }
@@ -122,7 +127,7 @@ module wheel(labels = true) {
         if (labels)
         for (i=[0:num_positions-1]) {
           rotate((i+0.5)*360/num_positions)
-          translate_z(wheel_thickness/2)
+          translate_z(wheel_thickness/2+wheel_z)
           linear_extrude_x(lots) {
             //rotate(-90)
             //scale([1.2,0.8])
@@ -131,19 +136,29 @@ module wheel(labels = true) {
         }
       }
     }
-    translate_z(-eps)
+    translate_z(wheel_z-eps)
     linear_extrude(lots, convexity=5) {
       sleeve_outer_hole_profile();
+    }
+    translate_z(wheel_z-eps)
+    linear_extrude(-wheel_z+layerHeight-eps, convexity=5) {
+      offset(C) wheel_cover_profile();
+    }
+    chamfer = 0.6;
+    translate_z(min(-chamfer,wheel_z)-eps) {
+      cylinder(d1=wheel_diameter-1, d2=wheel_cover_diameter+2*C, h=chamfer);
     }
     translate_z(wheel_cover_thickness-eps)
     linear_extrude(lots, convexity=5) {
       offset(C) wheel_cover_profile();
     }
-    translate_z(wheel_cover_thickness-1) {
-      cylinder(d1=sleeve_diameter+2*C,d2=wheel_cover_diameter+2*C,h=1);
+    sleeve_chamfer = roundToLayerHeight(1);
+    translate_z(wheel_cover_thickness-sleeve_chamfer) {
+      cylinder(d1=sleeve_diameter+2*C,d2=wheel_cover_diameter+2*C,h=sleeve_chamfer);
     }
+    sleeve_bottom_chamfer = roundToLayerHeight(0.8);
     translate_z(-eps) {
-      cylinder(d2=sleeve_diameter+2*C,d1=sleeve_outer_diameter+4*C,h=1);
+      cylinder(d2=sleeve_diameter+2*C,d1=sleeve_outer_diameter+4*C,h=sleeve_bottom_chamfer);
     }
   }
 }
@@ -192,11 +207,15 @@ module fixing_sleeve() {
         sleeve_outer_profile(0);
       }
       intersection() {
-        translate_z(encoder_mesh_thickness)
-        linear_extrude(fixer_sleeve_thickness - encoder_mesh_thickness, convexity=5) {
+        z = encoder_mesh_thickness - roundToLayerHeight(0.5);
+        translate_z(z)
+        linear_extrude(fixer_sleeve_thickness - z, convexity=5) {
           sleeve_outer_profile(1);
         }
-        cylinder(d1=sleeve_diameter+2*fixer_sleeve_thickness, d2=sleeve_diameter, h=fixer_sleeve_thickness);
+        cylinder(d1=sleeve_diameter+3*fixer_sleeve_thickness, d2=sleeve_diameter, h=fixer_sleeve_thickness);
+        // ?
+        translate_z(z)
+        cylinder(d1=sleeve_diameter, d2=sleeve_diameter+3*fixer_sleeve_thickness, h=fixer_sleeve_thickness);
       }
     }
     translate_z(-eps)
@@ -340,12 +359,28 @@ module wheel_housing() {
       linear_extrude(wheel_housing_thickness, convexity=5) {
         wheel_housing_profile();
       }
-      translate_z(wheel_cover_thickness+layerHeight+eps)
-      linear_extrude(wheel_housing_thickness-(wheel_cover_thickness+layerHeight)+eps, convexity=5) {
-        wheel_cover_profile();
+      chamfer = roundToLayerHeight(0.6);
+      translate_z(wheel_cover_thickness-chamfer+layerHeight+eps)
+      intersection() {
+        linear_extrude(wheel_housing_thickness-(wheel_cover_thickness-chamfer+layerHeight)+eps, convexity=5) {
+          wheel_cover_profile();
+        }
+        union() {
+          cylinder(d1=sleeve_diameter+1+2*C,d2=wheel_cover_diameter,h=chamfer);
+          translate_z(chamfer-eps) cylinder(d=wheel_cover_diameter,h=lots);
+        }
       }
-      translate_z(wheel_thickness+layerHeight+eps)
-      linear_extrude(wheel_housing_thickness-(wheel_thickness+layerHeight), convexity=5) {
+      intersection() {
+        translate_z(wheel_z+wheel_thickness+layerHeight+eps)
+        linear_extrude(wheel_housing_thickness-(wheel_thickness+layerHeight)-wheel_z+eps, convexity=5) {
+          housing_profile();
+        }
+        translate_z(wheel_housing_thickness-lots-0.6)
+          cylinder(d1=wheel_cover_diameter+3*lots,d2=wheel_cover_diameter,h=lots);
+      }
+      dh = wheel_z < 0 ? layerHeight : 0;
+      translate_z(wheel_z+wheel_thickness+layerHeight+eps)
+      linear_extrude(wheel_housing_thickness-(wheel_thickness+layerHeight)-dh, convexity=5) {
         housing_profile();
       }
       housing_connector();
@@ -357,8 +392,13 @@ module wheel_housing() {
     linear_extrude(false_travel+encoder_mesh_thickness+sleeve_z, convexity=5) {
       sleeve_outer_hole_profile(pins=2);
     }
-    translate_z(9) housing_connector_hole();
+    sleeve_hole_chamfer(wheel_housing_thickness);
+    translate_z(wheel_housing_thickness) housing_connector_hole();
   }
+}
+module sleeve_hole_chamfer(z) {
+  translate_z(z-2)
+  cylinder(d1=sleeve_outer_diameter+2*C-3*2, d2=sleeve_outer_diameter+2*C+2*C, h=2+eps);
 }
 *!wheel_housing();
 
@@ -383,6 +423,7 @@ module bottom_housing(threads=true) {
     linear_extrude(lots, convexity=5) {
       sleeve_outer_hole_profile(pins=1);
     }
+    sleeve_hole_chamfer(bottom_housing_thickness);
     // connector
     translate_z(bottom_housing_thickness) housing_connector_hole();
   }
@@ -448,7 +489,7 @@ module export_top_housing() { rotate([180]) top_housing(); }
 module assembly_cut(e,d=0) {
   intersection() {
     translate_y(e*0.01) children();
-    rotate(d*0)
+    //rotate(d*10)
     //rotate(36)
     translate_y(e*0.01 + d*0.0) positive_y();
   }
@@ -456,7 +497,9 @@ module assembly_cut(e,d=0) {
 
 module assembly() {
   $fn = 30;
-  travel = 0*change_travel + 0*false_travel + 0*max_travel;
+  //travel = 0*change_travel + 0*false_travel + 0*max_travel;
+  //travel = 1.5;
+  travel = 0;
   // -2.5 = change
   // 0.5 = neutral
   // 2.5 = false gate
@@ -477,8 +520,8 @@ module assembly() {
     }
   }
   color("teal") assembly_cut(3) translate_z(0.5*layerHeight) translate_z(travel) translate_z(sleeve_z) {
-    for (i=[0:num_wheels]) {
-      translate_z(1*wheel_housing_thickness) fixing_sleeve();
+    for (i=[0:num_wheels-1]) {
+      translate_z(i*wheel_housing_thickness) fixing_sleeve();
     }
   }
   color("lightyellow") assembly_cut(4,2) bottom_housing();
