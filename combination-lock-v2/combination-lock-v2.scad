@@ -27,7 +27,7 @@ wheel_thickness = roundToLayerHeight(6);
 sep_thickness = roundToLayerHeight(3);
 wheel_housing_thickness = wheel_thickness + sep_thickness;
 wheel_cover_thickness = roundToLayerHeight(3);
-wheel_z = roundToLayerHeight(-1);
+wheel_z = roundToLayerHeight(-1.5);
 //wheel_z = 0;
 // moving parts
 encoder_sleeve_thickness = roundToLayerHeight(3);
@@ -233,9 +233,13 @@ module export_fixing_sleeve() { rotate([180]) fixing_sleeve(); }
 //-----------------------------------------------------------------------------
 
 shaft_bottom_z = roundToLayerHeight(-1);
+
+//shackle_diameter = shaft_diameter+2;
+shackle_diameter = 10;
+shackle_length = roundToLayerHeight(15);
+
 module shaft(num_wheels = num_wheels) {
   height = (num_wheels+1) * wheel_housing_thickness + top_housing_thickness;
-  length = roundToLayerHeight(12);
   difference() {
     union() {
       translate_z(shaft_bottom_z)
@@ -261,9 +265,8 @@ module shaft(num_wheels = num_wheels) {
     }
   }
   // shackle
-  shackle_diameter = shaft_diameter;
   translate_z(height)
-  linear_extrude(length) {
+  linear_extrude(shackle_length) {
     circle(d=shackle_diameter);
   }
   translate_x(screw_x) {
@@ -272,11 +275,11 @@ module shaft(num_wheels = num_wheels) {
       circle(d=4);
     }
     translate_z(height)
-    linear_extrude(length) {
+    linear_extrude(shackle_length) {
       circle(d=shackle_diameter);
     }
   }
-  translate_z(height+length-roundToLayerHeight(1.5)) {
+  translate_z(height+shackle_length-roundToLayerHeight(1.5)) {
     //linear_extrude(roundToLayerHeight(4)) {
     linear_extrude_cone_chamfer(roundToLayerHeight(6), housing_chamfer,housing_chamfer) {
       *housing_profile(screw_hole=false);
@@ -310,12 +313,13 @@ module export_screw() { rotate([180]) screw(); }
 
 screw_diameter = 8;
 //screw_x = -wheel_diameter/2 - screw_diameter/2 - 2.5;
-screw_x = -wheel_diameter;
+screw_x = -wheel_diameter - 3;
 module housing_profile(screw_hole=true) {
   difference() {
     hull() {
       circle(d = wheel_diameter-1);
-      translate_x(-wheel_diameter)
+      translate_x(screw_x)
+      //translate_x(-wheel_diameter)
       //translate_x(-2*wheel_diameter)
       circle(d = wheel_diameter-1);
     }
@@ -339,7 +343,7 @@ module housing_connector_profile() {
   difference() {
     offset(-1-C) wheel_housing_profile(screw_hole=false);
     offset(-2-C) wheel_housing_profile(screw_hole=false);
-    translate_x(screw_x+screw_diameter/2) positive_x2d();
+    translate_x(-wheel_diameter/2-3) positive_x2d();
   }
 }
 tight_C = C/2;
@@ -348,7 +352,7 @@ module housing_connector() {
   linear_extrude(3*layerHeight, convexity=5) housing_connector_profile();
 }
 module housing_connector_hole() {
-  translate_z(-5*layerHeight) {
+  translate_z(-6*layerHeight) {
     linear_extrude(lots, convexity=5) offset(tight_C) housing_connector_profile();
   }
 }
