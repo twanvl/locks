@@ -120,7 +120,7 @@ module sleeve_tooth(h, offset=0, internal=false, dz=1) {
     reverse(sym_polygon_yz_coords([[x2,y1,z1+dz2],[x2,y2,z2+dz2]]))
   ], convexity=2);
 }
-module sleeve_teeth(h, pins=1, offset=0, internal=false, dz=2/3) {
+module sleeve_teeth(h, pins=1, offset=0, offset_r=0, internal=false, dz=2/3) {
   intersection() {
     union() for (i=[0:num_positions-1]) {
       if (pins == 2 || pins == 1 && (i!=0 && i!=3 && i!=5 && i!=7)) {
@@ -130,23 +130,23 @@ module sleeve_teeth(h, pins=1, offset=0, internal=false, dz=2/3) {
     }
     if (internal) {
       translate_z(-2)
-      cylinder(d=sleeve_outer_diameter+4*offset, h=h+4);
+      cylinder(d=sleeve_outer_diameter+2*offset_r, h=h+4);
     } else {
-      cylinder(d=sleeve_outer_diameter+4*offset, h=h);
+      cylinder(d=sleeve_outer_diameter+2*offset_r, h=h);
     }
   }
   if (internal) {
     translate_z(-1)
-    cylinder(d=sleeve_outer_diameter+4*offset, h=1);
-    cylinder(d1=sleeve_outer_diameter+4*offset, d2=sleeve_diameter+offset, h=dz);
+    cylinder(d=sleeve_outer_diameter+2*offset_r, h=1);
+    cylinder(d1=sleeve_outer_diameter+2*offset_r, d2=sleeve_diameter+offset, h=dz);
     translate_z(h-dz)
-    cylinder(d2=sleeve_outer_diameter+4*offset, d1=sleeve_diameter+offset, h=dz);
+    cylinder(d2=sleeve_outer_diameter+2*offset_r, d1=sleeve_diameter+offset, h=dz);
     translate_z(h)
-    cylinder(d=sleeve_outer_diameter+4*offset, h=1);
+    cylinder(d=sleeve_outer_diameter+2*offset_r, h=1);
   }
 }
 module sleeve_teeth_hole(h, pins=2, outward=true, dz=0.5) {
-  sleeve_teeth(h,pins,offset=C,internal=true,dz=dz);
+  sleeve_teeth(h,pins,offset=2*C,offset_r=2*C,internal=true,dz=dz);
 }
 *!sleeve_teeth(h=4);
 *!group() {
@@ -441,12 +441,19 @@ module spring_pin_profile(spring=false) {
       translate([x+spring_width,-h/2]) square([-x-spring_width,h]);
       translate([x,-h/2]) spring_profile(spring_width-0.1,h);
     } else {
-      translate([x,-h/2]) square([-x,h]);
+      translate([x,-h/2]) square([-x+1,h]);
     }
     dr = 4;
-    translate_x(dr) circle(d = wheel_diameter+2*C + 2*dr);
+    if (spring) {
+      translate_x(dr) circle(d = wheel_diameter+2*C + 2*dr);
+    }
   }
-  translate([-wheel_diameter/2-1,-wheel_notch_width/2]) square([1+wheel_notch_depth,wheel_notch_width]);
+  *translate([-wheel_diameter/2-1,-wheel_notch_width/2]) {
+    square([1+wheel_notch_depth,wheel_notch_width]);
+  }
+  translate([-wheel_diameter/2,0]) {
+    sym_polygon_y([[-0.5,0.5+wheel_notch_width/2], [wheel_notch_depth,wheel_notch_width/4]]);
+  }
 }
 
 module spring_pin() {
@@ -672,11 +679,14 @@ module export_top_housing() { rotate([180]) top_housing(); }
 
 module assembly_cut(e,d=0) {
   intersection() {
-    translate_y(e*0.01) children();
+    translate_y(e*0.001) children();
     //rotate(d*10)
     //rotate(36)
-    *translate_y(e*0.01 + d*0.0) positive_y();
-    //translate_z(4.5*wheel_housing_thickness) negative_z();
+    *translate_y(e*0.001 + d*0.0) positive_y();
+    
+    z = 1*wheel_housing_thickness + 5;
+    translate_z(z+e*0.001) positive_z();
+    translate_z(z+1+e*0.001) negative_z();
   }
 }
 module assembly_cut_x(e) {
