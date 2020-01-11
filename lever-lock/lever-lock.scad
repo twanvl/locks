@@ -1033,18 +1033,48 @@ module spring(pos = 0) {
 // Spring v3
 //-----------------------------------------------------------------------------
 
-spring3_pos = [housingRightX-screwD*2-2,housingTopY - housingWall - C - 5];
-spring3R = 3;
-
+module rounded_corner(r,a1,a2,extend1,extend2) {
+  step = 0.01;
+  points = [
+    [0,0] + polar(a1+90,extend1) + polar(a2-90,extend2),
+    polar(a1,r) + polar(a1+90,extend1),
+    for (t=[0:step:1]) polar(lerp(a1,a2,t),r),
+    polar(a2,r) + polar(a2-90,extend2),
+  ];
+  polygon(points);
+}
+spring4R = 8;
+spring4DR = 7;
+spring4_pos = [housingRightX - cos(45)*spring4R - 4,leverTopY + spring4R + (1-cos(45))*spring4DR + springThickness];
 module spring_hole_profile_flat_circle() {
-  springTopY = housingTopY - housingWall - C;
-  translate(spring3_pos+[spring3R,0]) {
-    square([springThickness,springTopY-spring3_pos[1]]);
+  offset(C) translate(spring4_pos) {
+  //group() {
+    e1 = 2;
+    e2 = 15;
+    dr = spring4DR;
+    a1 = -45;
+    r = spring4R;
+    difference() {
+      translate(polar(a1,-dr))
+      rounded_corner(r+springThickness+dr,a1,-90-0,e1,e2);
+      rounded_corner(r,a1,-90-24,e1+20,e2+20+dr);
+    }
+    rotate(a1) translate([r,e1 - springRetainThickness/2])
+    square([springRetainThickness,springRetainWidth]);
   }
-  translate(spring3_pos) difference() {
-    wedge(a1=0,a2=-90,r=spring3R+springThickness);
-    wedge(a1=0,a2=-90,r=spring3R);
-  }
+}
+*!group() {
+  linear_extrude(1) spring_hole_profile();
+  //translate_z(2) color("red") lever_profile();
+  translate_z(2) color("red") square([lots,leverTopY]);
+}
+*!spring_hole_profile_flat_circle2();
+*!housing(threads=false);
+
+module export_spring3() {
+  length = 15+2 + spring4R*2*PI * 45/360;
+  linear_extrude(springThickness) square([length,springHeightZ]);
+  linear_extrude(springRetainThickness) square([springRetainWidth,springHeightZ]);
 }
 
 //-----------------------------------------------------------------------------
@@ -1063,9 +1093,11 @@ module housing_test() {
         spring_hole_profile();
       }
     }
+    translate_z(9) negative_z();
   }
 }
-*!housing_test();
+!housing_test();
+module export_housing_test() { housing_test(); }
 
 //-----------------------------------------------------------------------------
 // Assembly
