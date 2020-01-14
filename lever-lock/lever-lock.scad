@@ -376,11 +376,14 @@ module lever(bit=0, pos=0) {
   linear_extrude(leverThickness,convexity=2) lever_profile(bit);
 }
 
+module base_spacer_profile() {
+  base_lever_profile(hole = true);
+  rotate_around(leverPivot,stepA*maxBit) base_lever_profile(hole = true);
+}
 module spacer_profile(ward = false, full_ward = false) {
   difference() {
     union() {
-      base_lever_profile(hole = true);
-      rotate_around(leverPivot,stepA*maxBit) base_lever_profile(hole = true);
+      base_spacer_profile();
       if (ward) {
         rotate(90) wedge(250,center=true,r=keyHeight);
       }
@@ -647,7 +650,7 @@ module curtain() {
     }
     translate_z(keyBottomZ) linear_extrude(boltZ-keyBottomZ,convexity=2) {
       difference() {
-        fillet(2) {
+        fillet(0.5) {
           difference() {
             //circle(r = curtainR + 2);
             *rotate(90)wedge(90,center=true,r = curtainR + 2);
@@ -860,6 +863,7 @@ module housing_lip() {
       linear_extrude(housingTopZ-eps-(boltZ-spacerThickness+layerHeight),convexity=2) {
         offset(0.5) offset(-0.5-C)
         spring_hole_profile();
+        base_spacer_profile();
       }
     }
     housing_innards(down = true, threads = false);
@@ -942,6 +946,7 @@ module housing_innards(down, threads = true) {
     translate(l) screw_hole(threads=threads);
   }
 }
+*!housing_innards(down = true, threads = false);
 
 module screw_hole(threads=true) {
   screw(threads=threads,internal=true);
@@ -1150,7 +1155,7 @@ module assembly() {
   color("white") assembly_cut(1) rotate(keyAngle) key();
 
   *color("LightYellow") assembly_cut(2) housing(threads=threads);
-  *color("Yellow") assembly_cut(3) housing_lip();
+  color("Yellow") assembly_cut(3) housing_lip();
   *color("LightYellow") assembly_cut(4) pivot_pin();
   if (0) {
     translate_x(housingLeftX-housingRightX)
