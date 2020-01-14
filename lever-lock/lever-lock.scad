@@ -229,20 +229,32 @@ module key() {
       cylinder(r1=1+keyLength*0.5,r2=1,h=keyLength);
     }
     // handle
+    translate_x(-keyWidth/2)
     translate_z(keyLength+handleHeight/2 - 0.5 - (keyR-1)/0.5) {
-      translate_x(-keyWidth/2)
-      linear_extrude_x(keyWidth, convexity=2) {
+      color("green") linear_extrude_x(keyWidth, convexity=2) {
         difference() {
           key_handle_profile();
-          offset(-0.5) key_handle_profile();
+          offset(-0.48) key_handle_profile();
         }
-        translate([0,handleHeight/2-2.1]) {
+      }
+      color("red") linear_extrude_x(keyWidth-layerHeight, convexity=2) {
+        *translate([0,handleHeight/2-2.1]) {
           offset(0.2)
           text("L L 1",2,font="Ubuntu",halign="center",valign="center");
         }
+        group() {
+          r=0.5;
+          translate([-0.5,handleHeight/2-2 - 1])
+            line([[0,2],[0,0],[1,0]],r);
+          translate([-1,-0.1]) rotate(12)
+          translate([-0.5,handleHeight/2-2 - 1])
+            line([[0,2],[0,0],[1,0]],r);
+          translate([1,-0.1]) rotate(-12)
+          translate([-0.5,handleHeight/2-2 - 1])
+            line([[-0.5,1.5],[0,2],[0,0]],r);
+        }
       }
-      translate_x(-keyWidth/2)
-      linear_extrude_x(keyWidth-roundToLayerHeight(0.5), convexity=2) {
+      linear_extrude_x(keyWidth-roundToLayerHeight(0.3), convexity=2) {
         key_handle_profile();
       }
     }
@@ -311,8 +323,8 @@ module base_lever_profile(hole = false) {
 }
 *!base_lever_profile();
 
-falseGateTravel = 3.5;
-falseGateTravel2 = 1;
+falseGateTravel = 1.8;
+falseGateTravel2 = 0.5;
 
 //gateHeight2 = 0.87;
 gateHeight2 = gateHeight - 0.8;
@@ -341,12 +353,23 @@ module gate_profile(trueGate=true,shallowFalseGate=false,includeDrop=true) {
       translate([x1+boltTravel-boltStumpWidth/2,gateY+gateHeight-gateHeight2]) chamfer_rect(boltStumpWidth+2*gateC,gateHeight+2*gateC,0.1,r_tl=0.7);
     }
   } else if (!shallowFalseGate) {
-    translate([x1,gateY]) chamfer_rect(falseGateTravel,gateHeight+2*gateC,0.1);
+    *translate([x1,gateY]) chamfer_rect(2*falseGateTravel,gateHeight+2*gateC,0.1);
+    fillet(0.1)
+    difference() {
+      translate([x1,gateY]) chamfer_rect(2*falseGateTravel,gateHeight+2*gateC,0.1);
+      translate(leverPivot+[falseGateTravel,0]) circle(r=leverR);
+    }
   } else {
-    w = gateHeight*0.9;
-    translate([x1,gateY]) chamfer_rect(falseGateTravel2,w+2*gateC,0.4);
+    w = gateHeight*0.8;
+    translate([x1,gateY]) chamfer_rect(2*1,w+2*gateC,1);
+    *fillet(0.6)
+    difference() {
+      translate([x1,gateY]) chamfer_rect(2*falseGateTravel2+0.7,gateHeight*0.8+2*gateC,0.4);
+      translate(leverPivot+[falseGateTravel2,0]) circle(r=leverR);
+    }
   }
 }
+*!gate_profile(false);
 
 module lever(bit=0, pos=0) {
   rotate_around(leverPivot,pos)
@@ -547,8 +570,10 @@ module bolt() {
   translate_z(firstLeverZ - boltStumpCountersink)
   linear_extrude(boltZ-firstLeverZ+boltStumpCountersink) {
     difference() {
-      translate([x1-boltStumpWidth/2,gateY]) chamfer_rect(boltStumpWidth,gateHeight,0.1);
+      extra = 0.1;
+      translate([x1-boltStumpWidth/2+extra/2,gateY]) chamfer_rect(boltStumpWidth+extra,gateHeight,0.1);
       translate([x1,gateY]) square([1,gateHeight/3],true);
+      translate(leverPivot) circle(r=leverR+C);
     }
   }
   // connect bolt stump to bolt
@@ -1050,14 +1075,14 @@ module spring_hole_profile_flat_circle() {
   offset(C) translate(spring4_pos) {
   //group() {
     e1 = 2;
-    e2 = 15;
+    e2 = 10;
     dr = spring4DR;
     a1 = -45;
     r = spring4R;
     difference() {
       translate(polar(a1,-dr))
       rounded_corner(r+springThickness+dr,a1,-90-0,e1,e2);
-      rounded_corner(r,a1,-90-24,e1+20,e2+20+dr);
+      rounded_corner(r,a1,-90-24,e1+20,e2+20);
     }
     rotate(a1) translate([r,e1 - springRetainThickness/2])
     square([springRetainThickness,springRetainWidth]);
@@ -1068,11 +1093,11 @@ module spring_hole_profile_flat_circle() {
   //translate_z(2) color("red") lever_profile();
   translate_z(2) color("red") square([lots,leverTopY]);
 }
-*!spring_hole_profile_flat_circle2();
+*!spring_hole_profile_flat_circle();
 *!housing(threads=false);
 
 module export_spring3() {
-  length = 15+2 + spring4R*2*PI * 45/360;
+  length = 10+2 + spring4R*2*PI * (45+24)/360;
   linear_extrude(springThickness) square([length,springHeightZ]);
   linear_extrude(springRetainThickness) square([springRetainWidth,springHeightZ]);
 }
@@ -1096,7 +1121,8 @@ module housing_test() {
     translate_z(9) negative_z();
   }
 }
-!housing_test();
+*!housing_test();
+
 module export_housing_test() { housing_test(); }
 
 //-----------------------------------------------------------------------------
@@ -1115,15 +1141,15 @@ module assembly() {
   //keyAngle = -180 - 45;
   //keyAngle = -180 + 30;
   //keyAngle = boltStartMoveAngle;
-  keyAngle = -180 - 0;
-  //keyAngle = 0;
-  leverPos = 1;
+  //keyAngle = -180 - 10;
+  keyAngle = 0;
+  leverPos = 0;
   boltPos = bolt_pos(keyAngle);
   threads = false;
 
   color("white") assembly_cut(1) rotate(keyAngle) key();
 
-  color("LightYellow") assembly_cut(2) housing(threads=threads);
+  *color("LightYellow") assembly_cut(2) housing(threads=threads);
   *color("Yellow") assembly_cut(3) housing_lip();
   *color("LightYellow") assembly_cut(4) pivot_pin();
   if (0) {
@@ -1134,7 +1160,7 @@ module assembly() {
     color("LightYellow") housing(threads=false);
   }
 
-  *color("green") assembly_cut(5) translate_x(boltPos) translate_z(layerHeight*0.8) bolt();
+  color("green") assembly_cut(5) translate_x(boltPos) translate_z(layerHeight*0.8) bolt();
 
   color("salmon") assembly_cut(6) rotate(keyAngle) translate_z(layerHeight*0.9) curtain();
 
