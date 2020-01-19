@@ -186,7 +186,7 @@ module key_profile(bit = undef, ward = false) {
   }
 }
 
-module key() {
+module key(bitting=bitting) {
   difference() {
     union() {
       for (i=[0:len(bitting)-1]) {
@@ -289,6 +289,10 @@ module key_profile_test() {
 *!key_profile_test();
 
 module export_key() { rotate([0,-90,0]) key(); }
+module export_wrong_key1() { rotate([0,-90,0]) key(bitting=[7,3,5,1,4]); }
+module export_wrong_key2() { rotate([0,-90,0]) key(bitting=[8,4,5,1,4]); }
+module export_wrong_key3() { rotate([0,-90,0]) key(bitting=[8,3,5,2,4]); }
+module export_wrong_key4() { rotate([0,-90,0]) key(bitting=[8,3,5,1,7]); }
 
 //-----------------------------------------------------------------------------
 // Levers
@@ -616,6 +620,9 @@ module export_bolt() { rotate([180]) translate_z(-(boltZ+boltThickness)) bolt();
 
 curtainTopR = keyHeight+0.87;
 
+wardC = C*1.5;
+echo("wardD",2*wardR,2*(wardR+wardC));
+
 // curtain + bolt actuator
 module curtain() {
   // curtain for bitting
@@ -623,7 +630,7 @@ module curtain() {
   linear_extrude(curtainZ-keyBottomZ+eps) {
     difference() {
       circle(r=curtainR);
-      circle(r=wardR+C);
+      circle(r=wardR+wardC);
       translate([-keyWidth/2-C,-keyHeight]) square([keyWidth+2*C,keyHeight]);
     }
   }
@@ -638,7 +645,7 @@ module curtain() {
     }
     h = wardZ-layerHeight-keyBottomZ;
     translate_z(keyBottomZ-2*eps)
-    cylinder(r1=wardR+C-h*1.5,r2=wardR+C,h=h+3*eps);
+    cylinder(r1=wardR+wardC-h*1.5,r2=wardR+wardC,h=h+3*eps);
   }
   // bump for snapping curtain when lock is closed
   intersection() {
@@ -671,7 +678,7 @@ module curtain() {
             translate([-x,curtainR-r1]) circle(r=r1);
           }
         }
-        circle(r=wardR+C);
+        circle(r=wardR+wardC);
         translate([-keyWidth/2-C,-keyHeight]) square([keyWidth+2*C,keyHeight]);
       }
     }
@@ -688,12 +695,14 @@ module curtain() {
     difference() {
       circle(r=curtainTopR);
       offset(C) key_profile();
-      circle(r=wardR+C);
+      circle(r=wardR+wardC);
     }
   }
 }
 
 module export_curtain() { rotate([180]) translate_z(-(curtainZ+curtainThickness)) curtain(); }
+
+*!group() { color("green") curtain(); translate_z(5) cylinder(d=8); }
 
 //-----------------------------------------------------------------------------
 // Spring
@@ -894,8 +903,13 @@ module housing_innards(down, threads = true) {
     offset(C) key_profile();
     circle(keyR+C);
   }
-  translate_z(housingTopZ-housingChamfer) {
-    cylinder(r1=keyR+C,r2=keyR+C+housingChamfer,h=housingChamfer+eps);
+  keywayChamfer = roundToLayerHeight(0.8);
+  *translate_z(housingTopZ-keywayChamfer) {
+    cylinder(r1=keyR+C,r2=keyR+C+keywayChamfer,h=keywayChamfer+eps);
+  }
+  linear_extrude_chamfer_hole(housingTopZ+eps,0,keywayChamfer,resolution=24,convexity=5) {
+    circle(r=keyR+C);
+    offset(C) key_profile();
   }
   // levers + key
   translate_z(firstLeverZ + dz)
@@ -999,8 +1013,30 @@ module screw(threads=true, internal=false) {
 }
 *!screw(threads=true);
 
+module housing_lip_open() {
+  intersection() {
+    housing_lip();
+    linear_extrude(lots,center=true,convexity=5) {
+      circle(r=curtainR+1);
+      offset(3) key_profile();
+      //negative_y2d();
+      //translate_y((housingBottomY+boltBottomY)/2) negative_y2d();
+      translate_y(housingBottomY+5) negative_y2d();
+      translate_y(housingTopY-5) positive_y2d();
+      //translate_x(housingRightX-screwOffset) positive_x2d();
+      translate_x(housingRightX-5) positive_x2d();
+      translate_x(housingLeftX+5) negative_x2d();
+      translate(leverPivot) hull() { circle(4); translate_x(10) circle(8); }
+      //translate_x(leverPivot[0]+eps) positive_x2d();
+      for (p=screwLocations) translate(p) circle(d=screwD+8);
+    }
+  }
+}
+!housing_lip_open();
+
 module export_housing() { housing(); }
 module export_housing_lip() { rotate([180]) translate_z(-housingTopZ) housing_lip(); }
+module export_housing_lip_open() { rotate([180]) translate_z(-housingTopZ) housing_lip_open(); }
 module export_screw() { rotate([180]) translate_z(-housingTopZ) screw(); }
 
 //-----------------------------------------------------------------------------
