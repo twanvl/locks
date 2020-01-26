@@ -70,6 +70,7 @@ spinnerCountersink = roundToLayerHeight(spinnerThickness/2);
 builtinSpacerThickness = layerHeight;
 builtinSpacerThickness2 = layerHeight;
 builtinSpacerR = keyR1 + C + 0.5;
+spacerProngWidth = 0.9;
 
 gateHeight = size <= SMALLER ? 2.1 : 2.4;
 smoothGates = false;
@@ -212,7 +213,7 @@ module sidebar_slot(deep,C=C, chamfer=true, wiggle=true) {
   chamferY = wiggle ? (chamfer && smoothGates ? falseHeight : 0.4) : 0;
   chamferA = chamferX * 360 / (discR*2*PI);
   sym_polygon_x(
-    [[0,2*discR],
+    [[-w/2,2*discR],
     for (i=[0:0.25:1]) rot(chamferA*(1-i)+Ca,[-w/2,discR-chamferY*i]),
     rot(Ca,[-w/2,discR-(h2+h2)/2]),
     rot(0,[-w/2,discR-h2]),
@@ -249,13 +250,23 @@ module disc(bit=0) {
 module spacer_disc() {
   linear_extrude(spacerThickness - builtinSpacerThickness2, convexity=10) {
     difference() {
-      disc_profile(false,true);
+      union() {
+        disc_profile(false,true);
+        if (spacerProngWidth > 0) {
+          intersection() {
+            circle(r=coreR);
+            w = sidebarThickness+2*spacerProngWidth+C;
+            translate_x(-w/2) square([w,coreR]);
+          }
+        }
+      }
       circle(keyR1+keyC);
       sidebar_slot(deep=true,chamfer=false,wiggle=false);
     }
   }
   translate_z(spacerThickness - builtinSpacerThickness) builtin_spacer();
 }
+*!spacer_disc();
 module spacer_disc_for_spinner() {
   spacer_disc();
   translate_z(spacerThickness - builtinSpacerThickness2) linear_extrude(spinnerThickness + builtinSpacerThickness2 - spinnerCountersink - C) {
@@ -266,6 +277,7 @@ module spacer_disc_for_spinner() {
     }
   }
 }
+*!spacer_disc_for_spinner();
 module tension_disc() {
   w = sidebarThickness+1*C;
   w2 = w*0.85;
@@ -599,28 +611,28 @@ module core() {
         translate_z(coreDepth+coreBack-coreBackChamfer)
           cylinder(r1=coreR,r2=max(lugR,coreR-coreBackChamfer/0.8),h=coreBackChamfer);
         
-  // rotation limiter
-  if (coreLimiterFirst) {
-    rotate(-coreAngle)
-    translate_z(coreDepth)
-    linear_extrude(coreLimiter+coreBack,convexity=10) {
-      difference() {
-        union() {
-          rotated(180) wedge(coreLimiterAngle,coreLimiterAngle-45,r=coreR);
-          circle(lugR);
+        // rotation limiter
+        if (coreLimiterFirst) {
+          rotate(-coreAngle)
+          translate_z(coreDepth)
+          linear_extrude(coreLimiter+coreBack,convexity=10) {
+            difference() {
+              union() {
+                rotated(180) wedge(coreLimiterAngle,coreLimiterAngle-45,r=coreR);
+                circle(lugR);
+              }
+            }
+            union() {
+              //rotated(180) wedge(-10,-10-45,r=lugR,center=true);
+              rotated(180) polygon([polar(coreLimiterAngle,lugR),polar(coreLimiterAngle-45/2,coreR),polar(coreLimiterAngle-45,lugR),polar(coreLimiterAngle-45/2,lugR*0.75)]);
+            }
+          }
         }
-      }
-      union() {
-        //rotated(180) wedge(-10,-10-45,r=lugR,center=true);
-        rotated(180) polygon([polar(coreLimiterAngle,lugR),polar(coreLimiterAngle-45/2,coreR),polar(coreLimiterAngle-45,lugR),polar(coreLimiterAngle-45/2,lugR*0.75)]);
-      }
-    }
-  }
       }
       translate_z(-eps) cylinder(r=discR+C,h=coreDepth+eps);
       // sidebar slot
       sidebarC = C/2;
-      translate([0,discR+2/2]) cube([sidebarThickness+2*sidebarC,2+2*gateHeight,coreDepth*2],true);
+      translate([0,discR+2/2]) cube([sidebarThickness+2*sidebarC+2*spacerProngWidth,2+2*gateHeight,coreDepth*2],true);
       // key end
       translate([0,0,coreDepth-2*eps]) cylinder(r1=keyR1+keyC,r2=keyR1*0.25+keyC,h=discThickness+0.5);
       if (!limiterInside) {
@@ -644,7 +656,7 @@ module core() {
     }
   }
 }
-//!core();
+*!core();
 module core_limiter_slot() {
   linearC = 0;
   linear_extrude(coreLimiter+bridgeC+eps) {
@@ -877,7 +889,7 @@ module housing(threads=true, logo=true, shackleHoles=true, lugHoles=true, simple
     cylinder(d=coreR*2+2+2*C,h=1.5+C);
     // set screw
     dx = shackleDiameter/2 + shackleSpacing;
-    translate([-(coreR+dx),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4+2*C,h=lots);
+    translate([-(coreR+dx),0,setScrewPos]) rotate([0,-90,0]) cylinder(d=4+0.5+2*C,h=lots);
     if (threads) {
       translate([-(coreR+dx),0,setScrewPos]) rotate([0,90,0]) m4_thread(setScrewLength+dx,C=C,internal=true);
     } else {
@@ -1000,7 +1012,7 @@ module sidebar() {
 sidebarSpringWidth = shackleDiameter+shackleSpacing+housingSpacingX-2;
 sidebarSpringPrintWidth = sidebarSpringWidth + 0.5;
 sidebarSpringDepth = sidebarDepth - 6;
-sidebarSpringThickness = sidebarThickness + 1;
+sidebarSpringThickness = roundToLayerHeight(sidebarThickness + 0.2);
 
 module wiggle(w,h,r) {
   a = atan2(h,w/2);
@@ -1141,7 +1153,7 @@ module test() {
   $fs = 1; $fa = 8;
   threads = false;
   logo = false;
-  housing = false;
+  housing = true;
   key = false;
   discs = true;
   spacerDiscs = true;
@@ -1216,7 +1228,7 @@ module test() {
       if (cut) positive_y();
       //translate([0,-5,0]) rotate([-15]) positive_y();
       //translate_z(8) positive_z();
-      translate_z(corePos+discThickness) positive_z();
+      *translate_z(corePos+discThickness) positive_z();
       //translate_z(housingDepth-housingBack-eps) negative_z();
       //translate_z(housingDepth-housingBack-lugDepth) positive_z();
       //translate_z(corePos+1) positive_z();
