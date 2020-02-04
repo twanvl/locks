@@ -54,6 +54,8 @@ bottomLeverAngle = 20;
 //bitting = [4,1,2,0,3];
 bitting = [8,3,5,1,4];
 
+use_curtain_spring = true;
+
 //-----------------------------------------------------------------------------
 // Vertical (z) positions
 //-----------------------------------------------------------------------------
@@ -648,6 +650,7 @@ module curtain() {
     cylinder(r1=wardR+wardC-h*1.5,r2=wardR+wardC,h=h+3*eps);
   }
   // bump for snapping curtain when lock is closed
+  if (!use_curtain_spring)
   intersection() {
     group() {
       translate_z(leverZ[0]) {
@@ -696,11 +699,50 @@ module curtain() {
       circle(r=curtainTopR);
       offset(C) key_profile();
       circle(r=wardR+wardC);
+      if (use_curtain_spring) {
+        rotate(curtain_spring_angle)
+        translate_y(curtainTopR) chamfer_rect(curtain_spring_nub_width,2*curtain_spring_nub_height,curtain_spring_nub_height);
+      }
     }
   }
 }
+*!curtain();
+
+curtain_spring_angle = 30;
+curtain_spring_length = 20;
+curtain_spring_nub_width = 2;
+curtain_spring_nub_height = roundToLayerHeight(0.8);
+
+module curtain_spring_profile() {
+  if (use_curtain_spring) {
+    rotate(curtain_spring_angle)
+    translate_y(curtainTopR) {
+      translate_x(-curtain_spring_length/2)
+      *square([curtain_spring_length,springThickness]);
+      minkowski() {
+        dy = curtain_spring_nub_height + 1.0;
+        polygon([for (x=[-1:0.1:1]) [x*curtain_spring_length/2, curtain_spring_nub_height - x*x*dy]]);
+        translate(-[C/2,0]) square([C,springThickness+1*C]);
+      }
+    }
+  }
+}
+*!curtain_spring_profile();
+module curtain_spring() {
+  linear_extrude(springThickness) {
+    square([curtain_spring_length,curtainThickness]);
+  }
+  linear_extrude_y(curtainThickness) {
+    intersection() {
+      chamfer_rect(2 * (springThickness + curtain_spring_nub_height), curtain_spring_nub_width, curtain_spring_nub_height);
+      positive_y2d();
+    }
+  }
+}
+*!curtain_spring();
 
 module export_curtain() { rotate([180]) translate_z(-(curtainZ+curtainThickness)) curtain(); }
+module export_curtain_spring() { curtain_spring(); }
 
 *!group() { color("green") curtain(); translate_z(5) cylinder(d=8); }
 
@@ -907,7 +949,8 @@ module housing_innards(down, threads = true) {
   *translate_z(housingTopZ-keywayChamfer) {
     cylinder(r1=keyR+C,r2=keyR+C+keywayChamfer,h=keywayChamfer+eps);
   }
-  linear_extrude_chamfer_hole(housingTopZ+eps,0,keywayChamfer,resolution=24,convexity=5) {
+  translate_z(housingThickness)
+  linear_extrude_chamfer_hole(housingTopZ-housingThickness+eps,0,keywayChamfer,resolution=24,convexity=5) {
     circle(r=keyR+C);
     offset(C) key_profile();
   }
@@ -927,8 +970,9 @@ module housing_innards(down, threads = true) {
   }
   // lip for curtain
   translate_z(curtainZ + dz)
-  linear_extrude(curtainThickness+layerHeight + lots) {
+  linear_extrude(curtainThickness+layerHeight + lots, convexity=2) {
     circle(r=curtainTopR+C);
+    curtain_spring_profile();
   }
   // bolt plate
   translate_z(boltZ + dz)
@@ -960,7 +1004,7 @@ module housing_innards(down, threads = true) {
     translate(l) screw_hole(threads=threads);
   }
 }
-*!housing_innards(down = true, threads = false);
+*!housing_innards($fn=30, down = true, threads = false);
 
 module screw_hole(threads=true) {
   screw(threads=threads,internal=true);
@@ -1013,6 +1057,40 @@ module screw(threads=true, internal=false) {
 }
 *!screw(threads=true);
 
+module housing_open(threads=true) {
+  intersection() {
+    housing(threads=threads);
+    group() {
+      linear_extrude(lots,center=true,convexity=5) {
+        translate(leverPivot) circle(r=leverPivotR+1);
+        *offset(C + 0.89) {
+          base_lever_profile();
+          rotate_around(leverPivot,stepA*maxBit) base_lever_profile();
+          spring_hole_profile();
+        }
+        fillet(5) difference() {
+          housing_outer_profile();
+          translate([-lots,boltBottomY]) square([lots,boltTopY-boltBottomY]);
+          translate([0,boltBottomY-6]) square([lots,boltTopY-boltBottomY+4]);
+          translate([-11,-lots/2]) square([18,lots]);
+        }
+        *fillet(3) intersection() {
+          for (x=[housingLeftX,housingRightX]) {
+            for (y=[housingTopY,housingBottomY]) {
+              translate([x,y]) square(2*(screwD+7),true);
+            }
+          }
+          *for (l=screwLocations) {
+            //translate(l) circle(r=screwD/2+4);
+            translate(l) square(screwD+8,true);
+          }
+          housing_outer_profile();
+        }
+      }
+      translate_z(housingThickness-eps) negative_z();
+    }
+  }
+}
 module housing_lip_open() {
   intersection() {
     housing_lip();
@@ -1032,7 +1110,10 @@ module housing_lip_open() {
     }
   }
 }
-!housing_lip_open();
+*!housing($fn=30, threads=false);
+*!housing_open($fn=30, threads=false);
+*!housing_lip_open($fn=30);
+*!housing_lip($fn=30);
 
 module export_housing() { housing(); }
 module export_housing_lip() { rotate([180]) translate_z(-housingTopZ) housing_lip(); }
@@ -1201,7 +1282,7 @@ module assembly() {
     color("LightYellow") housing(threads=false);
   }
 
-  color("green") assembly_cut(5) translate_x(boltPos) translate_z(layerHeight*0.8) bolt();
+  *color("green") assembly_cut(5) translate_x(boltPos) translate_z(layerHeight*0.8) bolt();
 
   color("salmon") assembly_cut(6) rotate(keyAngle) translate_z(layerHeight*0.9) curtain();
 
@@ -1210,13 +1291,13 @@ module assembly() {
   
   // levers
   function lever_color(i) = [1-0.0*i,(i%2)*0.4+i*0.1,(i%2)*0.4+i*0.1];
-  for (i=[0:len(bitting)-1]) {
+  *for (i=[0:len(bitting)-1]) {
     translate_z(leverZ[i])
     color(lever_color(i)) assembly_cut(8+i) lever(bitting[i], pos=leverPos*lever_angle(bitting[i]));
   }
 
   // spacers
-  for (i=[0:len(bitting)-1]) {
+  *for (i=[0:len(bitting)-1]) {
     translate_z(leverZ[i] + leverThickness)
     color("lightblue") assembly_cut(30+i) {
       if (ward_after_lever(i)) {
