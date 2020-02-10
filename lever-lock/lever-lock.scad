@@ -700,7 +700,7 @@ module curtain() {
       offset(C) key_profile();
       circle(r=wardR+wardC);
       if (use_curtain_spring) {
-        rotate(curtain_spring_angle)
+        rotated(curtain_spring_angles)
         translate_y(curtainTopR) chamfer_rect(curtain_spring_nub_width,2*curtain_spring_nub_height,curtain_spring_nub_height);
       }
     }
@@ -708,14 +708,15 @@ module curtain() {
 }
 *!curtain();
 
-curtain_spring_angle = 30;
+curtain_spring_angle = -100;
+curtain_spring_angles = [-100,30];
 curtain_spring_length = 20;
 curtain_spring_nub_width = 2;
 curtain_spring_nub_height = roundToLayerHeight(0.8);
 
 module curtain_spring_profile() {
   if (use_curtain_spring) {
-    rotate(curtain_spring_angle)
+    rotated(curtain_spring_angles)
     translate_y(curtainTopR) {
       translate_x(-curtain_spring_length/2)
       *square([curtain_spring_length,springThickness]);
@@ -730,6 +731,7 @@ module curtain_spring_profile() {
 *!curtain_spring_profile();
 module curtain_spring() {
   linear_extrude(springThickness) {
+    translate_x(-curtain_spring_length/2)
     square([curtain_spring_length,curtainThickness]);
   }
   linear_extrude_y(curtainThickness) {
@@ -739,7 +741,7 @@ module curtain_spring() {
     }
   }
 }
-*!curtain_spring();
+!curtain_spring();
 
 module export_curtain() { rotate([180]) translate_z(-(curtainZ+curtainThickness)) curtain(); }
 module export_curtain_spring() { curtain_spring(); }
