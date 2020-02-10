@@ -54,8 +54,11 @@ key_chamfer2 = 0.4;
 bitting = random_bitting ? rands(-1,1,random_bitting_length) : bitting_code;
 */
 
-coreR = 15 / 2;
-waferWidth = 9.5;
+//coreR = 15 / 2;
+//waferWidth = 9.5;
+coreR = 15.5 / 2;
+waferWidth = 9.8;
+
 waferThickness = roundToLayerHeight(2);
 sepThickness = roundToLayerHeight(2);
 
@@ -147,7 +150,7 @@ module key_profile_test() {
     translate_z(3) color("yellow") translate_y(dy(a)) key_profile_test_wafer();
   }
 }
-!key_profile_test();
+*!key_profile_test();
 
 module linear_extrude_z_chamfer_y(height,chamfer) {
   intersect_offset_y(chamfer)
@@ -225,7 +228,7 @@ module linear_extrude_cone_chamfer2(height,chamfer1,chamfer2,center=false,convex
   }
 }
 
-module key() {
+module key(bitting = bitting) {
   crossC = C/2;
   for (i=[0:len(bitting)-1]) {
     chamfer=0.3;
@@ -283,6 +286,7 @@ module key_handle() {
 *!key();
 
 module export_key() { rotate([90]) key(); }
+module export_wrong_key() { rotate([90]) key(reverse(bitting)); }
 *!export_key();
 
 //-----------------------------------------------------------------------------
@@ -315,11 +319,21 @@ module wafer(bit) {
         // gate
         translate_y(-bit*step) offset(delta=gateC) sidebar_profile();
         for (i=[-1:0.5:1]) {
-          if (abs(i-bit)>=1)
-          translate_y(-i*step) offset(delta=gateC) sidebar_profile(1 - falseGate);
+          if (abs(i-bit)>=1) {
+            // false gate
+            translate_y(-i*step) offset(delta=gateC) {
+              *sidebar_profile(1 - falseGate);
+              //y=-sidebarThickness/2;
+              x=-waferWidth/2 + 0.6*sidebarTravel;
+              y=0.4*sidebarTravel;
+              s=1.5;
+              polygon([[x-y*s,-y],[x,0],[x-y*s,y],[-lots,y],[-lots,-y]]);
+            }
+          }
         }
         if (springTravel>0) {
-          offset(delta=C) spring_gate_profile(chamfered=false);
+          //offset(delta=C)
+          spring_gate_profile(chamfered=false);
         }
       }
     }
@@ -328,7 +342,7 @@ module wafer(bit) {
 }
 *!wafer(-1);
 
-spacerR = waferWidth/2 + 0.15;
+spacerR = waferWidth/2 + 0.1;
 limiterThickness = roundToLayerHeight(sepThickness/2);
 module spacer() {
   intersection() {
@@ -347,7 +361,8 @@ module spacer() {
               offset(delta=C) key_profile();
             rotate(-90) offset(delta=C) sidebar_profile();
             if (springTravel>0) {
-              offset(delta=C) spring_gate_profile();
+              //offset(delta=C) 
+              spring_gate_profile();
             }
           }
         }
@@ -417,6 +432,12 @@ module core(back = true) {
       difference() {
         core_spacer_holders();
         translate_z(-eps) cylinder(r=spacerR+C,h=sepThickness+2*eps);
+        linear_extrude(lots) {
+          translate_x(-lots/2) square([lots,sidebarThickness+C],true);
+          if (springTravel > 0) {
+            translate_x(lots/2) square([lots,springThickness+2*C],true);
+          }
+        }
       }
     }
   }
@@ -458,9 +479,9 @@ module export_core() { rotate([180]) translate_z(-(coreThickness+coreBackThickne
 
 sidebarThickness = roundToLayerHeight(2.0);
 sidebarChamfer = sidebarThickness/2;//0.8;
-sidebarChamfer2 = 0.6;
-sidebarChamfer3 = 0.3;
-sidebarTravel = 0.7;
+sidebarChamfer2 = 0.55;
+sidebarChamfer3 = 0.55;
+sidebarTravel = 0.9;
 
 module sidebar_profile(pos = 0, extraY = 0, lessChamfer=0) {
   rotate(coreAngle) {
@@ -488,16 +509,21 @@ module export_sidebar() { rotate([90]) sidebar(); }
 // Side spring
 //-----------------------------------------------------------------------------
 
-springTravel = 0.5;
-springThickness = roundToLayerHeight(1);
+springTravel = 0.7;
+springThickness = roundToLayerHeight(1.5);
 
 module spring_gate_profile(pos = 0, chamfered = true) {
   rotate(coreAngle) {
     chamfer = chamfered ? springTravel : 0;
-    extraW  = chamfered ? springTravel-0.1 : 0.1;
-    translate([(coreR+spacerR)/2 - (1-pos)*springTravel, 0]) {
+    extraW  = chamfered ? springTravel-0.1 : 0.05;
+    *translate([(coreR+spacerR)/2 - (1-pos)*springTravel, 0]) {
       chamfer_rect(coreR-spacerR, springThickness + 2*extraW, chamfer);
     }
+    x = spacerR - springTravel;
+    y = springThickness/2 + (chamfer ? C/2 : C);
+    y2  = y + lots*(chamfered ? 0   : 0.4);
+    y2b = y + lots*(chamfered ? 1.2 : 0.4);
+    polygon([[x,-y],[x,y],[x+lots,y2],[x+lots,-y2b]]);
   }
 }
 
@@ -609,7 +635,7 @@ module housing(threads = true) {
       translate_z(-frontThickness-eps)
       cylinder(r1=keyHoleR+C+chamfer,r2=keyHoleR+C,h=chamfer);
       // screw hole
-      screwZ2 = max(0,screwZ-2*coarse_pitch(screwDiameter));
+      screwZ2 = max(0,screwZ-5*coarse_pitch(screwDiameter));
       h = housingThickness1-screwZ2+2*eps;
       screwC = 0.2;
       translate([-shackleX,0,screwZ2])
@@ -902,10 +928,11 @@ bodyWall = 1.2;
 bodyWall2 = 1.6;
 bodyShape = "smooth";
 bodyChamfer = 2*layerHeight;
+housingC = C;
 
 module lock_body_profile() {
-  r1 = housingR+tightC+bodyWall;
-  r2 = shackleR+tightC+bodyWall2;
+  r1 = housingR+housingC+bodyWall;
+  r2 = shackleR+housingC+bodyWall2;
   if (bodyShape == "hull") {
     hull() {
       circle(r = r1);
@@ -940,18 +967,18 @@ module lock_body() {
     // hole for housing
     translate_z(-frontThickness-eps)
     linear_extrude(frontThickness+2*eps) {
-      offset(tightC) housing_profile(2);
+      offset(housingC) housing_profile(2);
     }
     linear_extrude(housingThickness1+eps,convexity=2) {
-      offset(tightC) housing_profile(1);
+      offset(housingC) housing_profile(1);
     }
     translate_z(housingThickness1)
     linear_extrude(housingThickness+eps-housingThickness1,convexity=2) {
-      offset(tightC) housing_profile(0);
+      offset(housingC) housing_profile(0);
     }
     translate_z(housingThickness)
     linear_extrude(lugZ+eps-housingThickness,convexity=2) {
-      offset(tightC) housing_profile(0,sidebar=false);
+      offset(housingC) housing_profile(0,sidebar=false);
     }
     // shackle/screw holes
     group() {
@@ -1051,7 +1078,7 @@ module visualize_cutout(colors, min_x = undef, min_y = undef, min_z = undef, max
 }
 
 module assembly() {
-  anim = 180;
+  anim = 5;
   angle = min(90,anim);
   coreExtraAngle = max(0,anim-90);
   sidebarPos = 1 - min(1,max(0,anim-80)/10);
@@ -1059,19 +1086,19 @@ module assembly() {
   lugPos = coreExtraAngle/90;
   shacklePos = 0*shackleTravel;
   
-  body = true;
-  housing = true;
-  shackle = true;
+  body = false;
+  housing = false;
+  shackle = false;
   shacklePin = true;
   screw = true;
   lugs = false;
   core = true;
-  wafers = false;
+  wafers = true;
   spacers = wafers;
 
-  threads = true;
+  threads = false;
   
-  min_y = 0;
+  min_y = undef;
   max_z = undef;//is_undef(min_y) ? coreThickness/2 : undef;
   //max_z = lugZ+2;
   
@@ -1085,14 +1112,14 @@ module assembly() {
     if (core) rotate(coreAngle+coreExtraAngle) core();
     if (wafers) rotate(coreAngle+coreExtraAngle) {
       for (i=[0:len(bitting)-1]) {
-        translate_z(i*(waferThickness+sepThickness)+sepThickness)
+        translate_z(i*(waferThickness+sepThickness)+sepThickness + 0.5*layerHeight)
         translate_y(dy(angle) + bitting[i] * step * sin(angle))
         wafer(bitting[i]);
       }
     }
     if (spacers) rotate(coreAngle+coreExtraAngle) {
       for (i=[0:len(bitting)-1]) {
-        translate_z(i*(waferThickness+sepThickness))
+        translate_z(i*(waferThickness+sepThickness) + 0.5*layerHeight)
         rotate(angle)
         spacer();
       }
