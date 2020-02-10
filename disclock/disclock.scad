@@ -70,7 +70,7 @@ spinnerCountersink = roundToLayerHeight(spinnerThickness/2);
 builtinSpacerThickness = layerHeight;
 builtinSpacerThickness2 = layerHeight;
 builtinSpacerR = keyR1 + C + 0.5;
-spacerProngWidth = 0.9;
+spacerProngWidth = 0.0;
 
 gateHeight = size <= SMALLER ? 2.1 : 2.4;
 smoothGates = false;
@@ -1163,7 +1163,7 @@ module test() {
   shackle = false;
   sidebar = core;
   cutHousing = 0;
-  cutCore = undef;//cutHousing;
+  cutCore = cutHousing;
   cutShackle = undef;//cutHousing;
   ts = 4;
   unlocked = max(0,min(1,ts*$t));
@@ -1203,7 +1203,13 @@ module test() {
                 color("lightyellow") disc(bitting[i]);
               }
               if (spacerDiscs && i < len(bitting)-1)
-              translate_z(i*(discThickness+spacerThickness)+discThickness) color("lightsalmon") rotate(coreAngle) spacer_disc();
+              translate_z(i*(discThickness+spacerThickness)+discThickness) color("lightsalmon") rotate(coreAngle) {
+                if (i == 0) {
+                  translate_z(spacerThickness) rotate([180]) spacer_disc_for_spinner();
+                } else {
+                  spacer_disc();
+                }
+              }
             }
           }
           if (key) translate_z(0) color("magenta") rotate(coreAngle + keywayAngle + unlocked*maxStep) key();
