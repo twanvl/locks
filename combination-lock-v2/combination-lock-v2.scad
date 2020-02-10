@@ -27,7 +27,7 @@ screw_head_diameter = shackle_diameter;
 screw_x = -wheel_diameter - 5;
 
 num_positions = 10;
-num_wheels = 3;
+num_wheels = 4;
 
 z_step = roundTo(1.0,1*layerHeight);
 // stationary parts
@@ -146,7 +146,7 @@ module sleeve_teeth(h, pins=1, offset=0, offset_r=0, internal=false, dz=2/3) {
   }
 }
 module sleeve_teeth_hole(h, pins=2, outward=true, dz=0.5) {
-  sleeve_teeth(h,pins,offset=2*C,offset_r=2*C,internal=true,dz=dz);
+  sleeve_teeth(h,pins,offset=1.5*C,offset_r=2*C,internal=true,dz=dz);
 }
 *!sleeve_teeth(h=4);
 *!group() {
@@ -164,8 +164,8 @@ module sleeve_outer_hole_profile(pins=2) {
   offset(C) sleeve_outer_profile(pins, offset_outer=C);
 }
 
-wheel_notch_depth = 0.5;
-wheel_notch_width = 0.8;
+wheel_notch_depth = 0.4;
+wheel_notch_width = 0.7;
 
 module wheel(labels = true) {
   linear_extrude(layerHeight+eps, convexity=2) {
@@ -180,13 +180,13 @@ module wheel(labels = true) {
   difference() {
     union() {
       // label background
-      translate_z(layerHeight+wheel_z)
-      linear_extrude(wheel_thickness - layerHeight, convexity=5) {
+      translate_z(wheel_z)
+      linear_extrude(wheel_thickness, convexity=5) {
         circle(d=wheel_diameter-2*0.3);
       }
       difference() {
-        translate_z(layerHeight+wheel_z)
-        linear_extrude(wheel_thickness - layerHeight, convexity=5) {
+        translate_z(wheel_z)
+        linear_extrude(wheel_thickness, convexity=5) {
           wheel_outer_profile();
         }
         // labels
@@ -235,7 +235,7 @@ module wheel(labels = true) {
       offset(C) wheel_cover_profile();
     }
     chamfer = 0.6;
-    translate_z(min(-chamfer,wheel_z)-eps) {
+    *translate_z(min(-chamfer,wheel_z)-eps) {
       cylinder(d1=wheel_diameter-1, d2=wheel_cover_diameter+2*C, h=chamfer);
     }
     *linear_extrude(lots, convexity=5) {
@@ -456,10 +456,40 @@ module spring_pin_profile(spring=false) {
   }
 }
 
+module spring_pin_hole_profile() {
+  offset(C) spring_pin_profile();
+}
+
+module spring_pin_profile2() {
+  line_width = 0.5;
+  d = 0.8; // depth of triangle tip
+  extra_width = 2*C;
+  x1 = screw_x + screw_diameter/2 + 1.5 + line_width/2;
+  x2 = -wheel_diameter/2 - line_width/2 + extra_width + wheel_notch_depth - d;
+  y = screw_diameter/2 - line_width/2;
+  h = d;
+  steps = 2;
+  dx = (x2-x1) / (2*steps);
+  points = [
+    for (i=[0:steps-1]) let (x=x1+i*2*dx)
+      each [[x,-y],[x,y], [x+dx,y],[x+dx,-y]],
+    let (x=x1+2*steps*dx) 
+    each [[x,-y],[x,-h],[x+d,0],[x,h],[x,y]]
+    ];
+  line(points, line_width);
+}
+
 module spring_pin() {
-  linear_extrude(wheel_thickness - 2*layerHeight) {
-    spring_pin_profile(spring=true);
+  //translate_z(wheel_z)
+  translate_z(layerHeight)
+  linear_extrude(wheel_thickness - 2*layerHeight + wheel_z, convexity=5) {
+    //spring_pin_profile(spring=true);
+    spring_pin_profile2();
   }
+}
+*!group() {
+  spring_pin();
+  color("red") linear_extrude(5) spring_pin_profile2();
 }
 
 module export_spring_pin() { spring_pin(); }
@@ -485,16 +515,14 @@ module wheel_housing_profile(screw_hole=true, spring_hole=true) {
       housing_profile(screw_hole);
       circle(d = wheel_diameter+4*C);
     }
-    if (spring_hole) {
-      offset(C) spring_pin_profile();
-    }
+    if (spring_hole) spring_pin_hole_profile();
   }
 }
 module housing_connector_profile() {
   difference() {
-    offset(-1-C) wheel_housing_profile(screw_hole=false, spring_hole=false);
-    offset(-2-C) wheel_housing_profile(screw_hole=false, spring_hole=false);
-    translate_x(-wheel_diameter/2-3) positive_x2d();
+    offset(-1-C) housing_profile(screw_hole=false);
+    offset(-2-C) housing_profile(screw_hole=false);
+    translate_x(-wheel_diameter/2) positive_x2d();
   }
 }
 tight_C = C/2;
@@ -524,17 +552,15 @@ module wheel_housing_outer(last = false) {
         translate_z(chamfer-eps) cylinder(d=wheel_cover_diameter,h=lots);
       }
     }
-    intersection() {
-      translate_z(wheel_z+wheel_thickness+layerHeight+eps)
-      linear_extrude(wheel_housing_thickness-(wheel_thickness+layerHeight)-wheel_z+eps, convexity=5) {
-        housing_profile();
-      }
-      translate_z(wheel_housing_thickness-lots-0.6)
-        cylinder(d1=wheel_cover_diameter+3*lots,d2=wheel_cover_diameter,h=lots);
-    }
-    dh = wheel_z < 0 && !last ? layerHeight : 0;
     translate_z(wheel_z+wheel_thickness+layerHeight+eps)
-    linear_extrude(wheel_housing_thickness-(wheel_thickness+layerHeight+(last?wheel_z:0))-dh, convexity=5) {
+    linear_extrude(wheel_housing_thickness-(wheel_z+wheel_thickness+layerHeight), convexity=5) {
+      wheel_housing_profile(spring_hole=false);
+    }
+    // TODO: 3*layerHeight clearance?
+    dh = last ? wheel_z : wheel_z < 0 ? 2*layerHeight : 0;
+    echo(wheel_housing_thickness-(wheel_thickness+layerHeight)-dh);
+    translate_z(wheel_z+wheel_thickness+layerHeight+eps)
+    linear_extrude(wheel_housing_thickness-(wheel_thickness+layerHeight)-dh, convexity=5) {
       housing_profile();
     }
     housing_connector();
@@ -546,25 +572,27 @@ module wheel_housing_holes(last = false) {
     sleeve_outer_hole_profile(pins=1);
   }
   z = wheel_cover_thickness-0.3;
-  // chamfer tops
-  if (!last) intersection() {
-    translate_z(z) sleeve_teeth_hole(wheel_housing_thickness-z, pins=1);
+  // chamfer tops and main channel
+  intersection() {
+    translate_z(z) sleeve_teeth_hole(wheel_housing_thickness-z + (last?2:0), pins=1);
     translate_z(false_travel+encoder_mesh_thickness+sleeve_z-1.5) positive_z();
   }
-  // holes up to false travel
+  // chamfer bottom
   intersection() {
     translate_z(z) sleeve_teeth_hole(wheel_housing_thickness-z, pins=2, dz=0);
     translate_z(false_travel+encoder_mesh_thickness+sleeve_z-1.5) negative_z();
   }
-  translate_z(z) sleeve_teeth(false_travel+encoder_mesh_thickness+sleeve_z-z, pins=2, offset=C);
-  // chamfer top
+  // holes up to false travel
+  translate_z(z) sleeve_teeth(false_travel+encoder_mesh_thickness+sleeve_z-z, pins=2, offset=1.5*C, offset_r=2*C);
+  // connector
   if (!last) {
-    *sleeve_hole_chamfer(wheel_housing_thickness);
     translate_z(wheel_housing_thickness) housing_connector_hole();
   }
   // mark for dial positions
   position_mark();
+  if (!last) translate_z(wheel_housing_thickness) position_mark();
 }
+*!wheel_housing_holes(true);
 module wheel_housing(last = false) {
   difference() {
     wheel_housing_outer(last);
@@ -578,20 +606,42 @@ module sleeve_hole_chamfer(z) {
 *!wheel_housing($fn=30);
 
 module position_mark() {
-  translate_z(-6)
-  linear_extrude(wheel_housing_thickness + 6) {
+  translate_z(wheel_z + wheel_thickness/2)
+  linear_extrude(wheel_thickness + 4, center=true) {
     translate([0,-housing_diameter/2+wheel_notch_depth/2,0]) square([wheel_notch_width,wheel_notch_depth],true);
   }
 }
-
+module wheel_housing_with_support() {
+  wheel_housing();
+  // support
+  h = -wheel_z+1*layerHeight;
+  translate_z(wheel_housing_thickness-h) linear_extrude(h,convexity=2) difference() {
+    d = housing_diameter + 2*0.25;
+    union() {
+      circle(d=d);
+      *intersection() {
+        translate_y(-d/2) square([d/2+0.5,d]);
+        positive_x2d();
+      }
+    }
+    circle(d=d-2*0.5);
+  }
+}
+*!wheel_housing_with_support($fn=30);
 
 module bottom_housing(threads=true) {
   translate_z(wheel_housing_thickness-bottom_housing_thickness)
   difference() {
     union() {
       //linear_extrude(bottom_housing_thickness, convexity=5) {
-      linear_extrude_cone_chamfer(bottom_housing_thickness,housing_chamfer,0,convexity=4) {
+      wheel_depth = -wheel_z + 0*layerHeight;
+      linear_extrude_cone_chamfer(bottom_housing_thickness - wheel_depth + eps,housing_chamfer,0,convexity=4) {
         housing_profile(screw_hole=false);
+      }
+      translate_z(bottom_housing_thickness - wheel_depth)
+      linear_extrude(wheel_depth,convexity=4) {
+        wheel_housing_profile(screw_hole=false, spring_hole=false);
+        wheel_cover_profile();
       }
     }
     // screw hole
@@ -606,6 +656,8 @@ module bottom_housing(threads=true) {
     sleeve_hole_chamfer(bottom_housing_thickness);
     // connector
     translate_z(bottom_housing_thickness) housing_connector_hole();
+    // dial position mark
+    translate_z(bottom_housing_thickness) position_mark();
   }
 }
 
@@ -658,7 +710,7 @@ module top_housing() {
   }
 }
 
-*!group() {
+!group() {
   intersection() {
     top_housing($fn=30);
     positive_y();
@@ -666,10 +718,11 @@ module top_housing() {
   translate_z(false_travel)
   //translate_z(min_true_travel)
   //translate_z(change_travel) rotate(180)
-  color("red")shaft(num_wheels=0);
+  *color("red")shaft(num_wheels=0);
 }
 
 module export_wheel_housing() { rotate([180]) wheel_housing(); }
+module export_wheel_housing_with_support() { rotate([180]) wheel_housing_with_support(); }
 module export_bottom_housing() { bottom_housing(); }
 module export_top_housing() { rotate([180]) top_housing(); }
 
@@ -681,44 +734,44 @@ module assembly_cut(e,d=0) {
   intersection() {
     translate_y(e*0.001) children();
     //rotate(d*10)
-    //rotate(36)
-    *translate_y(e*0.001 + d*0.0) positive_y();
+    *translate_y(e*0.01 + d*0.0) positive_y();
+    *translate_y(e*0.01 + d*0.0) cube([lots,0.1234,lots],true);
     
     z = 1*wheel_housing_thickness + 5;
-    translate_z(z+e*0.001) positive_z();
-    translate_z(z+1+e*0.001) negative_z();
+    *translate_z(z+e*0.001) positive_z();
+    *translate_z(z+1+e*0.001) negative_z();
   }
 }
 module assembly_cut_x(e) {
   intersection() {
     translate_x(e*0.01) children();
-    translate_x(e*0.01) positive_x();
+    *translate_x(e*0.01) positive_x();
   }
 }
 
 module assembly() {
   $fn = 30;
   threads = false;
-  travel = 0*change_travel + 0*false_travel + 0*min_true_travel + 0*max_travel;
+  travel = 0*change_travel + 0*false_travel + 0*min_true_travel + 1*max_travel;
   //travel = 1.5;
   //travel = 1*max_travel;
   // -2.5 = change
   // 0.5 = neutral
   // 2.5 = false gate
   // 6 = max travel
-  num_wheels=2;
+  num_wheels=4;
   
-  *color("red") assembly_cut(0) translate_z(travel + 0.5*layerHeight) {
-    shaft();
+  color("red") assembly_cut(0) translate_z(travel + 0.5*layerHeight) {
+    shaft(num_wheels=num_wheels);
   }
-  color("blue") assembly_cut(1,1) translate_z(0.5*layerHeight) {
+  *color("blue") assembly_cut(1,1) translate_z(0.5*layerHeight) {
     for (i=[1:num_wheels]) {
       translate_z(i*wheel_housing_thickness) wheel(labels=false);
     }
   }
-  color("purple") assembly_cut(1.5,1.5) translate_z(0.5*layerHeight) {
+  color("purple") assembly_cut(5,5) translate_z(0.5*layerHeight) {
     for (i=[1:num_wheels]) {
-      translate_z(i*wheel_housing_thickness) translate_z(wheel_z) spring_pin();
+      translate_z(i*wheel_housing_thickness) spring_pin();
     }
   }
   color("green") assembly_cut(2) assembly_cut_x(2) translate_z(travel) translate_z(sleeve_z) {
@@ -728,20 +781,21 @@ module assembly() {
   }
   color("teal") assembly_cut(3) assembly_cut_x(3) translate_z(0.5*layerHeight) translate_z(travel) translate_z(sleeve_z) {
     for (i=[0:num_wheels-1]) {
-      translate_z(i*wheel_housing_thickness) fixing_sleeve();
+      translate_z(i*wheel_housing_thickness) fixing_sleeve(notch=i==0);
     }
   }
-  *color("lightyellow") assembly_cut(4,2) bottom_housing();
+  color("lightyellow") assembly_cut(4,2) bottom_housing();
   for (i=[1:num_wheels]) {
     color(i%2 ? "yellow" : "orange")
     assembly_cut(10+i,2) translate_z(i*wheel_housing_thickness) {
       if (i==num_wheels) {
-        cube(eps);*top_housing();
+        *cube(eps);
+        top_housing();
       } else {
         wheel_housing();
       }
     }
   }
-  color("pink") assembly_cut(18,0) screw(threads=threads);
+  color("pink") assembly_cut(18,0) screw(num_wheels=num_wheels, threads=threads);
 }
 assembly();
