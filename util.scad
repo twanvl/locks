@@ -35,12 +35,11 @@ function lerp(a,b,t) = (1-t) * a + t * b;
 //-----------------------------------------------------------------------------
 
 module linear_extrude_y(height,center=false,scale=1,convexity=4) {
-  translate([0,center?0:height,0])
-  rotate([90,0,0])
+  swap_yz()
   linear_extrude(height=height,center=center,scale=scale,convexity=convexity) children();
 }
 module linear_extrude_x(height,center=false,scale=1,convexity=4) {
-  rotate([0,0,90]) rotate([90,0,0])
+  swap_xyz()
   linear_extrude(height=height,center=center,scale=scale,convexity=convexity) children();
 }
 
@@ -150,6 +149,17 @@ module chamfer_cube(x,y,z, r=1,rx=undef,ry=undef,rz=undef) {
   minkowski() {
     cube([x-2*rxx,y-2*ryy,z-2*rzz],center=true);
     scale([rxx,ryy,rzz]) octahedron(1);
+  }
+}
+
+module chamfer_cylinder(r,h, chamfer_bottom=0,chamfer_top=0, d=undef) {
+  the_r = r == undef ? d/2 : r;
+  union() {
+    cylinder(r1=the_r-chamfer_bottom, r2=the_r, h=abs(chamfer_bottom));
+    translate_z(abs(chamfer_bottom)-eps)
+    cylinder(r=the_r, h=h-abs(chamfer_bottom)-abs(chamfer_top)+2*eps);
+    translate_z(h-abs(chamfer_top))
+    cylinder(r1=the_r, r2=the_r-chamfer_top, h=abs(chamfer_top));
   }
 }
 
@@ -322,6 +332,16 @@ module rotated(a) {
     children();
     rotate(a) children();
   }
+}
+
+module swap_yz() {
+  multmatrix([[1,0,0,0],[0,0,1,0],[0,1,0,0],[0,0,0,1]]) children();
+}
+module swap_xz() {
+  multmatrix([[0,0,1,0],[0,1,0,0],[1,0,0,0],[0,0,0,1]]) children();
+}
+module swap_xyz() {
+  multmatrix([[0,0,1,0],[1,0,0,0],[0,1,0,0],[0,0,0,1]]) children();
 }
 
 //-----------------------------------------------------------------------------
