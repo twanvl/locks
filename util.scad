@@ -152,14 +152,14 @@ module chamfer_cube(x,y,z, r=1,rx=undef,ry=undef,rz=undef) {
   }
 }
 
-module chamfer_cylinder(r,h, chamfer_bottom=0,chamfer_top=0, d=undef) {
+module chamfer_cylinder(r,h, chamfer_bottom=0,chamfer_top=0, d=undef, chamfer_slope=1) {
   the_r = r == undef ? d/2 : r;
   union() {
-    cylinder(r1=the_r-chamfer_bottom, r2=the_r, h=abs(chamfer_bottom));
-    translate_z(abs(chamfer_bottom)-eps)
-    cylinder(r=the_r, h=h-abs(chamfer_bottom)-abs(chamfer_top)+2*eps);
-    translate_z(h-abs(chamfer_top))
-    cylinder(r1=the_r, r2=the_r-chamfer_top, h=abs(chamfer_top));
+    cylinder(r1=the_r-chamfer_bottom, r2=the_r, h=abs(chamfer_bottom)*chamfer_slope);
+    translate_z(abs(chamfer_bottom)*chamfer_slope-eps)
+    cylinder(r=the_r, h=h-abs(chamfer_bottom)*chamfer_slope-abs(chamfer_top)*chamfer_slope+2*eps);
+    translate_z(h-abs(chamfer_top)*chamfer_slope)
+    cylinder(r1=the_r, r2=the_r-chamfer_top, h=abs(chamfer_top)*chamfer_slope);
   }
 }
 
