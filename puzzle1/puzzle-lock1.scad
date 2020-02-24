@@ -120,6 +120,10 @@ wheel1_pos = [wheel1_x, wheel1_y, wheel1_z];
 
 //pin1_length = wheel1_thickness + 2*2;
 
+// pins
+pin_length = wheel_weight_thickness + 2*pin_stickout;
+echo("pin length = ", pin_length);
+
 // housing
 
 housing_top_z = max(wheel1_z,wheel2_z) + wheel_weight_thickness + pin_stickout + housing_thickness;
@@ -565,9 +569,9 @@ module test_housing() {
 }
 module test_housing_cut(offset=0) {
   translate_z(wheel_thickness+2*layerHeight) positive_z();
-  translate_z(wheel_thickness+2*layerHeight - 0.9) linear_extrude(0.9+eps) {
+  translate_z(wheel_thickness+2*layerHeight - 0.9) linear_extrude(0.9+eps, convexity=5) {
     difference() {
-      offset(0.3) offset(-0.9-0.3-offset) difference() {
+      offset(0.3+offset) offset(-1.2-0.3) difference() {
         test_housing_profile();
         circle(d=wheel_diameter+2*C);
       }
@@ -610,13 +614,13 @@ module test_assembly() {
   color("violet") assembly_cut(6) pin();
   color("pink") assembly_cut(12) test_shackle();
   
-  color("yellow") assembly_cut(11) test_housing1();
-  color("lightyellow") assembly_cut(11) test_housing2();
+  color("yellow") assembly_cut(11,true) test_housing1();
+  color("lightyellow") assembly_cut(12,true) test_housing2();
 }
 !test_assembly();
 
-module export_test_housing1() { test_housing1(); }
-module export_test_housing2() { rotate([180]) test_housing2(); }
+module export_test_housing1() { rotate([180]) test_housing1(); }
+module export_test_housing2() { test_housing2(); }
 module export_test_wheel() { wheel(); }
 module export_test_shackle() { rotate([180]) test_shackle(); }
 
