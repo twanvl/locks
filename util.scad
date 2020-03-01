@@ -155,11 +155,17 @@ module chamfer_cube(x,y,z, r=1,rx=undef,ry=undef,rz=undef) {
 module chamfer_cylinder(r,h, chamfer_bottom=0,chamfer_top=0, d=undef, chamfer_slope=1) {
   the_r = r == undef ? d/2 : r;
   union() {
-    cylinder(r1=the_r-chamfer_bottom, r2=the_r, h=abs(chamfer_bottom)*chamfer_slope);
-    translate_z(abs(chamfer_bottom)*chamfer_slope-eps)
-    cylinder(r=the_r, h=h-abs(chamfer_bottom)*chamfer_slope-abs(chamfer_top)*chamfer_slope+2*eps);
-    translate_z(h-abs(chamfer_top)*chamfer_slope)
-    cylinder(r1=the_r, r2=the_r-chamfer_top, h=abs(chamfer_top)*chamfer_slope);
+    if (chamfer_bottom != 0) {
+      cylinder(r1=the_r-chamfer_bottom, r2=the_r, h=abs(chamfer_bottom)*chamfer_slope);
+    }
+    if (h-abs(chamfer_bottom)*chamfer_slope-abs(chamfer_top)*chamfer_slope >= eps/2) {
+      translate_z(abs(chamfer_bottom)*chamfer_slope-eps)
+      cylinder(r=the_r, h=h-abs(chamfer_bottom)*chamfer_slope-abs(chamfer_top)*chamfer_slope+2*eps);
+    }
+    if (chamfer_top != 0) {
+      translate_z(h-abs(chamfer_top)*chamfer_slope)
+      cylinder(r1=the_r, r2=the_r-chamfer_top, h=abs(chamfer_top)*chamfer_slope);
+    }
   }
 }
 
@@ -291,10 +297,10 @@ module wedge_space(a, center=false) {
   }
 }
 
-module wedge(a1=undef, a2=undef, center=false, r=lots) {
+module wedge(a1=undef, a2=undef, center=false, r=lots, max_steps=360) {
   b1 = a2==undef ? (center ? -a1/2 : 0) : a1;
   b2 = a2==undef ? (center ? a1/2 : a1) : a2;
-  n = max(1,ceil(abs(b1-b2)));
+  n = min(max_steps,max(1,ceil(abs(b1-b2))));
   points = [for (i=[0:n]) polar(lerp(b1,b2,i/n), r)];
   polygon(concat([[0,0]],points));
 }
@@ -407,7 +413,7 @@ module thread_with_stop(diameter, C = 0, pitch, length, stop, internal = false, 
 // with a triangular head at the top (z3) and a hex slot
 module make_screw(
   diameter, z1, z2, z3,
-  slot_diameter, slot_depth, slot_type="hex",
+  slot_diameter=undef, slot_depth=undef, slot_type="hex",
   head_thickness = roundToLayerHeight(1.5), head_straight_thickness=roundToLayerHeight(0.5),
   point_chamfer = 1, point_clearance = roundToLayerHeight(1),
   threads=true, internal=false
