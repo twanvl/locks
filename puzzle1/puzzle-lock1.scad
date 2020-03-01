@@ -37,7 +37,7 @@ wheel_weight_thickness = roundToLayerHeight(10);
 wheel_shackle_overlap = 2;
 wheel_shackle_clearance = 2*C;
 
-wheel_hole_clearance = 0.4;
+wheel_hole_clearance = 0.5;
 
 // y wheel
 
@@ -308,6 +308,11 @@ module wheel(weight_angle, base_diameter=wheel_diameter, base_thickness=wheel_th
       // base wheel with gates
       linear_extrude(base_thickness, convexity=2) difference() {
         circle(d=base_diameter);
+        // weight clearance
+        difference() {
+          circle(d=base_diameter-2*3.2);
+          circle(d=pin_diameter+2*1.2);
+        }
         // true gate
         shackle_dx = base_diameter/2+shackle_diameter/2-shackle_overlap;
         translate_x(shackle_dx) circle(d=shackle_diameter+2*wheel_shackle_clearance);
@@ -327,13 +332,23 @@ module wheel(weight_angle, base_diameter=wheel_diameter, base_thickness=wheel_th
     }
     // pin hole
     pin_hole(total_thickness);
+    // hole for extra metal weight
+    if (1) {
+      d = 3;
+      //translate_z(layerHeight)
+      translate_z(-eps)
+      rotate(weight_angle)
+      translate_y(-(weight_diameter/2-d/2-0.5))
+      cylinder(d=d,h=lots,total_thickness+2*eps);
+    }
   }
 }
-*!wheel();
+*!intersection() { wheel(0); positive_x(); }
 
-module pin_hole(height, pin_contact_surface=1.2) {
+module pin_hole(height, pin_contact_surface=1.5) {
   translate_z(-eps)
-  cylinder(d=pin_diameter+2*pin_clearance, h=height+2*eps);
+  //cylinder(d=pin_diameter+2*pin_clearance, h=height+2*eps);
+  chamfer_cylinder(d=pin_diameter+2*pin_clearance, h=height+2*eps, chamfer_bottom=-0.4, chamfer_top=-0.4);
   translate_z(pin_contact_surface)
   chamfer_cylinder(d=pin_diameter+2*pin_clearance+1, chamfer_bottom=0.5, chamfer_top=0.5, h=height-2*pin_contact_surface);
 }
@@ -353,17 +368,18 @@ module wheel_hole(base_diameter=wheel_diameter, base_thickness=wheel_thickness, 
   pin_length = total_thickness + 2*pin_stickout;
   weight_diameter = base_diameter - 2*shackle_overlap - 2*wheel_shackle_clearance;
   
-  cylinder(d=weight_diameter+2*wheel_hole_clearance, h=total_thickness+layerHeight);
-  cylinder(d=base_diameter+2*wheel_hole_clearance, h=base_thickness+2*layerHeight);
+  cylinder(d=weight_diameter+2*wheel_hole_clearance, h=total_thickness+2*layerHeight);
+  cylinder(d=base_diameter+2*wheel_hole_clearance, h=base_thickness+4*layerHeight);
   translate_z(-pin2_stickout)
   cylinder(d=pin_diameter+2*C, h=pin_length);
   // minimize contact between wheel and housing
-  contact_diameter = pin_diameter+2*C+2*0.5;
+  //contact_diameter = pin_diameter+2*C+2*0.5;
+  contact_diameter = pin_diameter+2*1.2;
   translate_z(-layerHeight) linear_extrude(layerHeight+eps,convexity=3) difference() {
     circle(d=base_diameter+2*wheel_hole_clearance);
     circle(d=contact_diameter);
   }
-  translate_z(total_thickness+layerHeight-eps) linear_extrude(layerHeight+eps,convexity=3) difference() {
+  translate_z(total_thickness+2*layerHeight-eps) linear_extrude(layerHeight+eps,convexity=3) difference() {
     circle(d=weight_diameter+2*wheel_hole_clearance);
     circle(d=contact_diameter);
   }
@@ -455,13 +471,15 @@ module shackle() {
   shackle_extrude_z(shackle_x, shackle_length) {
     circle(d = shackle_diameter);
   }
+  // cut outs for wheels
+  wheel_shackle_hole_clearance = wheel_hole_clearance + C; // clearance for free spinning wheel
   // left
   difference() {
     translate([-shackle_x,0,shackle_left_z])
       chamfer_cylinder(d = shackle_diameter, h=housing_top_z-shackle_left_z+eps, chamfer_bottom=1);
-    z2 = wheel1_z + wheel_weight_thickness + 2*layerHeight;
+    z2 = wheel1_z + wheel_weight_thickness + 3*layerHeight;
     translate([wheel1_x,wheel1_y, 0])
-      cylinder(d = wheel_diameter+2*wheel_shackle_clearance, h=z2);
+      cylinder(d = wheel_diameter+2*wheel_shackle_hole_clearance, h=z2);
   }
   // right
   difference() {
@@ -477,7 +495,7 @@ module shackle() {
     chamfer = 3;
     slope = 0.6;
     translate([wheel2_x,wheel2_y,wheel2_z - chamfer*slope]) {
-      chamfer_cylinder(d = wheel_diameter+2*wheel_shackle_clearance, h=wheel_thickness+2*layerHeight + shackle_max_travel + chamfer*slope, chamfer_bottom=chamfer, chamfer_slope=slope);
+      chamfer_cylinder(d = wheel_diameter+2*wheel_shackle_hole_clearance, h=wheel_thickness+3*layerHeight + shackle_max_travel + chamfer*slope, chamfer_bottom=chamfer, chamfer_slope=slope);
     }
   }
   extra = 2;
@@ -551,8 +569,8 @@ module housing_inner() {
 
 module test_housing_profile() {
   difference() {
-    translate([-0.5,2])
-    square([wheel_diameter+6,8],true);
+    translate([-0.5+2,3.5])
+    square([wheel_diameter+6+6,12],true);
     translate_x(wheel_diameter/2-wheel_shackle_overlap+shackle_diameter/2) circle(d=shackle_diameter+2*C);
   }
 }
@@ -568,12 +586,15 @@ module test_housing() {
   }
 }
 module test_housing_cut(offset=0) {
-  translate_z(wheel_thickness+2*layerHeight) positive_z();
-  translate_z(wheel_thickness+2*layerHeight - 0.9) linear_extrude(0.9+eps, convexity=5) {
+  translate_z(wheel_thickness+4*layerHeight) positive_z();
+  translate_z(wheel_thickness+4*layerHeight - 0.9) linear_extrude(0.9+eps, convexity=5) {
     difference() {
-      offset(0.3+offset) offset(-1.2-0.3) difference() {
-        test_housing_profile();
-        circle(d=wheel_diameter+2*C);
+      offset(0.3+offset) {
+        offset(-1.2-0.3) difference() {
+          test_housing_profile();
+          circle(d=wheel_diameter+2*C);
+        }
+        *translate_x(8) positive_x2d();
       }
     }
   }
@@ -614,8 +635,8 @@ module test_assembly() {
   color("violet") assembly_cut(6) pin();
   color("pink") assembly_cut(12) test_shackle();
   
-  color("yellow") assembly_cut(11,true) test_housing1();
-  color("lightyellow") assembly_cut(12,true) test_housing2();
+  *color("yellow") assembly_cut(11) test_housing1();
+  color("lightyellow") assembly_cut(12) test_housing2();
 }
 !test_assembly();
 
