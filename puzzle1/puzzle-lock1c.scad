@@ -16,14 +16,14 @@ sliding_clearance = 0.2; // free moving parts
 // Thing that looks like a lock core
 
 core_face_diameter = 13;
-core_lip_radius = 1;
+core_lip_radius = 0.8;
 core_thickness = roundToLayerHeight(18);
 core_back_thickness = roundToLayerHeight(1); // cosmetic
 //core_back_thickness = -1; // debug
 
 // wheels
 
-wheel_diameter = 15;
+wheel_diameter = 15.5;
 wheel_thickness = roundToLayerHeight(3);
 wheel_weight_thickness = roundToLayerHeight(12);
 //wheel_weight_diameter = 8;
@@ -49,7 +49,7 @@ wheel2_overlap_thickness = roundToLayerHeight(2.5);
 
 wheel2_angle = -45;
 
-wheel_stagger = false;
+wheel_stagger = true;
 
 // Pins holding wheels
 
@@ -66,12 +66,12 @@ shackle_diameter = 8;
 shackle_length = 10;
 
 //shackle_spacing = 4; // space between shackle and core
-shackle_spacing = 4.8; // space between shackle and core
+//shackle_spacing = 4.8; // space between shackle and core
+shackle_spacing = 5.4; // space between shackle and core
 
-shackle_travel = 3;
-shackle_travel_down = 3;
-shackle_travel_up   = 3;
-shackle_travel_open = 4.5;
+shackle_travel_down = roundToLayerHeight(3.5);
+shackle_travel_up   = roundToLayerHeight(3.5);
+shackle_travel_open = roundToLayerHeight(4.0);
 
 // Housing
 
@@ -93,14 +93,16 @@ shackle_x = core_diameter / 2 + shackle_spacing + shackle_diameter / 2;
 
 // wheel 2
 
-wheel2_x = shackle_x - shackle_diameter/2 - wheel_diameter/2 + wheel2_shackle_overlap;
+//wheel2_x = shackle_x - shackle_diameter/2 - wheel_diameter/2 + wheel2_shackle_overlap;
+wheel2_x = shackle_x - shackle_diameter/2 - wheel_diameter/2 + wheel2_shackle_overlap - 2;
 wheel2_y = 0;
 wheel2_z = roundToLayerHeight(core_top_z + pin2_stickout + 1.5);
 wheel2_pos = [wheel2_x, wheel2_y, wheel2_z];
 
 //pin2_length = wheel2_thickness + 2*pin2_stickout;
 
-wheel2_base_z = wheel_weight_thickness - wheel_thickness - wheel_thickness - 4*layerHeight;
+wheel2_base_z = 0;
+//wheel2_base_z = wheel_weight_thickness - wheel_thickness - wheel_thickness - 4*layerHeight;
 wheel2_wheel_z = wheel2_z + wheel2_base_z;
 
 //wheel2_shackle_clearance = 2*C;
@@ -112,7 +114,8 @@ wheel_weight_diameter = wheel_diameter - 2*wheel_shackle_overlap - 2*wheel_shack
   
 // wheel 1
 
-wheel1_x = -wheel2_x;
+//wheel1_x = -wheel2_x;
+wheel1_x = -(shackle_x - shackle_diameter/2 - wheel_diameter/2 + wheel2_shackle_overlap);
 wheel1_y = 0;
 wheel1_z = wheel2_z + (wheel_stagger ? wheel_thickness + roundToLayerHeight(0.45) : 0);
 wheel1_pos = [wheel1_x, wheel1_y, wheel1_z];
@@ -259,7 +262,7 @@ module key() {
   }
 }
 toy_key_thickness = 1.5;
-toy_key_height = (core_thickness+1);
+toy_key_height = (core_thickness+1+(wheel_stagger?wheel_thickness:0));
 toy_key_scale = toy_key_height/key_height;
 toy_key_x = ((-shackle_x+shackle_diameter/2) + -(core_diameter/2)) / 2;
 module toy_key() {
@@ -270,11 +273,26 @@ module toy_key() {
 }
 module toy_key_hole() {
   translate([toy_key_x,0,housing_thickness])
-  linear_extrude(toy_key_height+2*layerHeight) {
+  linear_extrude(toy_key_height+3*layerHeight) {
     square([toy_key_thickness+2*C, toy_key_scale*key_d+2*C],true);
   }
 }
-*!toy_key_hole();
+module toy_key_removal_hole() {
+  translate([toy_key_x,0,housing_thickness+toy_key_height]) {
+    linear_extrude_x(-toy_key_x) {
+      hull() {
+        circle(d=toy_key_scale*key_d+2*C);
+        translate_y(-4)
+        circle(d=toy_key_scale*key_d+2*C);
+      }
+    }
+  }
+}
+*!group() {
+  translate_x(1)
+  color("green") toy_key_hole();
+  toy_key();
+}
 *!key();
 
 //-----------------------------------------------------------------------------
@@ -413,10 +431,12 @@ module wheel1_hole() {
 // Gravity wheels: rotate around z axis: blocks pull
 //-----------------------------------------------------------------------------
 
+wheel2_diameter = wheel_diameter - 1;
+
 module wheel2(angle=0) {
   translate(wheel2_pos)
   rotate(angle)
-  wheel(weight_angle=wheel2_angle, base_z=wheel2_base_z);
+  wheel(weight_angle=wheel2_angle, base_z=wheel2_base_z, base_diameter=wheel2_diameter, shackle_overlap=1);
 }
 *!intersection() {
   wheel2();
@@ -439,7 +459,7 @@ module wheel2_hole() {
 
 shackle_travel_total = shackle_travel_down + shackle_travel_up + shackle_travel_open;
 
-core_lock_down_z = housing_thickness + roundToLayerHeight(2.5);
+core_lock_down_z = housing_thickness + roundToLayerHeight(2.0);
 core_lock_thickness = core_thickness + housing_thickness - core_lock_down_z - shackle_travel_total;
 //core_lock_thickness = 3;
 
@@ -449,6 +469,8 @@ core_lock_d = core_face_diameter-1;
 //core_lock_pin_width = 3;
 core_lock_pin_width = sin(core_lock_angle) * core_diameter/2;
 
+//core_lock_top_z = wheel2_wheel_z;
+core_lock_top_z = wheel2_z + shackle_travel_total - 4*layerHeight;
 
 module core_lock_profile() {
   difference() {
@@ -487,7 +509,7 @@ module core_lock_pin_slot(a1,a2,h1,h2, simple=false) {
   }
 }
 
-module core_lock() {
+module core_lock(simple=$preview) {
   difference() {
     translate_z(core_lock_down_z + shackle_travel_down)
     difference() {
@@ -497,11 +519,13 @@ module core_lock() {
           core_lock_profile();
         }
         translate_x(shackle_x) {
-          cylinder(d=shackle_diameter+2*1.2, h=wheel2_wheel_z - core_lock_down_z - shackle_travel_total);
+          cylinder(d=shackle_diameter+2*1.2, h=core_lock_top_z - core_lock_down_z - shackle_travel_total);
         }
       }
-      translate_z(-eps)
-      cylinder(d1=core_diameter+2*C,d2=core_lock_d+2*C,h=1);
+      if (!simple) {
+        translate_z(-eps)
+        cylinder(d1=core_diameter+2*C,d2=core_lock_d+2*C,h=1);
+      }
     }
     // spring hole
     spring_hole();
@@ -510,9 +534,10 @@ module core_lock() {
         cylinder(d1=spring_diameter+2*0.6,d2=spring_diameter,h=0.6);
       }
     }
+    // screw
   }
 }
-!core_lock();
+*!core_lock();
 
 module core_lock_hole() {
   translate_z(core_lock_down_z) {
@@ -548,7 +573,10 @@ module shackle_extrude_z(x,height) {
 
 shackle_left_z  = wheel1_wheel_z; // + wheel_weight_thickness - shackle_travel_up;
 //shackle_right_z = housing_thickness + shackle_travel;
-shackle_right_z = wheel2_wheel_z - shackle_travel_up - shackle_travel_open;
+//shackle_right_z = wheel2_wheel_z - shackle_travel_up - shackle_travel_open;
+
+shackle_screw_length = roundToLayerHeight(7);
+shackle_right_z = core_lock_top_z - shackle_travel_up - shackle_travel_open;
 
 module shackle(threads=false) {
   translate_z(housing_top_z)
@@ -558,23 +586,36 @@ module shackle(threads=false) {
   // cut outs for wheels
   wheel_shackle_hole_clearance = wheel_hole_clearance + C; // clearance for free spinning wheel
   // left
-  difference() {
-    translate([-shackle_x,0,shackle_left_z])
-      chamfer_cylinder(d = shackle_diameter, h=housing_top_z-shackle_left_z+eps, chamfer_bottom=1);
+  group() {
     z2 = wheel1_wheel_z + wheel_thickness + 2*layerHeight;
-    translate([wheel1_x,wheel1_y, 0])
-      cylinder(d = wheel_diameter+2*wheel_shackle_hole_clearance, h=z2);
+    chamfer = 1;
+    difference() {
+      translate([-shackle_x,0,shackle_left_z])
+        chamfer_cylinder(d = shackle_diameter, h=housing_top_z-shackle_left_z+eps, chamfer_bottom=1);
+      // cut-out for wheel1
+      translate([wheel1_x,wheel1_y,0])
+        cylinder(d = wheel_diameter+2*wheel_shackle_hole_clearance, h=z2+chamfer);
+    }
+    // chamfer
+    translate([-shackle_x,0,z2]) {
+      *cylinder(d1=shackle_diameter-2*wheel_shackle_overlap, d2=shackle_diameter, h=chamfer);
+      hull() {
+        //d = shackle_diameter-2*wheel_shackle_overlap;
+        d = 2;
+        translate_x((shackle_diameter-d)/2-1) cylinder(d=d,h=eps);
+        translate_z(chamfer) cylinder(d=shackle_diameter,h=eps);
+      }
+    }
   }
   // right
   group() {
     difference() {
       translate([shackle_x,0,shackle_right_z])
         chamfer_cylinder(d = shackle_diameter, h=housing_top_z-shackle_right_z+eps, chamfer_bottom=0);
-      shackle_max_travel = roundToLayerHeight(shackle_travel + 0.6);
       chamfer = 3;
       slope = 0.6;
-      translate([wheel2_x,wheel2_y,wheel2_wheel_z - chamfer*slope]) {
-        chamfer_cylinder(d = wheel_diameter+2*wheel_shackle_hole_clearance, h=wheel_thickness+3*layerHeight + shackle_max_travel + chamfer*slope, chamfer_bottom=chamfer, chamfer_slope=slope);
+      *translate([wheel2_x,wheel2_y,wheel2_wheel_z - chamfer*slope]) {
+        chamfer_cylinder(d = wheel_diameter+2*wheel_shackle_hole_clearance, h=wheel_thickness+3*layerHeight + shackle_travel_down + chamfer*slope, chamfer_bottom=chamfer, chamfer_slope=slope);
       }
     }
     extra = 2;
@@ -585,8 +626,6 @@ module shackle(threads=false) {
       }
     }
     // screw
-    shackle_screw_length = 6;
-    threads = true;
     translate([shackle_x,0,shackle_right_z-shackle_screw_length+eps])
     intersection() {
       if(threads) {
@@ -647,7 +686,7 @@ module screw_slot_profile() {
 screw_diameter = 6;
 module screw(threads=true, internal=false) {
   z1 = housing_thickness;
-  z2 = wheel1_z-1;
+  z2 = core_top_z - 4*layerHeight;
   z3 = shackle_left_z - shackle_travel_down;
   ht = (shackle_diameter-screw_diameter) / 2;
   
@@ -664,8 +703,8 @@ module screw(threads=true, internal=false) {
 }
 *!screw(threads=false);
 
-module screw_hole() {
-  screw(threads=false,internal=true);
+module screw_hole(threads) {
+  screw(threads=threads,internal=true);
 }
 
 //-----------------------------------------------------------------------------
@@ -684,16 +723,20 @@ module housing_profile() {
   *hull() mirrored([1,0,0]) {
     translate_x(shackle_x) circle(d=d+2*housing_wall);
   }
-  hull() mirrored([1,0,0]) {
-    translate_x(shackle_x) circle(d=shackle_diameter+2*housing_wall);
-    dx = housing_wall+C;
-    translate_x(shackle_x - (wheel_diameter - shackle_diameter)/2 + dx) circle(d=wheel_diameter+2*housing_wall+2*C);
+  hull() {
+    //circle(d=core_diameter+2*(2*housing_wall+2*C));
+    mirrored([1,0,0]) {
+      translate_x(shackle_x) circle(d=shackle_diameter+2*housing_wall);
+      dx = housing_wall+C;
+      translate_x(shackle_x - (wheel_diameter - shackle_diameter)/2 + dx) circle(d=wheel_diameter+2*housing_wall+2*C);
+    }
   }
 }
 
 module wheel_shared_hole() {
-  translate_z(wheel1_z - 3*layerHeight) {
-    linear_extrude(wheel_weight_thickness - wheel_thickness + 3*layerHeight) {
+  translate_z(wheel1_z - 1*layerHeight) {
+    /*
+    linear_extrude(wheel_weight_thickness - wheel_thickness + 3*layerHeight, convexity=2) {
       difference() {
         hull() {
           //d = wheel_weight_diameter+2*wheel_hole_clearance;
@@ -706,11 +749,15 @@ module wheel_shared_hole() {
         translate([wheel2_x,wheel2_y]) circle(d=d2);
       }
     }
+    */
+    linear_extrude(wheel_weight_thickness + 4*layerHeight, convexity=2) {
+      square([wheel_diameter*0.5,wheel_diameter*0.6],true);
+    }
   }
 }
 
 spring_diameter = 4.5;
-spring_length = 8;
+spring_length = 10;
 module spring_hole() {
   translate_x(shackle_x)
   translate_z(housing_thickness)
@@ -723,7 +770,7 @@ module spring(dz=0) {
   cylinder(d=d, h=spring_length+shackle_travel_down+dz);
 }
 
-module housing() {
+module housing(threads) {
   difference() {
     linear_extrude_cone_chamfer(housing_top_z, housing_chamfer, housing_chamfer) {
       housing_profile();
@@ -734,14 +781,88 @@ module housing() {
     wheel1_hole();
     wheel_shared_hole();
     shackle_hole();
-    screw_hole();
+    screw_hole(threads=threads);
     toy_key_hole();
     spring_hole();
   }
 }
 
-module housing_inner() {
-  cube(0.01);
+module housing_inner_mask(offset=0) {
+  housing_split_z = wheel1_wheel_z-2*layerHeight;
+  translate_z(-eps)
+  linear_extrude(housing_inner_split_z+eps, convexity=2) {
+    offset(offset-C) {
+      dx = housing_wall+C;
+      hull() {
+        translate([wheel1_x,wheel1_y]) circle(d=wheel_diameter+2*wheel_hole_clearance);
+        translate([wheel2_x,wheel2_y]) circle(d=wheel_diameter+2*wheel_hole_clearance);
+        translate_x(-shackle_x+(wheel_diameter+2*wheel_hole_clearance - (shackle_diameter+2*housing_wall+2*C))/2) circle(d=wheel_diameter+2*wheel_hole_clearance);
+        
+        *translate_x(-(shackle_x - (wheel_diameter - shackle_diameter - dx)/2)) circle(d=wheel_diameter+2*housing_wall+2*C);
+        //translate_x(shackle_x-wheel_diameter/2-shackle_diameter/2-1.2) circle(d=wheel_diameter+2*housing_wall+2*C);
+        *translate_x(shackle_x-wheel_diameter/2-spring_diameter/2) circle(d=wheel_diameter+2*housing_wall+2*C);
+      }
+    }
+  }
+  translate_z(housing_inner_split_z-eps) {
+    linear_extrude(housing_split_z-housing_inner_split_z+2*eps, convexity=2) {
+      offset(offset-C) {
+        square([wheel_diameter*0.2,wheel_diameter*0.7+2*housing_wall],true);
+        *translate([wheel1_x,wheel1_y]) circle(d=wheel_diameter+2*wheel_hole_clearance);
+        *translate([wheel2_x,wheel2_y]) circle(d=wheel_diameter+2*wheel_hole_clearance);
+        fillet(3) {
+          translate([wheel1_x,wheel1_y]) square([wheel_weight_diameter+2*wheel_hole_clearance,wheel_diameter+2*wheel_hole_clearance],true);
+          *translate([wheel2_x,wheel2_y]) square([wheel_weight_diameter+2*wheel_hole_clearance,wheel_diameter+2*wheel_hole_clearance],true);
+        }
+      }
+    }
+    linear_extrude(wheel2_wheel_z-1*layerHeight-housing_inner_split_z+2*eps, convexity=2) {
+      offset(offset-C) {
+        fillet(3) {
+          translate([wheel2_x,wheel2_y]) square([wheel_weight_diameter+2*wheel_hole_clearance,wheel_diameter+2*wheel_hole_clearance],true);
+        }
+      }
+    }
+  }
+  translate_z(housing_inner_split_z-eps)
+  linear_extrude(wheel1_z-housing_inner_split_z+2*eps, convexity=2) {
+    hull() {
+      translate_x(-shackle_x)
+        circle(d=shackle_diameter+2*housing_wall+2*offset);
+      translate([wheel1_x,wheel1_y])
+        circle(d=shackle_diameter+2*housing_wall+2*offset);
+    }
+  }
+}
+
+housing_inner_split_z = core_top_z+layerHeight;
+
+module housing_outer() {
+  difference() {
+    housing(threads=false);
+    housing_inner_mask(offset=C);
+  }
+}
+*!housing_inner1($fn=30);
+*!housing_inner2($fn=30);
+
+module housing_inner1(threads) {
+  intersection() {
+    difference() {
+      housing(threads=threads);
+      toy_key_removal_hole();
+    }
+    housing_inner_mask();
+    translate_z(housing_inner_split_z-eps) negative_z();
+  }
+}
+
+module housing_inner2() {
+  intersection() {
+    housing(threads=false);
+    housing_inner_mask();
+    translate_z(housing_inner_split_z+eps) positive_z();
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -871,21 +992,24 @@ module assembly() {
   threads = false;
   //shackle_pos = -shackle_travel_down;
   //shackle_pos = 0;
-  shackle_pos = shackle_travel_up;
-  //shackle_pos = shackle_travel_up + shackle_travel_open;
-  
+  //shackle_pos = shackle_travel_up;
+  shackle_pos = shackle_travel_up + shackle_travel_open;
+  /**/
   color("red") assembly_cut(1) core();
   
-  color("purple") assembly_cut(5) translate_z(0.5*layerHeight) wheel1();
+  color("purple") assembly_cut(5) translate_z(0.5*layerHeight) wheel1(angle=45/2);
   color("violet") assembly_cut(6) pin1();
   color("blue") assembly_cut(3) translate_z(0.5*layerHeight) wheel2(angle=0);
   color("violet") assembly_cut(4) pin2();
     
   color("green") assembly_cut(7,true) translate_z(shackle_pos) core_lock();
 
-  color("pink") assembly_cut(12) translate_z(shackle_pos) shackle();
-  color("lightYellow") assembly_cut(10) housing_inner();
-  color("yellow") assembly_cut(11,true) housing();
+  color("pink") assembly_cut(12) translate_z(shackle_pos) shackle(threads=threads);
+  
+  
+  color("yellow") assembly_cut(11,true) housing_outer();
+  color("lightYellow") assembly_cut(10,true) housing_inner1(threads=threads);
+  color("Khaki") assembly_cut(9,true) housing_inner2();
   
   color("teal") assembly_cut(13) screw(threads=threads);
   
