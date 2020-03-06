@@ -427,7 +427,7 @@ module make_screw(
         translate_z(z1-(internal?eps:0)) if(threads) {
           standard_thread(d=screw_diameter,length=z2_-z1+eps+(internal?eps:0),internal=internal,C=c);
         } else {
-          cylinder(d=screw_diameter+2*c,h=z2_-z1+eps+(internal?eps:0));
+          cylinder(d=screw_diameter+2*c-($preview&&!internal?0.1*screw_diameter:0),h=z2_-z1+eps+(internal?eps:0));
         }
         // shaft
         translate_z(z2_) {
@@ -548,5 +548,22 @@ module logo_test() {
   difference() {
     cylinder(r=15,h=3);
     translate_z(1+eps) logo(local=true);
+  }
+}
+
+module edge_detect() {
+  difference() {
+    offset(0.001) children();
+    children();
+  }
+}
+
+module logo2d(local=false, r=10, line_width=0.5) {
+  group() {
+    offset(line_width/2)
+    scale(r)
+    edge_detect() {
+      scale(0.015) import(local ? "flinder.dxf" : "../flinder.dxf");
+    }
   }
 }

@@ -862,14 +862,14 @@ module export_screw() { rotate([180]) screw(); }
 housing_inner_diameter = max(wheel_diameter, core_diameter + 2*(0.8+C), shackle_diameter);
 
 housing_width  = 2*(shackle_x + shackle_diameter/2 + housing_wall);
-housing_height = max(shackle_diameter,wheel_diameter,core_diameter) + 2*housing_wall;
+//housing_height = max(shackle_diameter,wheel_diameter,core_diameter) + 2*housing_wall;
+housing_height = housing_inner_diameter + 2*housing_wall + 2*C;
 
 housing_chamfer = roundToLayerHeight(0.5);
 echo("housing size = ", housing_width,housing_height,housing_top_z);
 
 module housing_profile() {
   *square([housing_width,housing_height],true);
-  //d = max(shackle_diameter,wheel_diameter,core_diameter);
   *hull() mirrored([1,0,0]) {
     translate_x(shackle_x) circle(d=d+2*housing_wall);
   }
@@ -977,7 +977,7 @@ module housing_inner_mask(offset=0) {
 
 housing_inner_split_z = core_top_z+layerHeight;
 
-module housing_outer() {
+module housing_outer(logo=true) {
   difference() {
     housing(threads=false);
     housing_inner_mask(offset=C);
@@ -985,6 +985,23 @@ module housing_outer() {
     translate_z(-roundToLayerHeight(0.8)) core_lock_hole();
     // clearance for putting in core lock
     translate_x(-2.5) translate_z(-roundToLayerHeight(0.8)) core_lock_hole();
+    // logo
+    if (logo) {
+      depth = 0.4;
+      r = 8;
+      translate([housing_width/2-housing_inner_diameter/2-r,-housing_height/2-eps,r+2]) {
+        linear_extrude_y(depth,convexity=10) logo2d(r=8,line_width=0.3);
+        *minkowski() {
+          linear_extrude_y(eps,convexity=10) logo2d(r=8,line_width=0);
+          //rotate([-90]) cylinder(r1=depth,r2=0,h=depth,$fn=12);
+          rotate([-90]) union() {
+            cylinder(r1=depth*0.6,r2=depth*0.2,h=depth,$fn=12);
+            cylinder(r1=depth*0.8,r2=0,h=depth,$fn=12);
+            cylinder(r1=depth,r2=0,h=depth*0.6,$fn=12);
+          }
+        }
+      }
+    }
   }
 }
 *!housing_inner1($fn=30);
@@ -1168,7 +1185,8 @@ module assembly() {
   color("teal") assembly_cut(13) screw(threads=threads);
 
   group() {
-    color("yellow") assembly_cut(11,true) housing_outer();
+    color("yellow") assembly_cut(11) housing_outer(logo=true);
+    *color("yellow") assembly_cut(11,true) housing_outer(logo=false);
     *color("lightYellow") assembly_cut(10,true) housing_inner1(threads=threads);
     *color("Khaki") assembly_cut(9,true) housing_inner2();
   }
