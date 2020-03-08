@@ -633,7 +633,6 @@ module core_lock(simple=$preview,threads=!$preview) {
 *!core_lock(threads=false);
 
 core_lock_chamfer = roundToLayerHeight(1);
-
 module core_lock_hole() {
   translate_z(core_lock_down_z) {
     linear_extrude(core_lock_thickness + shackle_travel_total + layerHeight, convexity=2) {
@@ -830,7 +829,25 @@ module screw_hole(threads) {
   screw(threads=threads,internal=true);
 }
 
+module screwdriver() {
+  screwdriver_length = 1.5;
+  shaft_length = housing_top_z - screw_head_z + 10;
+  handle_length = shackle_diameter;
+  linear_extrude(screwdriver_length+eps, convexity=5) {
+    screw_slot_profile();
+  }
+  translate_z(screwdriver_length)
+  cylinder(d=shackle_diameter, h=shaft_length);
+  translate_z(screwdriver_length+shaft_length)
+  linear_extrude(handle_length) hull() {
+    mirrored([1,0,0]) translate_x(6) circle(d=shackle_diameter);
+  }
+  //cylinder(d=shackle_diameter/(sqrt(3)/2)*1.5, h=12, $fn=6);
+}
+*!screwdriver();
+
 module export_screw() { rotate([180]) screw(); }
+module export_screwdriver() { rotate([180]) screwdriver(); }
 
 //-----------------------------------------------------------------------------
 // Housing
@@ -894,8 +911,8 @@ module spring_hole() {
         square([spring_diameter+2*C,spring_diameter+2*C],true);
     }
   }
-  
 }
+
 module spring(dz=0) {
   d = spring_diameter * sqrt(spring_length/(spring_length+dz));
   translate_x(shackle_x)
@@ -979,7 +996,6 @@ module housing_outer(logo=true) {
     // clearance for core lock hole roof
     //translate_z(-roundToLayerHeight(0.8)) core_lock_hole();
     // clearance for putting in core lock
-    //translate_x(-2.5) translate_z(-roundToLayerHeight(0.8)) core_lock_hole();
     translate_x(-2.5) core_lock_hole();
     // logo
     if (logo) {
@@ -1164,9 +1180,10 @@ module assembly() {
   shackle_pos = 0;
   //shackle_pos = shackle_travel_up;
   //shackle_pos = shackle_travel_up + shackle_travel_open;
+  core_angle = 45;
 
-  *group() {
-    color("red") assembly_cut(1) core();
+  group() {
+    color("red") assembly_cut(1) rotate(core_angle) core();
     
     color("purple") assembly_cut(5) translate_z(0.5*layerHeight) wheel1(angle=0);
     color("violet") assembly_cut(6) pin1();
@@ -1184,7 +1201,7 @@ module assembly() {
   group() {
     *color("yellow") assembly_cut(11) housing_outer(logo=true);
     color("yellow") assembly_cut(11,true) housing_outer(logo=false);
-    *color("lightYellow") assembly_cut(10,true) housing_inner1(threads=threads);
+    color("lightYellow") assembly_cut(10,true) housing_inner1(threads=threads);
     color("Khaki") assembly_cut(9,true) housing_inner2();
   }
   
