@@ -85,6 +85,29 @@ module linear_extrude_cone_chamfer(height,chamfer1,chamfer2,center=false,convexi
   }
 }
 
+// Linear extrude with chamfer of convex shapes
+// This is faster and more accurate than linear_extrude_cone_chamfer, but it can not be used for all shapes
+module linear_extrude_convex_chamfer(height,chamfer1,chamfer2,center=false) {
+  translate_z(center ? -height/2 : 0)
+  hull() {
+    if (chamfer1 > 0) {
+      linear_extrude(chamfer1) {
+        offset(-chamfer1) children();
+      }
+    }
+    translate_z(chamfer1)
+    linear_extrude(height-chamfer1-chamfer2) {
+      children();
+    }
+    if (chamfer2 > 0) {
+      translate_z(height-chamfer2)
+      linear_extrude(chamfer2) {
+        offset(-chamfer2) children();
+      }
+    }
+  }
+}
+
 module linear_extrude_chamfer_hole(height, chamfer1, chamfer2, center=false, convexity=undef, resolution=8) {
   translate_z(center ? -height/2 : 0)
   minkowski() {
