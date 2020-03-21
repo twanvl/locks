@@ -930,11 +930,13 @@ module export_screwdriver() { rotate([180]) screwdriver(); }
 //-----------------------------------------------------------------------------
 
 //housing_inner_diameter = max(wheel_diameter, core_diameter, shackle_diameter);
-housing_inner_diameter = max(wheel_diameter, core_diameter + 2*(0.8+core_clearance), shackle_diameter);
+housing_inner_diameter_side = max(wheel_diameter, shackle_diameter);
+housing_inner_diameter_mid = max(housing_inner_diameter_side, core_diameter + 2*(0.8+core_clearance));
+housing_inner_diameter = max(housing_inner_diameter_side, housing_inner_diameter_mid - 1*2);
 
 housing_width  = 2*(shackle_x + shackle_diameter/2 + housing_wall);
 //housing_height = max(shackle_diameter,wheel_diameter,core_diameter) + 2*housing_wall;
-housing_height = housing_inner_diameter + 2*housing_wall + 2*C;
+housing_height = housing_inner_diameter_mid + 2*housing_wall + 2*C;
 
 housing_chamfer = roundToLayerHeight(0.5);
 echo("housing size = ", housing_width,housing_height,housing_top_z);
@@ -944,7 +946,7 @@ module housing_profile() {
   *hull() mirrored([1,0,0]) {
     translate_x(shackle_x) circle(d=d+2*housing_wall);
   }
-  hull() {
+  *hull() {
     //circle(d=core_diameter+2*(2*housing_wall+2*C));
     mirrored([1,0,0]) {
       translate_x(shackle_x) circle(d=shackle_diameter+2*housing_wall);
@@ -953,8 +955,13 @@ module housing_profile() {
     }
     //circle(d=core_diameter+2*(2*housing_wall+2*C));
   }
+  offset(housing_inner_diameter/2+housing_wall+C) {
+    w = 2*(shackle_x + shackle_diameter/2 + housing_wall+C - housing_inner_diameter/2);
+    h = housing_inner_diameter_mid - housing_inner_diameter;
+    scale([w,max(eps,h)]) circle(d=1, $fn=30);
+  }
 }
-!housing_profile();
+*!housing_profile();
 
 module wheel_shared_hole() {
   translate_z(wheel1_z - 1*layerHeight) {
@@ -1016,21 +1023,49 @@ module housing(threads) {
 
 module housing_inner_mask(offset=0) {
   housing_split_z = wheel1_wheel_z-2*layerHeight;
-  translate_z(-eps)
   //linear_extrude(housing_inner_split_z+eps, convexity=2) {
-  linear_extrude(screw_head_z+eps, convexity=2) {
-    hull() {
-      translate([wheel1_x,wheel1_y]) circle(d=housing_inner_diameter+2*offset);
-      translate([wheel2_x,wheel2_y]) circle(d=housing_inner_diameter+2*offset);
-      translate_x(-shackle_x-shackle_diameter/2-0.5*housing_wall+housing_inner_diameter/2) circle(d=housing_inner_diameter+2*offset);
-      //circle(d=core_diameter+2*housing_wall+2*offset);
-    }
-  }
   // middle part
   translate_z(-eps) {
+    linear_extrude(housing_thickness, convexity=2) {
+      *hull() {
+        circle(d=housing_inner_diameter_mid+2*offset);
+        translate([wheel2_x,wheel2_y])
+          circle(d=housing_inner_diameter+2*offset);
+        translate([wheel2_x+0.7,wheel2_y])
+          circle(d=housing_inner_diameter+2*offset);
+      }
+      offset(housing_inner_diameter/2+offset) {
+        w = 2*(shackle_x + shackle_diameter/2 + 0.5*(housing_wall+C) - housing_inner_diameter/2);
+        h = housing_inner_diameter_mid - housing_inner_diameter;
+        intersection() {
+          scale([w,max(eps,h)]) circle(d=1, $fn=30);
+          translate_x(wheel2_x+0.7) negative_x2d();
+        }
+      }
+    }
+    linear_extrude(screw_head_z+eps, convexity=2) {
+      *hull() {
+      //fillet(-5) union() {
+        circle(d=housing_inner_diameter_mid+2*offset);
+        translate([wheel1_x,wheel1_y]) circle(d=housing_inner_diameter+2*offset);
+        translate([wheel2_x,wheel2_y]) circle(d=housing_inner_diameter+2*offset);
+        *translate_x(-shackle_x-shackle_diameter/2-0.5*housing_wall+housing_inner_diameter/2) circle(d=housing_inner_diameter+2*offset);
+        translate_x(-shackle_x) circle(d=shackle_diameter+1*housing_wall+2*offset);
+        //circle(d=core_diameter+2*housing_wall+2*offset);
+      }
+      offset(housing_inner_diameter/2+offset) {
+        w = 2*(shackle_x + shackle_diameter/2 + 0.5*(housing_wall+C) - housing_inner_diameter/2);
+        h = housing_inner_diameter_mid - housing_inner_diameter;
+        intersection() {
+          scale([w,max(eps,h)]) circle(d=1, $fn=30);
+          translate_x(wheel2_x-C) negative_x2d();
+        }
+      }
+    }
     linear_extrude(wheel1_z+2*eps - layerHeight, convexity=2) {
       difference() {
-        hull() {
+        *hull() {
+          circle(d=housing_inner_diameter_mid+2*offset);
           translate([wheel1_x,wheel1_y])
             circle(d=housing_inner_diameter+2*offset);
           translate([wheel2_x,wheel2_y])
@@ -1038,21 +1073,21 @@ module housing_inner_mask(offset=0) {
           *translate([wheel2_x+0.5,wheel2_y])
             circle(d=housing_inner_diameter+2*offset);
         }
+        offset(housing_inner_diameter/2+offset) {
+          w = 2*(shackle_x + shackle_diameter/2 + 0.5*(housing_wall+C) - housing_inner_diameter/2);
+          h = housing_inner_diameter_mid - housing_inner_diameter;
+          intersection() {
+            scale([w,max(eps,h)]) circle(d=1, $fn=30);
+            translate_x(wheel2_x-C) negative_x2d();
+            translate_x(wheel1_x+C) positive_x2d();
+          }
+        }
         translate_x(-shackle_x+shackle_diameter/2*0.6-offset) {
           negative_x2d();
         }
       }
     }
-    linear_extrude(housing_thickness, convexity=2) {
-      difference() {
-        hull() {
-          translate([wheel2_x,wheel2_y])
-            circle(d=housing_inner_diameter+2*offset);
-          translate([wheel2_x+0.7,wheel2_y])
-            circle(d=housing_inner_diameter+2*offset);
-        }
-      }
-    }
+    // bottom pin holes
     linear_extrude(wheel1_z+1+2*eps, convexity=2) {
       hull() {
         translate([wheel1_x,wheel1_y])
@@ -1077,17 +1112,39 @@ module housing_outer(logo=true) {
     // logo
     if (logo) {
       depth = 0.4;
-      r = 8;
-      translate([housing_width/2-housing_inner_diameter/2-r,-housing_height/2-eps,r+2]) {
-        linear_extrude_y(depth,convexity=10) logo2d(r=8,line_width=0.3);
-        *minkowski() {
-          linear_extrude_y(eps,convexity=10) logo2d(r=8,line_width=0);
-          //rotate([-90]) cylinder(r1=depth,r2=0,h=depth,$fn=12);
-          rotate([-90]) union() {
-            cylinder(r1=depth*0.6,r2=depth*0.2,h=depth,$fn=12);
-            cylinder(r1=depth*0.8,r2=0,h=depth,$fn=12);
-            cylinder(r1=depth,r2=0,h=depth*0.6,$fn=12);
+      difference() {
+        group() {
+          r = 8;
+          x = housing_width/2-housing_inner_diameter/2-r;
+          y_left = housing_height/2;
+          y_right = y_left + (housing_inner_diameter-housing_inner_diameter_mid)*0.2;
+          translate([x,-(y_left+y_right)/2-1-eps,r+2]) {
+            rotate(-atan2(y_right-y_left,2*r))
+            linear_extrude_y(depth+2,convexity=10) logo2d(r=r,line_width=0.3);
+            *minkowski() {
+              linear_extrude_y(eps,convexity=10) logo2d(r=8,line_width=0);
+              //rotate([-90]) cylinder(r1=depth,r2=0,h=depth,$fn=12);
+              rotate([-90]) union() {
+                cylinder(r1=depth*0.6,r2=depth*0.2,h=depth,$fn=12);
+                cylinder(r1=depth*0.8,r2=0,h=depth,$fn=12);
+                cylinder(r1=depth,r2=0,h=depth*0.6,$fn=12);
+              }
+            }
           }
+          // serial number
+          xl = housing_width/2-housing_inner_diameter/2-4/2;
+          yl_left = housing_height/2;
+          yl_right = y_left + (housing_inner_diameter-housing_inner_diameter_mid)*0.5;
+          translate([-xl,-(yl_left+yl_right)/2-1-eps,3]) {
+            rotate(atan2(yl_right-yl_left,2*r))
+            linear_extrude_y(depth+2,convexity=10) {
+              rotate(90)
+              text("PL1",size=3,font="Ubuntu",valign="center",halign="left");
+            }
+          }
+        }
+        linear_extrude(lots,true) {
+          offset(-depth) housing_profile();
         }
       }
     }
@@ -1095,7 +1152,7 @@ module housing_outer(logo=true) {
 }
 *!housing_inner1($fn=30);
 *!housing_inner2($fn=30);
-*!housing_outer($fn=30);
+!housing_outer($fn=30);
 
 module housing_inner1(threads=true) {
   intersection() {
