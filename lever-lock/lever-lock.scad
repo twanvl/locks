@@ -382,9 +382,9 @@ module lever(bit=0, pos=0) {
   linear_extrude(leverThickness,convexity=2) lever_profile(bit);
 }
 
-module base_spacer_profile() {
-  base_lever_profile(hole = true);
-  rotate_around(leverPivot,stepA*maxBit) base_lever_profile(hole = true);
+module base_spacer_profile(hole=true) {
+  base_lever_profile(hole = hole);
+  rotate_around(leverPivot,stepA*maxBit) base_lever_profile(hole = hole);
 }
 module spacer_profile(ward = false, full_ward = false) {
   difference() {
@@ -522,8 +522,7 @@ module bolt_base_profile(holes = true) {
     }
     *translate_x(-boltTravel) difference() {
       translate_x(x1+leverR/2) positive_x2d();
-      base_lever_profile();
-      rotate_around(leverPivot,stepA*maxBit) base_lever_profile();
+      base_spacer_profile(hole=false);
       //translate(leverPivot+[-2,-15]) square(15); // bottom corner needed for actuator
     }
     if (holes) {
@@ -700,7 +699,7 @@ module curtain() {
       offset(C) key_profile();
       circle(r=wardR+wardC);
       if (use_curtain_spring) {
-        rotated(curtain_spring_angles)
+        rotate(curtain_spring_angle)
         translate_y(curtainTopR) chamfer_rect(curtain_spring_nub_width,2*curtain_spring_nub_height,curtain_spring_nub_height);
       }
     }
@@ -708,21 +707,30 @@ module curtain() {
 }
 *!curtain();
 
-curtain_spring_angle = -100;
-curtain_spring_angles = [-100,30];
-curtain_spring_length = 20;
+curtain_spring_angle = -110;
+curtain_spring_length = 19;
+curtain_spring_bend = 2.2;
 curtain_spring_nub_width = 2;
 curtain_spring_nub_height = roundToLayerHeight(0.8);
 
 module curtain_spring_profile() {
   if (use_curtain_spring) {
-    rotated(curtain_spring_angles)
+    rotate(curtain_spring_angle)
     translate_y(curtainTopR) {
       translate_x(-curtain_spring_length/2)
       *square([curtain_spring_length,springThickness]);
       minkowski() {
-        dy = curtain_spring_nub_height + 1.0;
-        polygon([for (x=[-1:0.1:1]) [x*curtain_spring_length/2, curtain_spring_nub_height - x*x*dy]]);
+        dy = curtain_spring_nub_height + curtain_spring_bend;
+        dy2 = curtain_spring_bend - 0.5;
+        l = curtain_spring_length - 0.4;
+        // draw as a parabola of length l and height dy
+        // check that this is long enough
+        curve_segments = [for (x=[-1:0.1:1]) [x*l/2, x*x*dy2]];
+        computed_curve_length = [for (s=0,i=0; i<len(curve_segments); s=s+norm(curve_segments[i+1]-curve_segments[i]),i=i+1) s][len(curve_segments)-1];
+        if (computed_curve_length < curtain_spring_length) {
+        echo("curtain spring curve length",computed_curve_length,"should be >=",curtain_spring_length);
+        }
+        polygon([for (x=[-1:0.1:1]) [x*l/2, curtain_spring_nub_height - x*x*dy], for (x=[1:-0.1:-1]) [x*l/2, curtain_spring_nub_height - (dy-dy2) - x*x*dy2]]);
         translate(-[C/2,0]) square([C,springThickness+1*C]);
       }
     }
@@ -732,16 +740,23 @@ module curtain_spring_profile() {
 module curtain_spring() {
   linear_extrude(springThickness) {
     translate_x(-curtain_spring_length/2)
-    square([curtain_spring_length,curtainThickness]);
+    square([curtain_spring_length,curtain_spring_thickness]);
   }
-  linear_extrude_y(curtainThickness) {
+  linear_extrude_y(curtain_spring_thickness) {
     intersection() {
       chamfer_rect(2 * (springThickness + curtain_spring_nub_height), curtain_spring_nub_width, curtain_spring_nub_height);
       positive_y2d();
     }
   }
 }
-!curtain_spring();
+*!curtain_spring();
+
+module curtain_spring_in_position() {
+  translate_z(curtainZ+curtainThickness - curtain_spring_thickness - layerHeight)
+  rotate(curtain_spring_angle)
+  translate_y(curtainTopR - 1)
+  rotate([90]) curtain_spring();
+}
 
 module export_curtain() { rotate([180]) translate_z(-(curtainZ+curtainThickness)) curtain(); }
 module export_curtain_spring() { curtain_spring(); }
@@ -861,6 +876,7 @@ screwLocations = [
   [housingLeftX+screwOffset,(housingBottomY+boltBottomY)/2],
   [housingRightX-screwOffset,housingTopY-screwOffset]];
 
+curtain_spring_thickness = curtainThickness + lipThickness - layerHeight;
 
 module housing_outer_profile() {
   rounding = 5;
@@ -972,7 +988,7 @@ module housing_innards(down, threads = true) {
   }
   // lip for curtain
   translate_z(curtainZ + dz)
-  linear_extrude(curtainThickness+layerHeight + lots, convexity=2) {
+  linear_extrude(curtainThickness+layerHeight + lots, convexity=4) {
     circle(r=curtainTopR+C);
     curtain_spring_profile();
   }
@@ -1066,12 +1082,16 @@ module housing_open(threads=true) {
       linear_extrude(lots,center=true,convexity=5) {
         translate(leverPivot) circle(r=leverPivotR+1);
         *offset(C + 0.89) {
-          base_lever_profile();
-          rotate_around(leverPivot,stepA*maxBit) base_lever_profile();
+          base_spacer_profile(hole=false);
           spring_hole_profile();
         }
-        fillet(5) difference() {
+        fillet(5)
+        difference() {
           housing_outer_profile();
+          *difference() {
+            housing_outer_profile();
+            *offset(1.2) base_spacer_profile(hole=false);
+          }
           translate([-lots,boltBottomY]) square([lots,boltTopY-boltBottomY]);
           translate([0,boltBottomY-6]) square([lots,boltTopY-boltBottomY+4]);
           translate([-11,-lots/2]) square([18,lots]);
@@ -1088,8 +1108,25 @@ module housing_open(threads=true) {
           }
           housing_outer_profile();
         }
+        for (p=screwLocations) translate(p) circle(d=screwD+6);
       }
-      translate_z(housingThickness-eps) negative_z();
+      translate_z(-eps) linear_extrude(housingThickness+eps,convexity=5) {
+        //sides
+        translate_y(housingBottomY+5) negative_y2d();
+        translate_y(housingTopY-5) positive_y2d();
+        translate_x(housingRightX-5) positive_x2d();
+        translate_x(housingLeftX+5) negative_x2d();
+        // lever pivot
+        translate(leverPivot) hull() { circle(leverPivotR+1); translate_x(10) circle(leverPivotR+4); }
+        // curtain/keyway
+        hull() { circle(curtainR); translate_y(-15) circle(curtainR+0); }
+        // bolt
+        offset(2) {
+          gate_profile(trueGate=true,includeDrop=false);
+          translate_x(-boltStumpWidth-2*C) gate_profile(trueGate=true,includeDrop=false);
+        }
+      }
+      *translate_z(housingThickness-eps) negative_z();
     }
   }
 }
@@ -1106,9 +1143,13 @@ module housing_lip_open() {
       //translate_x(housingRightX-screwOffset) positive_x2d();
       translate_x(housingRightX-5) positive_x2d();
       translate_x(housingLeftX+5) negative_x2d();
-      translate(leverPivot) hull() { circle(4); translate_x(10) circle(8); }
+        translate(leverPivot) hull() { circle(leverPivotR+1); translate_x(10) circle(leverPivotR+4); }
       //translate_x(leverPivot[0]+eps) positive_x2d();
-      for (p=screwLocations) translate(p) circle(d=screwD+8);
+      for (p=screwLocations) translate(p) circle(d=screwD+6);
+      if (use_curtain_spring) {
+        //translate([1.5,1]) offset(3) curtain_spring_profile();
+        translate([1.5,1]) offset(1.5) curtain_spring_profile();
+      }
     }
   }
 }
@@ -1237,8 +1278,7 @@ module housing_test() {
     translate_z(firstLeverZ-5*layerHeight)
     linear_extrude(lots, convexity=2) {
       offset(C + 0.89) {
-        base_lever_profile();
-        rotate_around(leverPivot,stepA*maxBit) base_lever_profile();
+        base_spacer_profile(hole=false);
         spring_hole_profile();
       }
     }
@@ -1274,7 +1314,9 @@ module assembly() {
   color("white") assembly_cut(1) rotate(keyAngle) key();
 
   *color("LightYellow") assembly_cut(2) housing(threads=threads);
-  color("Yellow") assembly_cut(3) housing_lip();
+  color("LightYellow") assembly_cut(2) housing_open(threads=threads);
+  *color("Yellow") assembly_cut(3) housing_lip();
+  color("Yellow") assembly_cut(3) housing_lip_open();
   *color("LightYellow") assembly_cut(4) pivot_pin();
   if (0) {
     translate_x(housingLeftX-housingRightX)
@@ -1290,6 +1332,8 @@ module assembly() {
 
   // spring
   color("blue") spring();
+  
+  color("red") assembly_cut(6.5) translate_z(layerHeight*0.8)  curtain_spring_in_position();
   
   // levers
   function lever_color(i) = [1-0.0*i,(i%2)*0.4+i*0.1,(i%2)*0.4+i*0.1];
