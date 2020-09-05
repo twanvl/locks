@@ -24,6 +24,9 @@ function roundToLayerHeight(z) = roundTo(z,layerHeight);
 
 function polar(a,r) = r == undef ? [cos(a),sin(a)] : [r*cos(a),r*sin(a)];
 function rot(a,p) = [cos(a)*p[0]-sin(a)*p[1], cos(a)*p[1]+sin(a)*p[0]];
+function rot_x(a,p) = [p[0], each rot(a,[p[1],p[2]])];
+function rot_y(a,p) = [rot(a,[p[0],p[2]])[0], p[1], rot(a,[p[0],p[2]])[1]];
+function rot_z(a,p) = [each rot(a,[p[0],p[1]]), p[2]];
 function diagonal(a,b) = sqrt(a*a+b*b);
 function side_given_diagonal(c,b) = sqrt(c*c-b*b);
 function on_circle(r,x) = [x,side_given_diagonal(r,x)];
@@ -391,10 +394,11 @@ function coarse_pitch(d) =
   d == 9 ? 1.25 :
   d == 10 ? 1.5 :
   d == 20 ? 2.5 :
-  "unknown pitch for thread " + str(d);
+  echo("unknown pitch for thread ",d);
 
 module standard_thread(d,length,C=0,internal=false,leadin=0) {
-  metric_thread(diameter=d+2*C,pitch=coarse_pitch(d),length=length,internal=internal,leadin=leadin);
+  c = internal ? C : 0;
+  metric_thread(diameter=d+2*c,pitch=coarse_pitch(d),length=length,internal=internal,leadin=leadin);
 }
 module m3_thread(length,C=0,internal=false) {
   standard_thread(3,length=length,internal=internal,leadin=leadin);
