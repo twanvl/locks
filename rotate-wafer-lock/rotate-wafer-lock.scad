@@ -414,7 +414,7 @@ module core_profile() {
     circle(r=spacerR+C);
     translate_x(-lots/2) square([lots,sidebarThickness+C],true);
     if (springTravel > 0) {
-      translate_x(lots/2) square([lots,springThickness+2*C],true);
+      spring_sidebar_hole_profile();
     }
   }
 }
@@ -434,9 +434,7 @@ module core(back = true) {
         translate_z(-eps) cylinder(r=spacerR+C,h=sepThickness+2*eps);
         linear_extrude(lots) {
           translate_x(-lots/2) square([lots,sidebarThickness+C],true);
-          if (springTravel > 0) {
-            translate_x(lots/2) square([lots,springThickness+2*C],true);
-          }
+          spring_sidebar_hole_profile();
         }
       }
     }
@@ -510,7 +508,11 @@ module export_sidebar() { rotate([90]) sidebar(); }
 //-----------------------------------------------------------------------------
 
 springTravel = 0.7;
-springThickness = roundToLayerHeight(1.5);
+springThickness = roundToLayerHeight(1.2);
+spring_type = "flat"; // ["zigzag","flat"]
+flat_spring_thickness = roundToLayerHeight(0.3);
+//flat_spring_width = side_given_diagonal(coreR, flat_spring_thickness);
+flat_spring_width = side_given_diagonal(coreR, flat_spring_thickness) - 1.5;
 
 module spring_gate_profile(pos = 0, chamfered = true) {
   rotate(coreAngle) {
@@ -527,7 +529,33 @@ module spring_gate_profile(pos = 0, chamfered = true) {
   }
 }
 
-module spring(pos = 0, extra = 0.0, angle = 0) {
+module spring(pos = 0) {
+  if (spring_type == "zigzag") {
+    zigzag_spring(pos);
+  } else if (spring_type == "flat") {
+    flat_spring_sidebar(pos);
+    flat_spring(pos);
+  }
+}
+
+module flat_spring_sidebar(pos = 0) {
+  linear_extrude_y(springThickness,true) {
+    translate_x(spacerR + C - (1-pos)*springTravel) {
+      w = coreR - (spacerR+C) - flat_spring_thickness;
+      square([w,stackThickness]);
+    }
+  }
+}
+module flat_spring(pos = 0) {
+  translate_x(coreR - flat_spring_thickness - (1-pos)*springTravel) {
+    linear_extrude_x(flat_spring_thickness) {
+      translate_x(-flat_spring_width/2)
+        square([flat_spring_width,stackThickness]);
+    }
+  }
+}
+
+module zigzag_spring(pos = 0, extra = 0.0, angle = 0) {
   h = stackThickness;
   baseW = side_given_diagonal(coreR, springThickness/2) - spacerR;
   barW = baseW - 0.2;
@@ -547,18 +575,38 @@ module spring(pos = 0, extra = 0.0, angle = 0) {
   }
 }
 
+module spring_sidebar_hole_profile() {
+  if (springTravel > 0) {
+    translate_x(lots/2) square([lots,springThickness+2*C],true);
+    if (spring_type == "flat") {
+      extra = C;
+      translate_x(coreR - springTravel - flat_spring_thickness - extra) {
+        difference() {
+          h = flat_spring_width + 2*C;
+          translate_y(-h/2) square([lots, h]);
+          r = 2*coreR;
+          *translate_x(extra-r) circle(r=r);
+        }
+      }
+    }
+  }
+}
+*!intersection() { spring_sidebar_hole_profile(); circle(r=coreR); }
+
 *!spring();
 *!group() {
-  translate_y(6) spring(angle=4);
-  translate_y(4) spring(extra=0.5,angle=2);
-  translate_y(2) spring(extra=0.5);
-  spring();
-  translate_y(-2) spring(pos=1);
-  translate_y(-4) translate_x(springTravel) spring(extra=0.5, angle=-4);
-  translate_y(-6) translate_x(springTravel) spring(extra=0.0, angle=-3);
+  translate_y(6) zigzag_spring(angle=4);
+  translate_y(4) zigzag_spring(extra=0.5,angle=2);
+  translate_y(2) zigzag_spring(extra=0.5);
+  zigzag_spring();
+  translate_y(-2) zigzag_spring(pos=1);
+  translate_y(-4) translate_x(springTravel) zigzag_spring(extra=0.5, angle=-4);
+  translate_y(-6) translate_x(springTravel) zigzag_spring(extra=0.0, angle=-3);
 }
 
-module export_spring() { rotate([90]) spring(angle=4); }
+module export_zigzag_spring() { rotate([90]) zigzag_spring(angle=4); }
+module export_flat_spring_sidebar() { rotate([90]) flat_spring_sidebar(); }
+module export_flat_spring() { rotate([0,90]) flat_spring(); }
 
 //-----------------------------------------------------------------------------
 // Housing
@@ -753,8 +801,39 @@ module shackle_with_support() {
 }
 *!shackle_with_support();
 
+module shackle_with_support_y() {
+  rotate([90])
+  group() {
+    shackle();
+    // support 
+    color("red") group() {
+      translate_z(shackleBendZ) intersection() {
+        rotate([-90,0,0]) rotate_extrude(convexity=4) {
+          shackle_support_y();
+        }
+        positive_z();
+      }
+      translate_z(shackleZ) mirror([1,0,0]) linear_extrude(shackleBendZ - shackleZ) shackle_support_y();
+      translate_z(shackleZ2) linear_extrude(shackleBendZ - shackleZ2) shackle_support_y();
+    }
+  }
+}
+module shackle_support_y() {
+  offset = 1*layerHeight;
+  base = 3 * layerHeight;
+  a = 45;
+  wall = 0.4;
+  difference() {
+    w = cos(a)*(shackleR+offset) + wall;
+    translate([shackleX-w, -shackleR-base]) square([2*w, (1-sin(a))*shackleR + base]);
+    translate([shackleX,0]) circle(r=shackleR+offset);
+  }
+}
+*!shackle_with_support_y();
+
 module export_shackle_retaining_pin(){shackle_retaining_pin();}
 module export_shackle_with_support(){shackle_with_support();}
+module export_shackle_with_support_y(){shackle_with_support_y();}
 
 //-----------------------------------------------------------------------------
 // Locking lugs
@@ -1078,7 +1157,7 @@ module visualize_cutout(colors, min_x = undef, min_y = undef, min_z = undef, max
 }
 
 module assembly() {
-  anim = 5;
+  anim = 0;
   angle = min(90,anim);
   coreExtraAngle = max(0,anim-90);
   sidebarPos = 1 - min(1,max(0,anim-80)/10);
@@ -1088,7 +1167,7 @@ module assembly() {
   
   body = false;
   housing = false;
-  shackle = false;
+  shackle = true;
   shacklePin = true;
   screw = true;
   lugs = false;
@@ -1110,6 +1189,8 @@ module assembly() {
     if (screw) screw(threads=threads);
     if (lugs) lugs(lugPos);
     if (core) rotate(coreAngle+coreExtraAngle) core();
+    if (core) rotate(coreAngle+coreExtraAngle) sidebar();
+    if (core) rotate(coreAngle+coreExtraAngle) spring();
     if (wafers) rotate(coreAngle+coreExtraAngle) {
       for (i=[0:len(bitting)-1]) {
         translate_z(i*(waferThickness+sepThickness)+sepThickness + 0.5*layerHeight)
