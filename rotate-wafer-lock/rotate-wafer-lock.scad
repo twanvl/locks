@@ -418,6 +418,7 @@ module core_profile() {
     }
   }
 }
+*!core_profile();
 
 stackThickness = len(bitting)*(waferThickness+sepThickness);
 coreThickness = stackThickness + layerHeight;
@@ -507,8 +508,8 @@ module export_sidebar() { rotate([90]) sidebar(); }
 // Side spring
 //-----------------------------------------------------------------------------
 
-springTravel = 0.7;
-springThickness = roundToLayerHeight(1.2);
+springTravel = 0.8;
+springThickness = roundToLayerHeight(1.6);
 spring_type = "flat"; // ["zigzag","flat"]
 flat_spring_thickness = roundToLayerHeight(0.3);
 //flat_spring_width = side_given_diagonal(coreR, flat_spring_thickness);
@@ -516,16 +517,20 @@ flat_spring_width = side_given_diagonal(coreR, flat_spring_thickness) - 1.5;
 
 module spring_gate_profile(pos = 0, chamfered = true) {
   rotate(coreAngle) {
-    chamfer = chamfered ? springTravel : 0;
-    extraW  = chamfered ? springTravel-0.1 : 0.05;
-    *translate([(coreR+spacerR)/2 - (1-pos)*springTravel, 0]) {
-      chamfer_rect(coreR-spacerR, springThickness + 2*extraW, chamfer);
+    if (spring_type == "zigzag") {
+      chamfer = chamfered ? springTravel : 0;
+      extraW  = chamfered ? springTravel-0.1 : 0.05;
+      *translate([(coreR+spacerR)/2 - (1-pos)*springTravel, 0]) {
+        chamfer_rect(coreR-spacerR, springThickness + 2*extraW, chamfer);
+      }
+      x = spacerR - springTravel;
+      y = springThickness/2 + (chamfer ? C/2 : C);
+      y2  = y + lots*(chamfered ? 0   : 0.4);
+      y2b = y + lots*(chamfered ? 1.2 : 0.4);
+      polygon([[x,-y],[x,y],[x+lots,y2],[x+lots,-y2b]]);
+    } else if (spring_type == "flat") {
+      offset(delta=C) flat_spring_sidebar_profile(pos=pos);
     }
-    x = spacerR - springTravel;
-    y = springThickness/2 + (chamfer ? C/2 : C);
-    y2  = y + lots*(chamfered ? 0   : 0.4);
-    y2b = y + lots*(chamfered ? 1.2 : 0.4);
-    polygon([[x,-y],[x,y],[x+lots,y2],[x+lots,-y2b]]);
   }
 }
 
@@ -538,12 +543,16 @@ module spring(pos = 0) {
   }
 }
 
+module flat_spring_sidebar_profile(pos = 0) {
+  w = coreR - spacerR - flat_spring_thickness;
+  translate_x(spacerR - (1-pos)*springTravel + w/2) {
+    chamfer = springTravel;
+    chamfer_rect(w,springThickness,0,r_bl=chamfer,r_tl=chamfer);
+  }
+}
 module flat_spring_sidebar(pos = 0) {
-  linear_extrude_y(springThickness,true) {
-    translate_x(spacerR + C - (1-pos)*springTravel) {
-      w = coreR - (spacerR+C) - flat_spring_thickness;
-      square([w,stackThickness]);
-    }
+  linear_extrude(stackThickness) {
+    flat_spring_sidebar_profile(pos=pos);
   }
 }
 module flat_spring(pos = 0) {
@@ -577,7 +586,7 @@ module zigzag_spring(pos = 0, extra = 0.0, angle = 0) {
 
 module spring_sidebar_hole_profile() {
   if (springTravel > 0) {
-    translate_x(lots/2) square([lots,springThickness+2*C],true);
+    translate_x(lots/2) square([lots,springThickness+C],true);
     if (spring_type == "flat") {
       extra = C;
       translate_x(coreR - springTravel - flat_spring_thickness - extra) {
@@ -1003,11 +1012,12 @@ module export_screw() { rotate([180]) translate_z(-screwTopZ) screw(); }
 //-----------------------------------------------------------------------------
 
 tightC = 0.08;
-bodyWall = 1.2;
+bodyWall = 1.5;
 bodyWall2 = 1.6;
 bodyShape = "smooth";
-bodyChamfer = 2*layerHeight;
+bodyChamfer = 3*layerHeight;
 housingC = C;
+echo(2*housingR);
 
 module lock_body_profile() {
   r1 = housingR+housingC+bodyWall;
@@ -1037,11 +1047,25 @@ module lock_body_profile() {
 }
 *!lock_body_profile();
 
-module lock_body() {
+module lock_body(logo=true) {
   difference() {
     translate_z(-frontThickness)
-    linear_extrude_cone_chamfer(bodyThickness,bodyChamfer,bodyChamfer,resolution=30) {
-      lock_body_profile();
+    union() {
+      depth = 0.4; // logo
+      difference() {
+        linear_extrude_cone_chamfer(bodyThickness,bodyChamfer,bodyChamfer,resolution=30) {
+          lock_body_profile();
+        }
+        r1 = housingR+housingC+bodyWall;
+        r2 = shackleX+shackleR+housingC+bodyWall2;
+        logo_size = 8;
+        translate([r2*0.5,-r1*0.9,logo_size+2])
+        rotate(15)
+        linear_extrude_y(depth+2,convexity=10) logo2d(r=logo_size,line_width=0.3);
+      }
+      translate_z(2*bodyChamfer) linear_extrude(bodyThickness-4*bodyChamfer) {
+        offset(-depth) lock_body_profile();
+      }
     }
     // hole for housing
     translate_z(-frontThickness-eps)
@@ -1165,13 +1189,14 @@ module assembly() {
   lugPos = coreExtraAngle/90;
   shacklePos = 0*shackleTravel;
   
-  body = false;
+  body = true;
   housing = false;
   shackle = true;
   shacklePin = true;
   screw = true;
   lugs = false;
-  core = true;
+  core = false;
+  sidebar = true;
   wafers = true;
   spacers = wafers;
 
@@ -1189,8 +1214,8 @@ module assembly() {
     if (screw) screw(threads=threads);
     if (lugs) lugs(lugPos);
     if (core) rotate(coreAngle+coreExtraAngle) core();
-    if (core) rotate(coreAngle+coreExtraAngle) sidebar();
-    if (core) rotate(coreAngle+coreExtraAngle) spring();
+    if (sidebar) rotate(coreAngle+coreExtraAngle) sidebar();
+    if (sidebar) rotate(coreAngle+coreExtraAngle) spring();
     if (wafers) rotate(coreAngle+coreExtraAngle) {
       for (i=[0:len(bitting)-1]) {
         translate_z(i*(waferThickness+sepThickness)+sepThickness + 0.5*layerHeight)
