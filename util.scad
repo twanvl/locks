@@ -377,6 +377,24 @@ module swap_xyz() {
 }
 
 //-----------------------------------------------------------------------------
+// Holes
+//-----------------------------------------------------------------------------
+
+// teardrop shape for making printable round holes
+module teardrop(r) {
+  union() {
+    circle(r=r);
+    translate([0,r*sqrt(2)/2]) rotate(45) square(r,true);
+  }
+}
+module semi_teardrop(r,cutoff=3*layerHeight) {
+  intersection() {
+    teardrop(r);
+    translate_y(r+cutoff) negative_y2d();
+  }
+}
+
+//-----------------------------------------------------------------------------
 // Threads
 //-----------------------------------------------------------------------------
 
@@ -396,9 +414,9 @@ function coarse_pitch(d) =
   d == 20 ? 2.5 :
   echo("unknown pitch for thread ",d);
 
-module standard_thread(d,length,C=0,internal=false,leadin=0) {
+module standard_thread(d,length,C=0,internal=false,leadin=0,extra_internal=true) {
   c = internal ? C : 0;
-  metric_thread(diameter=d+2*c,pitch=coarse_pitch(d),length=length,internal=internal,leadin=leadin);
+  metric_thread(diameter=d+2*c,pitch=coarse_pitch(d),length=length,internal=internal&&extra_internal,leadin=leadin);
 }
 module m3_thread(length,C=0,internal=false) {
   standard_thread(3,length=length,internal=internal,leadin=leadin);
@@ -524,11 +542,12 @@ module simple_slot_profile(w, dx, h, slope = 1.2, center=0.5) {
 //   left_flat: make left side flat even if angle!=0
 //   right_flat: make right side flat even if angle!=0
 //   center: center around [0,0]? Can be a vector of 2 booleans
-module spring_profile(w, h, turns = 4, line_width=0.5, angle = 0, left_flat = true, right_flat = true, center = false, curved = false) {
+module spring_profile(w, h, turns = 4, line_width=0.5, angle = undef, left_flat = true, right_flat = true, center = false, curved = false, stretch = 0) {
   nx = turns;
   r = line_width;
   width_per_turn = (w - line_width) / turns;
   gon = 80; // approximate circular turn as an n-gon
+  angle = is_undef(angle) ? asin(stretch/h)/(turns-1) : angle;
   translate([line_width/2 + (is_bool(center) && center || center[0] ? -w/2 : 0),line_width/2 + (is_bool(center) && center || center[1] ? -h/2 : 0)])
   line(cumsum([for (i=[0:turns])
       each [polar( i == 0 && left_flat || i == turns && right_flat
