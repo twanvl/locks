@@ -630,7 +630,7 @@ housingOnly = false;
 
 coreAngle = 0;
 
-module housing_profile(connector=1, coreHole=false, sidebar=true) {
+module housing_profile(connector=1, coreHole=false, sidebar=true, sidebar_offset=0) {
   chamfer = 3;
   difference() {
     group() {
@@ -650,7 +650,7 @@ module housing_profile(connector=1, coreHole=false, sidebar=true) {
       } else {
         offset(-chamfer)offset(chamfer) {
           circle(r=housingR);
-          if (sidebar) offset(gateCHousing+housingWall) sidebar_profile(1);
+          if (sidebar) offset(gateCHousing+housingWall+sidebar_offset) sidebar_profile(1);
         }
       }
     }
@@ -1059,11 +1059,12 @@ module lock_body(logo=true) {
         r1 = housingR+housingC+bodyWall;
         r2 = shackleX+shackleR+housingC+bodyWall2;
         logo_size = 8;
+        if (logo)
         translate([r2*0.5,-r1*0.9,logo_size+2])
         rotate(15)
         linear_extrude_y(depth+2,convexity=10) logo2d(r=logo_size,line_width=0.3);
       }
-      translate_z(2*bodyChamfer) linear_extrude(bodyThickness-4*bodyChamfer) {
+      if (logo) translate_z(2*bodyChamfer) linear_extrude(bodyThickness-4*bodyChamfer) {
         offset(-depth) lock_body_profile();
       }
     }
@@ -1077,7 +1078,8 @@ module lock_body(logo=true) {
     }
     translate_z(housingThickness1)
     linear_extrude(housingThickness+eps-housingThickness1,convexity=2) {
-      offset(housingC) housing_profile(0);
+      // Note: add some extra clearance to the sidebar area
+      offset(housingC) housing_profile(0,sidebar_offset=0.1);
     }
     translate_z(housingThickness)
     linear_extrude(lugZ+eps-housingThickness,convexity=2) {
@@ -1125,7 +1127,7 @@ module lock_body(logo=true) {
     }
   }
 }
-*!lock_body();
+!lock_body(logo=false);
 
 module export_lock_body() { rotate([180]) translate_z(-(bodyThickness-frontThickness)) lock_body(); }
 
@@ -1190,7 +1192,7 @@ module assembly() {
   shacklePos = 0*shackleTravel;
   
   body = true;
-  housing = false;
+  housing = true;
   shackle = true;
   shacklePin = true;
   screw = true;
@@ -1202,7 +1204,7 @@ module assembly() {
 
   threads = false;
   
-  min_y = undef;
+  min_y = 0;
   max_z = undef;//is_undef(min_y) ? coreThickness/2 : undef;
   //max_z = lugZ+2;
   
