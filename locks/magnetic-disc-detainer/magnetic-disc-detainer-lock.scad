@@ -4,24 +4,27 @@ include <../../util/util.scad>
 // Parameters
 //-----------------------------------------------------------------------------
 
-magnet_diameter = 3;
+C = 0.15;
+
+magnet_diameter = 4;
 magnet_thickness = 1;
 
-key_diameter = 4;
+key_diameter = 5;
 
-sleeve_diameter = 6;
+sleeve_diameter = 7;
 
-disc_diameter = 11.5;
+disc_diameter = 12.7;
 disc_thickness = round_to_layer_height(magnet_diameter + 1);
 
-core_diameter = 15;
+core_diameter = 17;
 
 sidebar_travel = 1.2;
 sidebar_false_travel = 0.5;
 sidebar_thickness = 3;
 
 bits = 12;
-bitting = [10,3,0,8,7,2];
+//bitting = [0,3,0,8,7,2];
+bitting = [4,5,0,10];
 tension_disc = 2; // must have bitting[tension_disc]=0
 
 disc_total_spacing = 2*layer_height;
@@ -117,9 +120,14 @@ module disc(bit) {
     }
   }
 }
-*!intersection() {
-  disc(1);
-  translate_z(disc_thickness/2) negative_z();
+*!group() {
+  intersection() {
+    disc(1);
+    translate_z(disc_thickness/2) negative_z();
+  }
+  color("green") linear_extrude(2) sidebar_profile();
+  rotate(3*360/bits)
+  color("green") translate_x(sidebar_travel) linear_extrude(2) sidebar_profile();
 }
 
 module tension_disc_spacer() {
@@ -128,10 +136,14 @@ module tension_disc_spacer() {
       circle(d=disc_diameter);
       circle(d=sleeve_diameter+2*C);
       true_gate_profile();
-      offset(C) tension_disc_puller_profile();
+      offset(C) hull() {
+        translate_x(-1) tension_disc_puller_profile();
+        translate_x(sidebar_travel) tension_disc_puller_profile();
+      }
     }
   }
 }
+*!tension_disc_spacer();
 
 module discs_assembly(solved = true) {
   for (i=[0:len(bitting)-1]) {
@@ -166,19 +178,27 @@ module export_discs() {
 
 module sidebar_extra_profile() {
   w = core_diameter/2;
-  //h = magnet_diameter+1;
-  h = sidebar_thickness;
+  //h = magnet_diameter+1.2;
+  h = magnet_diameter+C;
+  //h = sidebar_thickness;
   difference() {
     intersection() {
-      translate([sleeve_diameter/2, (h-sidebar_thickness)/2 - h/2]) {
+      //translate([sleeve_diameter/2, (h-sidebar_thickness)/2 - h/2]) {
+      *translate([sleeve_diameter/2, - h/2]) {
         square([core_diameter/2 - sleeve_diameter/2, h]);
       }
-      *sym_polygon_y([
-        [sleeve_diameter/2, (magnet_diameter+1)/2],
-        //[disc_diameter/2, sidebar_thickness/2],
-        [core_diameter/2, sidebar_thickness/2]
+      w = side_given_diagonal(core_diameter/2, sidebar_thickness/2);
+      sym_polygon_y([
+        [sleeve_diameter/2, h/2],
+        [disc_diameter/2+0.5-1.1, h/2],
+        [disc_diameter/2+0.5, sidebar_thickness/2],
+        [w, sidebar_thickness/2]
       ]);
-      circle(d = core_diameter);
+      *sym_polygon_y([
+        [sleeve_diameter/2, h/2],
+        [w, h/2]
+      ]);
+      *circle(d = core_diameter);
     }
     circle(d = sleeve_diameter+2*C);
   }
@@ -190,9 +210,9 @@ module sidebar_profile() {
     //w = 100;
     group() {
       w = core_diameter - disc_diameter + 1;
-      translate_x(w/2 + disc_diameter/2 - sidebar_travel) {
-        scale([1,1.2])
-        chamfer_rect(w, sidebar_thickness, sidebar_travel);
+      translate_x(w/2 + disc_diameter/2 - sidebar_travel + C) {
+        //scale([1,1.2])
+        chamfer_rect(w, sidebar_thickness, sidebar_travel - C);
       }
       *difference() {
         sidebar_extra_profile();
@@ -210,7 +230,7 @@ module true_gate_profile() {
 module false_gate_profile() {
   offset(C) difference() {
     sidebar_profile();
-    circle(d=disc_diameter - sidebar_false_travel);
+    circle(d=disc_diameter - sidebar_false_travel + 2*C);
   }
 }
 
@@ -253,13 +273,23 @@ core_back_thickness = round_to_layer_height(1.5);
 rotation_limiter_diameter = core_diameter + 2*1.2;
 
 module core() {
-  linear_extrude(core_thickness, convexity=2) {
-    difference() {
-      circle(d = core_diameter);
-      circle(d = disc_diameter + 2*C);
-      offset(C) hull() {
-        sidebar_profile();
-        translate_x(sidebar_travel) sidebar_profile();
+  difference() {
+    linear_extrude(core_thickness, convexity=2) {
+      difference() {
+        circle(d = core_diameter);
+        circle(d = disc_diameter + 2*C);
+        offset(C) hull() {
+          sidebar_profile();
+          translate_x(sidebar_travel) sidebar_profile();
+        }
+      }
+    }
+    translate_z(disc_position(tension_disc) - C - 1) {
+      linear_extrude_cone_chamfer(disc_thickness+2*C+2, 1,1) {
+        offset(C) hull() {
+          tension_disc_puller_profile();
+          translate_x(lots) tension_disc_puller_profile();
+        }
       }
     }
   }
@@ -274,6 +304,7 @@ module core() {
     }
   }
 }
+*!core();
 
 module export_core() {
   translate_z((core_thickness+core_back_thickness)) rotate([180]) core();
@@ -284,8 +315,8 @@ module export_core() {
 //-----------------------------------------------------------------------------
 
 housing_bottom_thickness = round_to_layer_height(1.5);
-housing_diameter = core_diameter + 2*C + 2.4;
-housing_chamfer = 0.5;
+housing_diameter = core_diameter + 2*C + 3;
+housing_chamfer = 0.7;
 
 screw_length = 3;
 screw_overlap = 0.45;
@@ -319,7 +350,7 @@ module housing(threads=true) {
   // sleeve
   difference() {
     chamfer = 1.1;
-    key_chamfer = 0.5;
+    key_chamfer = 0.6;
     group() {
       cylinder(d = sleeve_diameter, h=core_thickness + core_back_thickness + (threads ? -screw_overlap : screw_length));
       // screw
@@ -348,6 +379,14 @@ module housing(threads=true) {
   }
 }
 
+module housing_test(threads=true) {
+  intersection() {
+    housing();
+    translate_z(-10) cylinder(d=core_diameter,h=lots);
+  }
+}
+!housing_test();
+
 housing_nut_z = core_thickness + core_back_thickness + layer_height;
 module housing_nut(threads=true) {
   difference() {
@@ -375,6 +414,9 @@ module housing_nut(threads=true) {
 module export_housing() {
   translate_z(housing_bottom_thickness) housing();
 }
+module export_housing_test() {
+  translate_z(housing_bottom_thickness) housing_test();
+}
 module export_housing_nut() {
   translate_z(-housing_nut_z) housing_nut();
 }
@@ -389,7 +431,7 @@ module assembly_cut(e,always=false) {
   intersection() {
     children();
     //if (always)
-    //translate_x(e*eps*10) positive_y();
+    translate_x(e*eps*10) positive_y();
     //translate_z(3.5*disc_thickness) negative_z();
   }
 }
